@@ -121,6 +121,60 @@ const mockTeachers: Teacher[] = [
     totalReviews: 52,
     nextAvailable: 'מחרתיים, 10:00',
   },
+  // ספורט ואימונים
+  {
+    id: '9',
+    displayName: 'עידו שמואלי',
+    bio: 'מאמן אישי מוסמך עם 10 שנות ניסיון באימוני כוח וריצות מרתון. התמחות באימונים פונקציונליים ו-TRX',
+    hourlyRate: 180,
+    subjects: ['personal_training', 'running', 'trx', 'fitness'],
+    rating: 4.9,
+    totalReviews: 156,
+    nextAvailable: 'היום, 17:00',
+    location: 'תל אביב',
+    experienceYears: 10,
+    totalStudents: 320,
+  },
+  {
+    id: '10',
+    displayName: 'דנה פרידמן',
+    bio: 'מורה ליוגה ופילאטיס מוסמכת. בוגרת לימודי יוגה בהודו והתמחות בפילאטיס טיפולי. מתמחה בכל רמות הידע',
+    hourlyRate: 160,
+    subjects: ['yoga', 'pilates', 'fitness'],
+    rating: 4.8,
+    totalReviews: 203,
+    nextAvailable: 'מחר, 8:00',
+    location: 'רמת גן',
+    experienceYears: 8,
+    totalStudents: 410,
+  },
+  // קורסי אקדמיה
+  {
+    id: '11',
+    displayName: 'ד"ר אביב כהן',
+    bio: 'דוקטורט במתמטיקה שימושית מהטכניון. מתמחה בהוראת חדו״א, אלגברה לינארית וסטטיסטיקה לסטודנטים במדעים',
+    hourlyRate: 220,
+    subjects: ['calculus', 'linear_algebra', 'statistics', 'mathematics'],
+    rating: 4.9,
+    totalReviews: 187,
+    nextAvailable: 'מחרתיים, 15:00',
+    location: 'חיפה',
+    experienceYears: 15,
+    totalStudents: 520,
+  },
+  {
+    id: '12',
+    displayName: 'מיכל לוי',
+    bio: 'בוגרת תואר שני בכלכלה מאוניברסיטת תל-אביב. מתמחה בהוראת מיקרו, מאקרו ומימון לתואר ראשון',
+    hourlyRate: 200,
+    subjects: ['microeconomics', 'macroeconomics', 'finance'],
+    rating: 4.7,
+    totalReviews: 142,
+    nextAvailable: 'היום, 18:00',
+    location: 'תל אביב',
+    experienceYears: 9,
+    totalStudents: 285,
+  },
 ];
 
 const getPopularSubjects = (t: any) => [
@@ -452,16 +506,6 @@ export default function HomeScreen() {
       flexDirection: 'row-reverse',
     },
 
-    avatar: {
-      width: 45,
-      height: 45,
-      borderRadius: 22.5,
-      backgroundColor: colors.primary[600],
-      justifyContent: 'center',
-      alignItems: 'center',
-      flexShrink: 0,
-    },
-
     teacherInfo: {
       flex: 1,
       gap: spacing[1],
@@ -729,7 +773,11 @@ export default function HomeScreen() {
               {t('home.featuredCategories')}
             </Typography>
             <View style={styles.categoriesGrid}>
-              <TouchableOpacity style={[styles.categoryCard, { backgroundColor: colors.blue[50] }]}>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.blue[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=mathematics_sciences')}
+                activeOpacity={0.7}
+              >
                 <Typography style={styles.categoryIcon}>🔢</Typography>
                 <Typography variant="body1" weight="medium" align="center">
                   מתמטיקה ומדעים
@@ -738,7 +786,11 @@ export default function HomeScreen() {
                   350+ מורים
                 </Typography>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.categoryCard, { backgroundColor: colors.green[50] }]}>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.green[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=languages')}
+                activeOpacity={0.7}
+              >
                 <Typography style={styles.categoryIcon}>🌍</Typography>
                 <Typography variant="body1" weight="medium" align="center">
                   שפות זרות
@@ -747,7 +799,11 @@ export default function HomeScreen() {
                   280+ מורים
                 </Typography>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.categoryCard, { backgroundColor: colors.purple[50] }]}>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.purple[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=music_arts')}
+                activeOpacity={0.7}
+              >
                 <Typography style={styles.categoryIcon}>🎵</Typography>
                 <Typography variant="body1" weight="medium" align="center">
                   מוזיקה ואמנות
@@ -756,13 +812,43 @@ export default function HomeScreen() {
                   150+ מורים
                 </Typography>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.categoryCard, { backgroundColor: colors.orange[50] }]}>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.orange[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=technology')}
+                activeOpacity={0.7}
+              >
                 <Typography style={styles.categoryIcon}>💻</Typography>
                 <Typography variant="body1" weight="medium" align="center">
                   טכנולוגיה ותכנות
                 </Typography>
                 <Typography variant="caption" color="textSecondary" align="center" style={{ marginTop: spacing[1] }}>
                   120+ מורים
+                </Typography>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.red[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=sports_fitness')}
+                activeOpacity={0.7}
+              >
+                <Typography style={styles.categoryIcon}>⚽</Typography>
+                <Typography variant="body1" weight="medium" align="center">
+                  ספורט ואימונים
+                </Typography>
+                <Typography variant="caption" color="textSecondary" align="center" style={{ marginTop: spacing[1] }}>
+                  95+ מורים
+                </Typography>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.indigo[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=academic_courses')}
+                activeOpacity={0.7}
+              >
+                <Typography style={styles.categoryIcon}>🎓</Typography>
+                <Typography variant="body1" weight="medium" align="center">
+                  קורסי אקדמיה
+                </Typography>
+                <Typography variant="caption" color="textSecondary" align="center" style={{ marginTop: spacing[1] }}>
+                  180+ מורים
                 </Typography>
               </TouchableOpacity>
             </View>

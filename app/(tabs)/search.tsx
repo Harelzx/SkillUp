@@ -17,7 +17,7 @@ import {
 } from '../../components/ui/bottomsheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   Search as SearchIcon,
   X,
@@ -135,18 +135,93 @@ const mockTeachers: Teacher[] = [
   {
     id: '8',
     displayName: 'אליעזר כהן',
-    bio: 'אמן פלסטי ומורה לציור ועיצוב גרפי. 15 שנות ניסיון בהוראת אמנות, ציור דיגיטלי ויצירה מולטימדיה',
+    bio: 'אמן פלסטי ומורה לציור ועיצוג גרפי. 15 שנות ניסיון בהוראת אמנות, ציור דיגיטלי ויצירה מולטימדיה',
     hourlyRate: 100,
     subjects: ['art', 'programming'],
     rating: 4.5,
     totalReviews: 52,
     nextAvailable: 'מחרתיים, 10:00',
   },
+  // ספורט ואימונים
+  {
+    id: '9',
+    displayName: 'עידו שמואלי',
+    bio: 'מאמן אישי מוסמך עם 10 שנות ניסיון באימוני כוח וריצות מרתון. התמחות באימונים פונקציונליים ו-TRX',
+    hourlyRate: 180,
+    subjects: ['personal_training', 'running', 'trx', 'fitness'],
+    rating: 4.9,
+    totalReviews: 156,
+    nextAvailable: 'היום, 17:00',
+    location: 'תל אביב',
+    experienceYears: 10,
+    totalStudents: 320,
+  },
+  {
+    id: '10',
+    displayName: 'דנה פרידמן',
+    bio: 'מורה ליוגה ופילאטיס מוסמכת. בוגרת לימודי יוגה בהודו והתמחות בפילאטיס טיפולי. מתמחה בכל רמות הידע',
+    hourlyRate: 160,
+    subjects: ['yoga', 'pilates', 'fitness'],
+    rating: 4.8,
+    totalReviews: 203,
+    nextAvailable: 'מחר, 8:00',
+    location: 'רמת גן',
+    experienceYears: 8,
+    totalStudents: 410,
+  },
+  // קורסי אקדמיה
+  {
+    id: '11',
+    displayName: 'ד"ר אביב כהן',
+    bio: 'דוקטורט במתמטיקה שימושית מהטכניון. מתמחה בהוראת חדו״א, אלגברה לינארית וסטטיסטיקה לסטודנטים במדעים',
+    hourlyRate: 220,
+    subjects: ['calculus', 'linear_algebra', 'statistics', 'mathematics'],
+    rating: 4.9,
+    totalReviews: 187,
+    nextAvailable: 'מחרתיים, 15:00',
+    location: 'חיפה',
+    experienceYears: 15,
+    totalStudents: 520,
+  },
+  {
+    id: '12',
+    displayName: 'מיכל לוי',
+    bio: 'בוגרת תואר שני בכלכלה מאוניברסיטת תל-אביב. מתמחה בהוראת מיקרו, מאקרו ומימון לתואר ראשון',
+    hourlyRate: 200,
+    subjects: ['microeconomics', 'macroeconomics', 'finance'],
+    rating: 4.7,
+    totalReviews: 142,
+    nextAvailable: 'היום, 18:00',
+    location: 'תל אביב',
+    experienceYears: 9,
+    totalStudents: 285,
+  },
 ];
+
+// Category to subjects mapping
+const categorySubjectsMap: Record<string, string[]> = {
+  'mathematics_sciences': ['mathematics', 'physics', 'chemistry'],
+  'languages': ['english', 'literature', 'history'],
+  'music_arts': ['music', 'piano', 'art'],
+  'technology': ['programming'],
+  'sports_fitness': ['personal_training', 'fitness', 'trx', 'running', 'yoga', 'pilates', 'soccer', 'basketball', 'tennis'],
+  'academic_courses': ['calculus', 'linear_algebra', 'statistics', 'microeconomics', 'macroeconomics', 'finance', 'data_structures', 'physics', 'chemistry'],
+};
+
+// Category display names
+const categoryNames: Record<string, string> = {
+  'mathematics_sciences': 'מתמטיקה ומדעים',
+  'languages': 'שפות זרות',
+  'music_arts': 'מוזיקה ואמנות',
+  'technology': 'טכנולוגיה ותכנות',
+  'sports_fitness': 'ספורט ואימונים',
+  'academic_courses': 'קורסי אקדמיה',
+};
 
 export default function SearchScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { isRTL, getFlexDirection } = useRTL();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -155,6 +230,16 @@ export default function SearchScreen() {
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'rating' | 'price_low' | 'price_high' | 'reviews'>('rating');
   const [isSearching, setIsSearching] = useState(false);
+  
+  // Get category from URL params
+  const incomingCategory = params.category as string | undefined;
+
+  // Handle incoming category from navigation
+  useEffect(() => {
+    if (incomingCategory && categorySubjectsMap[incomingCategory]) {
+      // Don't set selectedCategory directly - we'll handle it in filtering
+    }
+  }, [incomingCategory]);
 
   // Bottom Sheet
   const snapPoints = useMemo(() => ['50%', '85%'], []);
@@ -167,23 +252,37 @@ export default function SearchScreen() {
   const cities = ['הכל', 'תל אביב', 'רמת גן', 'ירושלים', 'הרצליה', 'חיפה', 'פתח תקווה'];
   const ratings = [4.5, 4.0, 3.5, 3.0];
 
-  const categories = [
+  // Popular subjects - specific subjects, not categories
+  const popularSubjects = [
     { id: 'all', name: 'הכל', icon: '🌟' },
-    { id: 'mathematics', name: 'מתמטיקה', icon: '📐' },
+    // כלליים ופופולריים
     { id: 'english', name: 'אנגלית', icon: '🇬🇧' },
-    { id: 'music', name: 'מוזיקה', icon: '🎵' },
+    { id: 'mathematics', name: 'מתמטיקה', icon: '📐' },
     { id: 'physics', name: 'פיזיקה', icon: '⚗️' },
-    { id: 'programming', name: 'תכנות', icon: '💻' },
-    { id: 'literature', name: 'ספרות', icon: '📚' },
-    { id: 'chemistry', name: 'כימיה', icon: '🧪' },
-    { id: 'history', name: 'היסטוריה', icon: '📜' },
-    { id: 'art', name: 'אמנות', icon: '🎨' },
     { id: 'piano', name: 'פסנתר', icon: '🎹' },
+    // ספורט ואימונים
+    { id: 'yoga', name: 'יוגה', icon: '🧘' },
+    { id: 'pilates', name: 'פילאטיס', icon: '🤸' },
+    { id: 'personal_training', name: 'אימון אישי', icon: '💪' },
+    { id: 'running', name: 'ריצה', icon: '🏃' },
+    // קורסי אקדמיה
+    { id: 'calculus', name: 'חדו״א', icon: '∫' },
+    { id: 'linear_algebra', name: 'אלגברה לינארית', icon: '📊' },
+    { id: 'statistics', name: 'סטטיסטיקה', icon: '📈' },
+    { id: 'programming', name: 'תכנות', icon: '💻' },
   ];
 
   // Advanced filtering logic
   const filteredTeachers = useMemo(() => {
     let results = mockTeachers;
+
+    // Filter by incoming category (from navigation)
+    if (incomingCategory && categorySubjectsMap[incomingCategory]) {
+      const allowedSubjects = categorySubjectsMap[incomingCategory];
+      results = results.filter(teacher =>
+        teacher.subjects.some(subject => allowedSubjects.includes(subject))
+      );
+    }
 
     // Filter by search query
     if (searchQuery.trim()) {
@@ -196,7 +295,7 @@ export default function SearchScreen() {
       );
     }
 
-    // Filter by category
+    // Filter by category (from local selection)
     if (selectedCategory && selectedCategory !== 'all') {
       results = results.filter(teacher =>
         teacher.subjects.includes(selectedCategory)
@@ -238,10 +337,10 @@ export default function SearchScreen() {
     });
 
     return results;
-  }, [searchQuery, selectedCategory, selectedCity, priceRange, selectedRating, sortBy]);
+  }, [incomingCategory, searchQuery, selectedCategory, selectedCity, priceRange, selectedRating, sortBy]);
 
   // Check if any filters are active
-  const hasActiveFilters = searchQuery || (selectedCategory && selectedCategory !== 'all') ||
+  const hasActiveFilters = incomingCategory || searchQuery || (selectedCategory && selectedCategory !== 'all') ||
                           (selectedCity && selectedCity !== 'הכל') ||
                           priceRange[0] > 50 || priceRange[1] < 300 || selectedRating;
 
@@ -252,6 +351,7 @@ export default function SearchScreen() {
       const timer = setTimeout(() => setIsSearching(false), 300);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [searchQuery]);
 
 
@@ -270,6 +370,10 @@ export default function SearchScreen() {
     setPriceRange([50, 300]);
     setSelectedRating(null);
     setSortBy('rating');
+    // Clear the incoming category by navigating back
+    if (incomingCategory) {
+      router.replace('/(tabs)/search');
+    }
   };
 
 
@@ -572,11 +676,22 @@ export default function SearchScreen() {
       <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        {/* Greeting */}
+        {/* Greeting or Category Title */}
         <View style={styles.greeting}>
-          <Typography variant="h4" weight="bold" style={{ textAlign: 'right' }}>
-            מה נלמד היום? 🎓
-          </Typography>
+          {incomingCategory && categoryNames[incomingCategory] ? (
+            <>
+              <Typography variant="h4" weight="bold" style={{ textAlign: 'right' }}>
+                {categoryNames[incomingCategory]}
+              </Typography>
+              <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right', marginTop: spacing[1] }}>
+                מורים מומחים בתחום
+              </Typography>
+            </>
+          ) : (
+            <Typography variant="h4" weight="bold" style={{ textAlign: 'right' }}>
+              מה נלמד היום? 🎓
+            </Typography>
+          )}
         </View>
 
         {/* Search Bar */}
@@ -600,12 +715,12 @@ export default function SearchScreen() {
           </BottomSheetTrigger>
         </View>
 
-        {/* Categories - Horizontal Scroll */}
+        {/* Popular Subjects - Horizontal Scroll */}
         <View style={styles.categoriesContainer}>
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={categories}
+            data={popularSubjects}
             keyExtractor={(item) => item.id}
             inverted={isRTL}
             renderItem={({ item }) => (
@@ -726,11 +841,31 @@ export default function SearchScreen() {
             <View style={styles.emptyState}>
               <SearchIcon size={48} color={colors.gray[400]} />
               <Typography variant="h5" color="textSecondary" style={{ marginTop: spacing[3] }}>
-                לא נמצאו מורים
+                {incomingCategory && categoryNames[incomingCategory] 
+                  ? `אין מורים זמינים בקטגוריה "${categoryNames[incomingCategory]}"`
+                  : 'לא נמצאו מורים'}
               </Typography>
-              <Typography variant="body2" color="textSecondary" align="center" style={{ marginTop: spacing[2] }}>
-                נסה לחפש במילים אחרות או לבחור קטגוריה אחרת
+              <Typography variant="body2" color="textSecondary" align="center" style={{ marginTop: spacing[2], marginHorizontal: spacing[4] }}>
+                {incomingCategory 
+                  ? 'נסה לבחור קטגוריה אחרת או לחפש נושא ספציפי'
+                  : 'נסה לחפש במילים אחרות או לבחור קטגוריה אחרת'}
               </Typography>
+              {incomingCategory && (
+                <TouchableOpacity 
+                  onPress={clearAllFilters}
+                  style={{
+                    marginTop: spacing[4],
+                    backgroundColor: colors.primary[600],
+                    paddingHorizontal: spacing[5],
+                    paddingVertical: spacing[3],
+                    borderRadius: 12,
+                  }}
+                >
+                  <Typography variant="body2" color="white" weight="semibold">
+                    חזור לכל הקטגוריות
+                  </Typography>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
