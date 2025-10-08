@@ -6,6 +6,7 @@ import { AuthProvider } from '@/features/auth/auth-context';
 import { initI18n } from '@/lib/i18n';
 import { Text, View } from 'react-native';
 import { RTLProvider } from '@/context/RTLContext';
+import { CreditsProvider } from '@/context/CreditsContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { GluestackUIProvider } from '../components/ui/gluestack-ui-provider';
 import '../global.css';
@@ -49,20 +50,26 @@ export default function RootLayout() {
           <RTLProvider>
             <QueryClientProvider client={queryClient}>
               <AuthProvider>
-                <Stack>
-                  <Stack.Screen
-                    name="(auth)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="(public)"
-                    options={{ headerShown: false }}
-                  />
-                </Stack>
+                <CreditsProvider>
+                  <Stack>
+                    <Stack.Screen
+                      name="(auth)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="(tabs)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="(profile)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="(public)"
+                      options={{ headerShown: false }}
+                    />
+                  </Stack>
+                </CreditsProvider>
               </AuthProvider>
             </QueryClientProvider>
           </RTLProvider>

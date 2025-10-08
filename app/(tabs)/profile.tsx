@@ -6,6 +6,7 @@ import {
   Alert,
   Animated,
   Image,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +23,10 @@ import {
   Edit3,
   Gift,
   Star,
+  Coins,
+  Info,
+  X,
+  CheckCircle,
 } from 'lucide-react-native';
 import { Card, CardContent } from '@/ui/Card';
 import { Typography } from '@/ui/Typography';
@@ -29,6 +34,7 @@ import { Button, ButtonText } from '@gluestack-ui/themed';
 import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
+import { useCredits } from '@/context/CreditsContext';
 
 interface MenuSection {
   id: string;
@@ -50,7 +56,10 @@ export default function ProfileScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { getFlexDirection, isRTL } = useRTL();
+  const { credits } = useCredits();
   const [pressedItem, setPressedItem] = useState<string | null>(null);
+  const [showCreditsInfo, setShowCreditsInfo] = useState(false);
+  const [gotItPressed, setGotItPressed] = useState(false);
 
   // Mock user data
   const user = {
@@ -61,6 +70,7 @@ export default function ProfileScreen() {
     bio: 'תלמיד כיתה יב מחפש שיפור בציונים באנגלית ומתמטיקה',
     totalLessons: 15,
     memberSince: '2023',
+    role: 'student' as 'student' | 'teacher', // student or teacher
   };
 
   const handleLogout = () => {
@@ -91,56 +101,56 @@ export default function ProfileScreen() {
           id: 'editProfile',
           title: t('profile.editProfile'),
           icon: Edit3,
-          onPress: () => console.log('Edit profile'),
+          onPress: () => router.push('/(profile)/edit-profile'),
           showChevron: true,
         },
         {
           id: 'paymentMethods',
           title: t('profile.paymentMethods'),
           icon: CreditCard,
-          onPress: () => console.log('Payment methods'),
+          onPress: () => router.push('/(profile)/payment-methods'),
           showChevron: true,
         },
         {
           id: 'notifications',
           title: t('profile.notifications'),
           icon: Bell,
-          onPress: () => console.log('Notifications'),
+          onPress: () => router.push('/(profile)/notifications'),
           showChevron: true,
         },
         {
           id: 'referrals',
           title: t('profile.referrals'),
           icon: Gift,
-          onPress: () => console.log('Referrals'),
+          onPress: () => router.push('/(profile)/referrals'),
           showChevron: true,
         },
         {
           id: 'reviews',
           title: t('profile.myReviews'),
           icon: Star,
-          onPress: () => console.log('My reviews'),
+          onPress: () => router.push('/(profile)/my-reviews'),
           showChevron: true,
         },
         {
           id: 'help',
           title: t('profile.help'),
           icon: HelpCircle,
-          onPress: () => console.log('Help'),
+          onPress: () => router.push('/(profile)/help'),
           showChevron: true,
         },
         {
           id: 'privacy',
           title: t('profile.privacy'),
           icon: Shield,
-          onPress: () => console.log('Privacy'),
+          onPress: () => router.push('/(profile)/privacy'),
           showChevron: true,
         },
         {
           id: 'settings',
           title: t('profile.settings'),
           icon: Settings,
-          onPress: () => console.log('Settings'),
+          onPress: () => router.push('/(profile)/settings'),
           showChevron: true,
         },
       ],
@@ -252,6 +262,66 @@ export default function ProfileScreen() {
       fontSize: 15,
       fontWeight: '500',
     },
+    creditsSection: {
+      marginTop: spacing[3],
+      alignItems: 'center',
+    },
+    creditsBadge: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      backgroundColor: colors.green[50],
+      paddingHorizontal: spacing[4],
+      paddingVertical: spacing[2],
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.green[200],
+      gap: spacing[2],
+    },
+    infoModal: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: spacing[4],
+    },
+    infoContent: {
+      backgroundColor: colors.white,
+      borderRadius: 16,
+      padding: spacing[5],
+      width: '100%',
+      maxWidth: 400,
+      shadowColor: colors.black,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    infoCloseButton: {
+      position: 'absolute',
+      top: spacing[2],
+      left: isRTL ? undefined : spacing[2],
+      right: isRTL ? spacing[2] : undefined,
+      padding: spacing[2],
+      zIndex: 1,
+    },
+    gotItButtonContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    gotItButton: {
+      minHeight: 48,
+      minWidth: 140,
+      paddingHorizontal: spacing[5],
+      paddingVertical: spacing[3],
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.primary[600],
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      elevation: 3,
+    },
   });
 
   const renderMenuItem = (item: MenuItem) => (
@@ -341,6 +411,23 @@ export default function ProfileScreen() {
               </Typography>
             </View>
 
+            {/* Credits Badge - Only for students */}
+            {user.role === 'student' && (
+              <View style={styles.creditsSection}>
+                <TouchableOpacity 
+                  style={styles.creditsBadge}
+                  onPress={() => setShowCreditsInfo(true)}
+                  activeOpacity={0.7}
+                >
+                  <Coins size={18} color={colors.green[600]} />
+                  <Typography variant="body2" weight="semibold" style={{ color: colors.green[700] }}>
+                    קרדיטים: {credits.toFixed(0)} ₪
+                  </Typography>
+                  <Info size={14} color={colors.green[500]} />
+                </TouchableOpacity>
+              </View>
+            )}
+
             {user.bio && (
               <View style={styles.bioSection}>
                 <Typography variant="body2" style={{ color: '#4B5563', textAlign: 'center', lineHeight: 20 }}>
@@ -387,6 +474,99 @@ export default function ProfileScreen() {
           </View>
         ))}
       </ScrollView>
+
+      {/* Credits Info Modal */}
+      <Modal
+        visible={showCreditsInfo}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCreditsInfo(false)}
+      >
+        <TouchableOpacity 
+          style={styles.infoModal} 
+          activeOpacity={1}
+          onPress={() => setShowCreditsInfo(false)}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.infoContent}>
+              <TouchableOpacity 
+                style={styles.infoCloseButton}
+                onPress={() => setShowCreditsInfo(false)}
+              >
+                <X size={24} color={colors.gray[600]} />
+              </TouchableOpacity>
+
+              <View style={{ alignItems: 'center', marginBottom: spacing[4], marginTop: spacing[2] }}>
+                <View style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 30,
+                  backgroundColor: colors.green[50],
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: spacing[3],
+                }}>
+                  <Coins size={32} color={colors.green[600]} />
+                </View>
+                <Typography variant="h4" weight="bold" align="center">
+                  מה זה קרדיטים?
+                </Typography>
+              </View>
+
+              <Typography variant="body1" style={{ color: colors.gray[700], textAlign: 'center', lineHeight: 24, marginBottom: spacing[4] }}>
+                קרדיטים הם זיכוי משיעורים שבוטלו. תוכל להשתמש בהם לתשלום שיעורים עתידיים במקום תשלום בכרטיס אשראי.
+              </Typography>
+
+              <View style={{
+                backgroundColor: colors.green[50],
+                padding: spacing[4],
+                borderRadius: 12,
+                marginBottom: spacing[4],
+              }}>
+                <Typography variant="body2" weight="semibold" align="center" style={{ color: colors.green[700], marginBottom: spacing[2] }}>
+                  היתרה הנוכחית שלך
+                </Typography>
+                <Typography variant="h3" weight="bold" align="center" style={{ color: colors.green[600] }}>
+                  {credits.toFixed(0)} ₪
+                </Typography>
+              </View>
+
+              <View style={styles.gotItButtonContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.gotItButton,
+                    {
+                      backgroundColor: gotItPressed ? colors.primary[700] : colors.primary[600],
+                      transform: [{ scale: gotItPressed ? 0.97 : 1 }],
+                    }
+                  ]}
+                  onPress={() => setShowCreditsInfo(false)}
+                  onPressIn={() => setGotItPressed(true)}
+                  onPressOut={() => setGotItPressed(false)}
+                  activeOpacity={1}
+                  accessibilityLabel="הבנתי, סגירת ההסבר על קרדיטים"
+                  accessibilityRole="button"
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2] }}>
+                    <CheckCircle size={18} color={colors.white} />
+                    <Typography 
+                      variant="body1" 
+                      weight="semibold" 
+                      style={{ 
+                        color: colors.white,
+                        fontSize: 16,
+                        textAlign: 'center',
+                      }}
+                    >
+                      הבנתי
+                    </Typography>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
