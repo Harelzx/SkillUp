@@ -3,6 +3,9 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  Modal,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +17,9 @@ import {
   CheckCircle,
   AlertCircle,
   Plus,
+  X,
+  CreditCard,
+  Coins,
 } from 'lucide-react-native';
 import { Card, CardContent } from '@/ui/Card';
 import { Typography } from '@/ui/Typography';
@@ -21,9 +27,11 @@ import { Button, ButtonText } from '@gluestack-ui/themed';
 import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
+import { useCredits } from '@/context/CreditsContext';
 
 interface Lesson {
   id: string;
+  teacherId: string;
   teacherName: string;
   subject: string;
   date: string;
@@ -31,22 +39,42 @@ interface Lesson {
   status: 'upcoming' | 'completed' | 'cancelled';
   price: number;
   isOnline: boolean;
+  cancelledAt?: string;
 }
+
+interface TimeSlot {
+  date: string;
+  time: string;
+  available: boolean;
+}
+
+type RefundMethod = 'card' | 'credits';
 
 export default function LessonsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { getFlexDirection } = useRTL();
+  const { getFlexDirection, isRTL } = useRTL();
+  const { addCredits } = useCredits();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const [pressedButton, setPressedButton] = useState<string | null>(null);
+  
+  // Modal states
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [selectedRefundMethod, setSelectedRefundMethod] = useState<RefundMethod | null>(null);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Mock lessons data
-  const lessons: Lesson[] = [
+  // Mock lessons data - using state so we can update it
+  const [lessons, setLessons] = useState<Lesson[]>([
     {
       id: '1',
-      teacherName: 'שרה כהן',
+      teacherId: '1',
+      teacherName: 'ד"ר שרה כהן',
       subject: 'מתמטיקה',
-      date: '2024-01-20',
+      date: '2024-02-20',
       time: '17:00',
       status: 'upcoming',
       price: 120,
@@ -54,24 +82,36 @@ export default function LessonsScreen() {
     },
     {
       id: '2',
+      teacherId: '2',
       teacherName: 'דוד לוי',
       subject: 'אנגלית',
-      date: '2024-01-18',
+      date: '2024-02-25',
       time: '19:00',
-      status: 'completed',
+      status: 'upcoming',
       price: 100,
       isOnline: false,
     },
     {
       id: '3',
+      teacherId: '3',
       teacherName: 'רחל מור',
       subject: 'פיזיקה',
       date: '2024-01-15',
       time: '16:00',
-      status: 'cancelled',
+      status: 'completed',
       price: 150,
       isOnline: true,
     },
+  ]);
+
+  // Mock teacher availability
+  const mockAvailability: TimeSlot[] = [
+    { date: '2024-02-22', time: '10:00', available: true },
+    { date: '2024-02-22', time: '14:00', available: true },
+    { date: '2024-02-23', time: '11:00', available: true },
+    { date: '2024-02-23', time: '15:00', available: true },
+    { date: '2024-02-24', time: '09:00', available: true },
+    { date: '2024-02-24', time: '16:00', available: true },
   ];
 
   const upcomingLessons = lessons.filter(lesson => lesson.status === 'upcoming');
@@ -100,6 +140,92 @@ export default function LessonsScreen() {
         return AlertCircle;
       default:
         return Clock;
+    }
+  };
+
+  // Show toast message
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Handle cancel lesson
+  const handleCancelLesson = (lesson: Lesson) => {
+    setSelectedLesson(lesson);
+    setSelectedRefundMethod(null);
+    setCancelModalVisible(true);
+  };
+
+  // Process cancellation
+  const processCancellation = async () => {
+    if (!selectedLesson || !selectedRefundMethod) return;
+
+    setIsProcessing(true);
+    
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Update lesson status
+      setLessons(prevLessons =>
+        prevLessons.map(lesson =>
+          lesson.id === selectedLesson.id
+            ? { ...lesson, status: 'cancelled' as const, cancelledAt: new Date().toISOString() }
+            : lesson
+        )
+      );
+
+      // Add credits if refund method is credits
+      if (selectedRefundMethod === 'credits') {
+        addCredits(selectedLesson.price);
+      }
+
+      const refundText = selectedRefundMethod === 'card' ? 'לכרטיס' : 'בקרדיטים';
+      showToast(`השיעור בוטל בהצלחה. ההחזר ${refundText} בוצע`);
+      setCancelModalVisible(false);
+      setSelectedLesson(null);
+      setSelectedRefundMethod(null);
+    } catch (error) {
+      Alert.alert('שגיאה', 'אירעה שגיאה בביטול השיעור. נסה שוב.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle reschedule lesson
+  const handleRescheduleLesson = (lesson: Lesson) => {
+    setSelectedLesson(lesson);
+    setSelectedTimeSlot(null);
+    setRescheduleModalVisible(true);
+  };
+
+  // Process reschedule
+  const processReschedule = async () => {
+    if (!selectedLesson || !selectedTimeSlot) return;
+
+    setIsProcessing(true);
+    
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Update lesson date and time
+      setLessons(prevLessons =>
+        prevLessons.map(lesson =>
+          lesson.id === selectedLesson.id
+            ? { ...lesson, date: selectedTimeSlot.date, time: selectedTimeSlot.time }
+            : lesson
+        )
+      );
+
+      showToast('המועד עודכן בהצלחה');
+      setRescheduleModalVisible(false);
+      setSelectedLesson(null);
+      setSelectedTimeSlot(null);
+    } catch (error) {
+      Alert.alert('שגיאה', 'אירעה שגיאה בעדכון המועד. נסה שוב.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -180,6 +306,80 @@ export default function LessonsScreen() {
       shadowRadius: 4,
       elevation: 5,
     },
+    // Modal styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: spacing[4],
+    },
+    modalContent: {
+      backgroundColor: colors.white,
+      borderRadius: 16,
+      padding: spacing[5],
+      width: '100%',
+      maxWidth: 400,
+      shadowColor: colors.black,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    modalHeader: {
+      marginBottom: spacing[4],
+    },
+    closeButton: {
+      position: 'absolute',
+      top: spacing[1],
+      left: isRTL ? undefined : spacing[1],
+      right: isRTL ? spacing[1] : undefined,
+      padding: spacing[2],
+      zIndex: 1,
+    },
+    refundOption: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      padding: spacing[4],
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.gray[200],
+      marginBottom: spacing[3],
+    },
+    refundOptionSelected: {
+      borderColor: colors.primary[600],
+      backgroundColor: colors.primary[50],
+    },
+    refundOptionContent: {
+      flex: 1,
+      marginHorizontal: spacing[3],
+    },
+    timeSlot: {
+      padding: spacing[3],
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.gray[200],
+      marginBottom: spacing[2],
+      alignItems: 'center',
+    },
+    timeSlotSelected: {
+      borderColor: colors.primary[600],
+      backgroundColor: colors.primary[50],
+    },
+    toast: {
+      position: 'absolute',
+      bottom: spacing[8],
+      left: spacing[4],
+      right: spacing[4],
+      backgroundColor: colors.green[600],
+      padding: spacing[4],
+      borderRadius: 12,
+      shadowColor: colors.black,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 5,
+    },
   });
 
   const handleBookNewLesson = () => {
@@ -253,10 +453,7 @@ export default function LessonsScreen() {
                 }}
                 onPressIn={() => setPressedButton(`reschedule-${lesson.id}`)}
                 onPressOut={() => setPressedButton(null)}
-                onPress={() => {
-                  // Handle reschedule action
-                  console.log('Reschedule lesson:', lesson.id);
-                }}
+                onPress={() => handleRescheduleLesson(lesson)}
               >
                 <View style={[{ flexDirection: getFlexDirection(), alignItems: 'center', gap: spacing[1] }]}>
                   <Calendar size={16} color="white" />
@@ -266,7 +463,6 @@ export default function LessonsScreen() {
                 </View>
               </Button>
               <Button
-                variant="outline"
                 style={{
                   flex: 1,
                   minHeight: 48,
@@ -282,10 +478,7 @@ export default function LessonsScreen() {
                 }}
                 onPressIn={() => setPressedButton(`cancel-${lesson.id}`)}
                 onPressOut={() => setPressedButton(null)}
-                onPress={() => {
-                  // Handle cancel action
-                  console.log('Cancel lesson:', lesson.id);
-                }}
+                onPress={() => handleCancelLesson(lesson)}
               >
                 <ButtonText style={{
                   color: pressedButton === `cancel-${lesson.id}` ? '#B91C1C' : '#DC2626',
@@ -414,6 +607,226 @@ export default function LessonsScreen() {
       <TouchableOpacity style={styles.addButton} onPress={handleBookNewLesson}>
         <Plus size={24} color={colors.white} />
       </TouchableOpacity>
+
+      {/* Cancel Modal */}
+      <Modal
+        visible={cancelModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCancelModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1}
+          onPress={() => setCancelModalVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalContent}>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setCancelModalVisible(false)}
+              >
+                <X size={24} color={colors.gray[600]} />
+              </TouchableOpacity>
+
+              <View style={styles.modalHeader}>
+                <Typography variant="h4" weight="bold" align="center" style={{ marginBottom: spacing[2] }}>
+                  איך תרצה לקבל החזר?
+                </Typography>
+                <Typography variant="body2" color="textSecondary" align="center">
+                  בחר את שיטת ההחזר המועדפת עליך
+                </Typography>
+              </View>
+
+              {/* Refund Options */}
+              <TouchableOpacity
+                style={[
+                  styles.refundOption,
+                  selectedRefundMethod === 'card' && styles.refundOptionSelected
+                ]}
+                onPress={() => setSelectedRefundMethod('card')}
+              >
+                <CreditCard 
+                  size={24} 
+                  color={selectedRefundMethod === 'card' ? colors.primary[600] : colors.gray[600]} 
+                />
+                <View style={styles.refundOptionContent}>
+                  <Typography variant="body1" weight="semibold">
+                    החזר לכרטיס
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    הכסף יוחזר לכרטיס האשראי תוך 3-5 ימי עסקים
+                  </Typography>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.refundOption,
+                  selectedRefundMethod === 'credits' && styles.refundOptionSelected
+                ]}
+                onPress={() => setSelectedRefundMethod('credits')}
+              >
+                <Coins 
+                  size={24} 
+                  color={selectedRefundMethod === 'credits' ? colors.primary[600] : colors.gray[600]} 
+                />
+                <View style={styles.refundOptionContent}>
+                  <Typography variant="body1" weight="semibold">
+                    החזר בקרדיטים
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    הקרדיטים יתווספו מיד לחשבונך
+                  </Typography>
+                </View>
+              </TouchableOpacity>
+
+              {/* Action Buttons */}
+              <View style={{ flexDirection: getFlexDirection(), gap: spacing[2], marginTop: spacing[4] }}>
+                <Button
+                  style={{ 
+                    flex: 1,
+                    backgroundColor: colors.gray[200],
+                    borderRadius: 8,
+                    paddingVertical: spacing[3],
+                  }}
+                  onPress={() => setCancelModalVisible(false)}
+                  disabled={isProcessing}
+                >
+                  <ButtonText style={{ color: colors.gray[700] }}>ביטול</ButtonText>
+                </Button>
+                <Button
+                  style={{ 
+                    flex: 1,
+                    backgroundColor: selectedRefundMethod ? colors.red[600] : colors.gray[300]
+                  }}
+                  onPress={processCancellation}
+                  disabled={!selectedRefundMethod || isProcessing}
+                >
+                  {isProcessing ? (
+                    <ActivityIndicator color={colors.white} />
+                  ) : (
+                    <ButtonText style={{ color: colors.white }}>אשר ביטול</ButtonText>
+                  )}
+                </Button>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Reschedule Modal */}
+      <Modal
+        visible={rescheduleModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRescheduleModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1}
+          onPress={() => setRescheduleModalVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalContent}>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setRescheduleModalVisible(false)}
+              >
+                <X size={24} color={colors.gray[600]} />
+              </TouchableOpacity>
+
+              <View style={styles.modalHeader}>
+                <Typography variant="h4" weight="bold" align="center" style={{ marginBottom: spacing[2] }}>
+                  בחרו מועד חדש
+                </Typography>
+                <Typography variant="body2" color="textSecondary" align="center">
+                  זמינות של {selectedLesson?.teacherName}
+                </Typography>
+              </View>
+
+              {/* Time Slots */}
+              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+                {mockAvailability.length > 0 ? (
+                  mockAvailability.map((slot, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.timeSlot,
+                        selectedTimeSlot?.date === slot.date && 
+                        selectedTimeSlot?.time === slot.time && 
+                        styles.timeSlotSelected
+                      ]}
+                      onPress={() => setSelectedTimeSlot(slot)}
+                    >
+                      <View style={{ flexDirection: getFlexDirection(), alignItems: 'center', gap: spacing[2] }}>
+                        <Calendar 
+                          size={20} 
+                          color={selectedTimeSlot?.date === slot.date && selectedTimeSlot?.time === slot.time 
+                            ? colors.primary[600] 
+                            : colors.gray[600]
+                          } 
+                        />
+                        <Typography 
+                          variant="body1" 
+                          weight={selectedTimeSlot?.date === slot.date && selectedTimeSlot?.time === slot.time ? 'semibold' : 'normal'}
+                        >
+                          {slot.date} בשעה {slot.time}
+                        </Typography>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={{ padding: spacing[4], alignItems: 'center' }}>
+                    <Typography variant="body2" color="textSecondary" align="center">
+                      אין מועדים פנויים כרגע
+                    </Typography>
+                  </View>
+                )}
+              </ScrollView>
+
+              {/* Action Buttons */}
+              <View style={{ flexDirection: getFlexDirection(), gap: spacing[2], marginTop: spacing[4] }}>
+                <Button
+                  style={{ 
+                    flex: 1,
+                    backgroundColor: colors.gray[200],
+                    borderRadius: 8,
+                    paddingVertical: spacing[3],
+                  }}
+                  onPress={() => setRescheduleModalVisible(false)}
+                  disabled={isProcessing}
+                >
+                  <ButtonText style={{ color: colors.gray[700] }}>ביטול</ButtonText>
+                </Button>
+                <Button
+                  style={{ 
+                    flex: 1,
+                    backgroundColor: selectedTimeSlot ? colors.primary[600] : colors.gray[300]
+                  }}
+                  onPress={processReschedule}
+                  disabled={!selectedTimeSlot || isProcessing}
+                >
+                  {isProcessing ? (
+                    <ActivityIndicator color={colors.white} />
+                  ) : (
+                    <ButtonText style={{ color: colors.white }}>שנה מועד</ButtonText>
+                  )}
+                </Button>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <View style={styles.toast}>
+          <Typography variant="body1" color="white" align="center" weight="semibold">
+            {toastMessage}
+          </Typography>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
