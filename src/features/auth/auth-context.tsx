@@ -1,13 +1,20 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, Profile } from '@/lib/supabase';
+import { 
+  IS_DEV_MODE, 
+  validateDevUser, 
+  getDevUserProfile,
+  createDevSession,
+  isDevUser 
+} from '@/data/dev-users';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null; profile?: Profile | null }>;
   signUp: (email: string, password: string, role: 'teacher' | 'student') => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
@@ -47,6 +54,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
+      // Check if this is a DEV user first
+      if (IS_DEV_MODE) {
+        const devProfile = getDevUserProfile(userId);
+        if (devProfile) {
+          console.log('📝 Using DEV profile:', devProfile.displayName, `(${devProfile.role})`);
+          setProfile(devProfile);
+          return;
+        }
+      }
+
+      // Otherwise, fetch from Supabase
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -62,15 +80,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // DEV Mode: Check for dev users first
+      if (IS_DEV_MODE && isDevUser(email)) {
+        console.log('🔧 DEV Mode: Attempting login with dev user:', email);
+        const devUser = validateDevUser(email, password);
+        
+        if (devUser) {
+          // Create mock session
+          const mockSession = createDevSession(devUser) as any;
+          setSession(mockSession);
+          setProfile(devUser.profile);
+          
+          console.log('✅ DEV Login successful! Role:', devUser.profile.role);
+          return { error: null, profile: devUser.profile };
+        } else {
+          console.log('❌ DEV Login failed: Invalid credentials');
+          throw new Error('Invalid email or password');
+        }
+      }
+
+      // Production: Use Supabase
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
-      return { error: null };
+
+      // Fetch profile after successful Supabase login
+      if (data.user) {
+        await fetchProfile(data.user.id);
+        // Return the profile (it's now in state, but also return it directly)
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+        
+        return { error: null, profile: profileData };
+      }
+
+      return { error: null, profile: null };
     } catch (error) {
-      return { error: error as Error };
+      return { error: error as Error, profile: null };
     }
   };
 
@@ -106,6 +158,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear state for both DEV and production
+    if (IS_DEV_MODE && session?.access_token?.startsWith('dev-token-')) {
+      console.log('🔧 DEV Mode: Signing out dev user');
+      setSession(null);
+      setProfile(null);
+      return;
+    }
+
     await supabase.auth.signOut();
     setProfile(null);
   };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,9 @@ import {
 } from 'lucide-react-native';
 import { useRTL } from '@/context/RTLContext';
 import Svg, { Path } from 'react-native-svg';
+import { DevUsersHelper } from '@/components/dev/DevUsersHelper';
+import { useAuth } from '@/features/auth/auth-context';
+import { Profile } from '@/lib/supabase';
 
 interface FormData {
   email: string;
@@ -37,6 +40,7 @@ interface FormData {
 export default function LoginScreen() {
   const router = useRouter();
   const { isRTL, getTextAlign, getFlexDirection } = useRTL();
+  const { signIn, profile } = useAuth();
 
   const [formData, setFormData] = useState<FormData>({
     email: '',
@@ -159,19 +163,68 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!validateForm()) return;
 
+    // Prevent double-tap during loading
+    if (isLoading) return;
+
     setIsLoading(true);
     try {
       await handleRememberCredentials();
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      router.push('/(tabs)');
+      // Use auth context to sign in (supports DEV users)
+      const { error, profile: userProfile } = await signIn(formData.email, formData.password);
+      
+      if (error) {
+        throw error;
+      }
+
+      // Redirect based on role (post-login navigation)
+      redirectPostLogin(userProfile);
     } catch (error) {
       console.error('Login error:', error);
-      Alert.alert('שגיאה', 'אירעה שגיאה במהלך ההתחברות');
-    } finally {
-      setIsLoading(false);
+      Alert.alert('שגיאה', 'כתובת אימייל או סיסמה שגויים');
+      setIsLoading(false); // Only set loading false on error
     }
+    // Note: setIsLoading(false) is NOT called here on success
+    // Loading will be cleared after navigation by the new screen
+  };
+
+  /**
+   * Post-login redirect based on user role
+   * Teacher → /(teacher) (Teacher Home)
+   * Student/Default → /(tabs) (Student Home)
+   * 
+   * @param userProfile - Profile returned from signIn (preferred) or from context
+   */
+  const redirectPostLogin = (userProfile?: Profile | null) => {
+    try {
+      // Use profile from signIn result (preferred) or fall back to context
+      const userRole = userProfile?.role || profile?.role;
+
+      console.log('🔄 Post-login redirect - Role:', userRole);
+
+      if (userRole === 'teacher') {
+        console.log('✅ Redirecting to Teacher Home');
+        router.replace('/(teacher)');
+      } else {
+        console.log('✅ Redirecting to Student Home (default)');
+        router.replace('/(tabs)');
+      }
+      
+      // Note: setIsLoading(false) is handled by navigation
+    } catch (error) {
+      console.warn('⚠️ Error in post-login redirect, defaulting to Student Home:', error);
+      // Fallback to student home on any error
+      router.replace('/(tabs)');
+    } finally {
+      // Ensure loading is cleared after redirect
+      setTimeout(() => setIsLoading(false), 300);
+    }
+  };
+
+  // Handler for DEV user quick selection
+  const handleDevUserSelect = (email: string, password: string) => {
+    updateFormData('email', email);
+    updateFormData('password', password);
   };
 
   const handleBiometricAuth = async () => {
@@ -185,7 +238,10 @@ export default function LoginScreen() {
       });
 
       if (result.success) {
-        router.push('/(tabs)');
+        // TODO: Implement biometric auth with backend
+        // For now, redirect to student home (most common case)
+        // In production, this should fetch the user's profile and redirect accordingly
+        redirectPostLogin();
       } else if (result.error === 'user_cancel') {
         // User cancelled, don't show error
         return;
@@ -212,7 +268,10 @@ export default function LoginScreen() {
 
       if (credential) {
         console.log('Apple sign in successful:', credential);
-        router.push('/(tabs)');
+        // TODO: Implement Apple auth with backend
+        // For now, redirect to student home (most common case)
+        // In production, this should fetch the user's profile and redirect accordingly
+        redirectPostLogin();
       }
     } catch (error: any) {
       if (error.code === 'ERR_CANCELLED') {
@@ -239,7 +298,10 @@ export default function LoginScreen() {
   const handleGoogleSignInSuccess = async (authentication: any) => {
     try {
       console.log('Google sign in successful:', authentication);
-      router.push('/(tabs)');
+      // TODO: Implement Google auth with backend
+      // For now, redirect to student home (most common case)
+      // In production, this should fetch the user's profile and redirect accordingly
+      redirectPostLogin();
     } catch (error) {
       console.error('Google sign in processing error:', error);
       Alert.alert('שגיאה', 'אירעה שגיאה בעיבוד התחברות Google');
@@ -471,6 +533,9 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
           </View>
+
+          {/* DEV Users Helper (only in dev mode) */}
+          <DevUsersHelper onSelectUser={handleDevUserSelect} />
 
           {/* Sign Up Link */}
           <View style={[styles.signupContainer, { flexDirection: getFlexDirection() }]}>
