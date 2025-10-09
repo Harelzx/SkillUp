@@ -48,28 +48,27 @@ function bannerReducer(state: BannerState, event: BannerEvent): BannerState {
   
   switch (event.type) {
     case 'AUTO_TICK':
-      // Auto-advance: activeIndex++, dotIndex++ (dots move RIGHT visually in LTR)
-      // But we WANT dots to move LEFT, so: dotIndex--
+      // Auto: activeIndex++, dotIndex++ (dots move RIGHT in LTR → ←LEFT in visual)
       return {
         ...state,
         activeIndex: (activeIndex + 1) % count,
-        dotIndex: (dotIndex + count - 1) % count, // Move LEFT (higher index = right in LTR)
+        dotIndex: (dotIndex + 1) % count, // Increment = move RIGHT physically = LEFT visually
       };
     
     case 'SWIPE_RIGHT':
-      // Swipe right: same as auto (dots LEFT)
+      // Swipe right: same as auto (dots visually LEFT)
       return {
         ...state,
         activeIndex: (activeIndex + 1) % count,
-        dotIndex: (dotIndex + count - 1) % count,
+        dotIndex: (dotIndex + 1) % count,
       };
     
     case 'SWIPE_LEFT':
-      // Swipe left: dots RIGHT (dotIndex++)
+      // Swipe left: dots visually RIGHT
       return {
         ...state,
         activeIndex: (activeIndex - 1 + count) % count,
-        dotIndex: (dotIndex + 1) % count,
+        dotIndex: (dotIndex - 1 + count) % count,
       };
     
     default:
