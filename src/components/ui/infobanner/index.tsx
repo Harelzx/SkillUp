@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useReducer } from 'react';
 import {
   View,
   Animated,
@@ -11,8 +11,7 @@ import {
   Easing,
 } from 'react-native';
 import { Typography } from '@/ui/Typography';
-import { colors, spacing, borderRadius, shadows } from '@/theme/tokens';
-import { useRTL } from '@/context/RTLContext';
+import { colors, spacing, shadows } from '@/theme/tokens';
 
 export interface BannerMessage {
   id: string;
@@ -32,13 +31,64 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const ANIMATION_DURATION = 320;
 const FADE_DURATION = 140;
 
+// State Machine for Banner
+type BannerEvent = 
+  | { type: 'AUTO_TICK' }
+  | { type: 'SWIPE_RIGHT' }
+  | { type: 'SWIPE_LEFT' };
+
+interface BannerState {
+  activeIndex: number;
+  dotIndex: number;
+  count: number;
+}
+
+function bannerReducer(state: BannerState, event: BannerEvent): BannerState {
+  const { activeIndex, dotIndex, count } = state;
+  
+  switch (event.type) {
+    case 'AUTO_TICK':
+      // Auto-advance: activeIndex++, dotIndex-- (dots move LEFT)
+      return {
+        ...state,
+        activeIndex: (activeIndex + 1) % count,
+        dotIndex: (dotIndex - 1 + count) % count,
+      };
+    
+    case 'SWIPE_RIGHT':
+      // Swipe right: activeIndex++, dotIndex-- (dots move LEFT)
+      return {
+        ...state,
+        activeIndex: (activeIndex + 1) % count,
+        dotIndex: (dotIndex - 1 + count) % count,
+      };
+    
+    case 'SWIPE_LEFT':
+      // Swipe left: activeIndex--, dotIndex++ (dots move RIGHT)
+      return {
+        ...state,
+        activeIndex: (activeIndex - 1 + count) % count,
+        dotIndex: (dotIndex + 1) % count,
+      };
+    
+    default:
+      return state;
+  }
+}
+
 export const InfoBanner: React.FC<InfoBannerProps> = ({
   messages,
   autoRotateInterval = 10000,
 }) => {
-  const { isRTL } = useRTL();
+  // Note: RTL context is available but not actively used in this component
   
-  const [activeIndex, setActiveIndex] = useState(0);
+  // State machine
+  const [state, dispatch] = useReducer(bannerReducer, {
+    activeIndex: 0,
+    dotIndex: 0,
+    count: messages.length,
+  });
+  
   const activeIndexRef = useRef(0);
   
   const [isPaused, setIsPaused] = useState(false);
@@ -52,9 +102,17 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
   const pauseTimer = useRef<NodeJS.Timeout | null>(null);
   const isDragging = useRef(false);
 
+  // Sync ref
   useEffect(() => {
-    activeIndexRef.current = activeIndex;
-  }, [activeIndex]);
+    activeIndexRef.current = state.activeIndex;
+  }, [state.activeIndex]);
+
+  // Update count when messages change
+  useEffect(() => {
+    if (state.count !== messages.length) {
+      dispatch({ type: 'AUTO_TICK' }); // Reset to valid state
+    }
+  }, [messages.length, state.count]);
 
   useEffect(() => {
     if (Platform.OS !== 'web') {
@@ -71,8 +129,8 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     return () => subscription.remove();
   }, []);
 
-  // Navigate to specific index with REVERSED animation direction
-  const navigateToIndex = useCallback((toIndex: number, direction: 'next' | 'prev') => {
+  // Animate slide transition
+  const animateTransition = useCallback((direction: 'next' | 'prev') => {
     if (messages.length <= 1 || isTransitioning || isDragging.current) return;
 
     setIsTransitioning(true);
@@ -92,15 +150,10 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
       ]).start(() => {
         setIsTransitioning(false);
       });
-      setActiveIndex(toIndex);
     } else {
-      // REVERSED ANIMATION:
-      // For NEXT: current → RIGHT (+100%), next ← LEFT (-100% → 0)
-      // For PREV: current → LEFT (-100%), prev ← RIGHT (+100% → 0)
       const currentOutOffset = direction === 'next' ? SCREEN_WIDTH : -SCREEN_WIDTH;
       const nextInFromOffset = direction === 'next' ? -SCREEN_WIDTH : SCREEN_WIDTH;
 
-      // Phase 1: Slide current out
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: currentOutOffset,
@@ -114,14 +167,9 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
           useNativeDriver: true,
         }),
       ]).start(() => {
-        // Update index
-        setActiveIndex(toIndex);
-        
-        // Position next slide off-screen
         translateX.setValue(nextInFromOffset);
         fadeAnim.setValue(0.3);
         
-        // Phase 2: Slide next in
         Animated.parallel([
           Animated.timing(translateX, {
             toValue: 0,
@@ -141,17 +189,23 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     }
   }, [messages.length, isTransitioning, isReduceMotionEnabled, translateX, fadeAnim]);
 
-  const goToNext = useCallback(() => {
+  const handleAutoTick = useCallback(() => {
     if (messages.length <= 1) return;
-    const nextIndex = (activeIndexRef.current + 1) % messages.length;
-    navigateToIndex(nextIndex, 'next');
-  }, [messages.length, navigateToIndex]);
+    dispatch({ type: 'AUTO_TICK' });
+    animateTransition('next');
+  }, [messages.length, animateTransition]);
 
-  const goToPrevious = useCallback(() => {
+  const handleSwipeRight = useCallback(() => {
     if (messages.length <= 1) return;
-    const prevIndex = (activeIndexRef.current - 1 + messages.length) % messages.length;
-    navigateToIndex(prevIndex, 'prev');
-  }, [messages.length, navigateToIndex]);
+    dispatch({ type: 'SWIPE_RIGHT' });
+    animateTransition('next');
+  }, [messages.length, animateTransition]);
+
+  const handleSwipeLeft = useCallback(() => {
+    if (messages.length <= 1) return;
+    dispatch({ type: 'SWIPE_LEFT' });
+    animateTransition('prev');
+  }, [messages.length, animateTransition]);
 
   const pauseAutoRotation = useCallback(() => {
     setIsPaused(true);
@@ -161,7 +215,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     }, 1500);
   }, []);
 
-  // Pan responder with REVERSED swipe mapping
+  // Pan responder
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
@@ -190,16 +244,12 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         const shouldAdvance = absDistance > threshold || Math.abs(velocity) > 0.5;
 
         if (shouldAdvance) {
-          // REVERSED MAPPING:
-          // Swipe RIGHT (dx > 0) → go to NEXT (current slides right out, next comes from left)
-          // Swipe LEFT (dx < 0) → go to PREVIOUS (current slides left out, prev comes from right)
           if (gestureState.dx > 0 || velocity > 0.5) {
-            goToNext(); // Swipe right → next
+            handleSwipeRight();
           } else if (gestureState.dx < 0 || velocity < -0.5) {
-            goToPrevious(); // Swipe left → previous
+            handleSwipeLeft();
           }
         } else {
-          // Snap back to current
           Animated.parallel([
             Animated.spring(translateX, {
               toValue: 0,
@@ -226,7 +276,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     })
   ).current;
 
-  // Auto-rotation timer (unchanged - still advances to next every 10s)
+  // Auto-rotation timer
   useEffect(() => {
     if (autoRotateTimer.current) {
       clearTimeout(autoRotateTimer.current);
@@ -241,7 +291,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
       appState === 'active'
     ) {
       autoRotateTimer.current = setTimeout(() => {
-        goToNext(); // Auto-advance to next
+        handleAutoTick();
       }, autoRotateInterval);
     }
 
@@ -251,7 +301,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         autoRotateTimer.current = null;
       }
     };
-  }, [activeIndex, isPaused, isTransitioning, messages.length, appState, autoRotateInterval, goToNext]);
+  }, [state.activeIndex, isPaused, isTransitioning, messages.length, appState, autoRotateInterval, handleAutoTick]);
 
   useEffect(() => {
     return () => {
@@ -300,7 +350,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     return null;
   }
 
-  const currentMessage = messages[activeIndex];
+  const currentMessage = messages[state.activeIndex];
   const emoji = currentMessage.emoji || getDefaultEmoji(currentMessage.type);
   const bgColors = getBackgroundColors(currentMessage.type);
 
@@ -334,7 +384,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
             backgroundColor: bgColors.start,
           }}
         >
-          {/* Gradient overlay simulation */}
           <View style={{
             position: 'absolute',
             top: 0,
@@ -355,14 +404,12 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
               minHeight: 84,
             }}
           >
-            {/* Text with inline emoji */}
             <View style={{ 
               width: '100%',
               alignItems: 'center',
               justifyContent: 'center',
               gap: spacing[1],
             }}>
-              {/* Title with emoji */}
               <View style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -370,12 +417,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
                 gap: 8,
                 flexWrap: 'wrap',
               }}>
-                <Typography
-                  style={{
-                    fontSize: 18,
-                    lineHeight: 24,
-                  }}
-                >
+                <Typography style={{ fontSize: 18, lineHeight: 24 }}>
                   {emoji}
                 </Typography>
                 <Typography
@@ -395,7 +437,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
                 </Typography>
               </View>
 
-              {/* Subtitle */}
               {currentMessage.subtitle && (
                 <Typography
                   variant="caption"
@@ -418,11 +459,11 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         </View>
       </Animated.View>
 
-      {/* Indicator Dots - direct mapping with row-reverse for opposite visual direction */}
+      {/* Indicator Dots - controlled by dotIndex from state machine */}
       {messages.length > 1 && (
         <View
           style={{
-            flexDirection: 'row-reverse', // Reversed: when activeIndex++, visual moves LEFT
+            flexDirection: 'row', // Natural LTR: index 0=left, high=right
             justifyContent: 'center',
             alignItems: 'center',
             marginTop: spacing[2] + 4,
@@ -433,12 +474,12 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
             <View
               key={index}
               style={{
-                width: index === activeIndex ? 18 : 6,
+                width: index === state.dotIndex ? 18 : 6,
                 height: 6,
                 borderRadius: 3,
                 backgroundColor:
-                  index === activeIndex ? colors.primary[600] : colors.gray[300],
-                opacity: index === activeIndex ? 1 : 0.5,
+                  index === state.dotIndex ? colors.primary[600] : colors.gray[300],
+                opacity: index === state.dotIndex ? 1 : 0.5,
               }}
               accessible={false}
             />
