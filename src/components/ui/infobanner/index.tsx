@@ -418,35 +418,31 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         </View>
       </Animated.View>
 
-      {/* Indicator Dots - reversed array AND reversed flex to match slide direction */}
+      {/* Indicator Dots - reversed flex so dots move left when slide goes right */}
       {messages.length > 1 && (
         <View
           style={{
-            flexDirection: 'row', // Regular row (not reversed)
+            flexDirection: 'row-reverse', // Reversed: index 0 appears on right
             justifyContent: 'center',
             alignItems: 'center',
             marginTop: spacing[2] + 4,
             gap: spacing[2],
           }}
         >
-          {[...messages].reverse().map((_, reverseIdx) => {
-            // Reverse the index: highest index appears on left
-            const index = messages.length - 1 - reverseIdx;
-            return (
-              <View
-                key={index}
-                style={{
-                  width: index === activeIndex ? 18 : 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor:
-                    index === activeIndex ? colors.primary[600] : colors.gray[300],
-                  opacity: index === activeIndex ? 1 : 0.5,
-                }}
-                accessible={false}
-              />
-            );
-          })}
+          {messages.map((_, index) => (
+            <View
+              key={index}
+              style={{
+                width: index === activeIndex ? 18 : 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor:
+                  index === activeIndex ? colors.primary[600] : colors.gray[300],
+                opacity: index === activeIndex ? 1 : 0.5,
+              }}
+              accessible={false}
+            />
+          ))}
         </View>
       )}
     </View>
