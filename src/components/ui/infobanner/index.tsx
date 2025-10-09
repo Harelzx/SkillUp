@@ -25,7 +25,6 @@ export interface BannerMessage {
 interface InfoBannerProps {
   messages: BannerMessage[];
   autoRotateInterval?: number; // in milliseconds, default 10000
-  onMessagePress?: (message: BannerMessage) => void;
 }
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -36,20 +35,20 @@ const FADE_DURATION = 140; // milliseconds for reduce motion fade
 export const InfoBanner: React.FC<InfoBannerProps> = ({
   messages,
   autoRotateInterval = 10000,
-  onMessagePress,
 }) => {
   const { isRTL } = useRTL();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isReduceMotionEnabled, setIsReduceMotionEnabled] = useState(false);
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
-  const [isSwiping, setIsSwiping] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const autoRotateTimer = useRef<NodeJS.Timeout | null>(null);
   const pauseTimer = useRef<NodeJS.Timeout | null>(null);
   const lastSwipeTime = useRef<number>(0);
+  const gestureInProgress = useRef(false);
 
   // Check for reduce motion preference
   useEffect(() => {
@@ -72,30 +71,31 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
   }, []);
 
   const goToNext = useCallback(() => {
-    if (messages.length <= 1 || isSwiping) return;
+    if (messages.length <= 1 || isTransitioning || gestureInProgress.current) return;
     
     const now = Date.now();
-    if (now - lastSwipeTime.current < 300) return; // Debounce
+    if (now - lastSwipeTime.current < 400) return; // Debounce
     lastSwipeTime.current = now;
 
     const nextIndex = (currentIndex + 1) % messages.length;
-    animateTransition(nextIndex, isRTL ? 1 : -1);
-  }, [currentIndex, messages.length, isRTL, isSwiping]);
+    animateToIndex(nextIndex, 'left'); // Advance leftward
+  }, [currentIndex, messages.length, isTransitioning]);
 
   const goToPrevious = useCallback(() => {
-    if (messages.length <= 1 || isSwiping) return;
+    if (messages.length <= 1 || isTransitioning || gestureInProgress.current) return;
 
     const now = Date.now();
-    if (now - lastSwipeTime.current < 300) return; // Debounce
+    if (now - lastSwipeTime.current < 400) return; // Debounce
     lastSwipeTime.current = now;
 
     const prevIndex = (currentIndex - 1 + messages.length) % messages.length;
-    animateTransition(prevIndex, isRTL ? -1 : 1);
-  }, [currentIndex, messages.length, isRTL, isSwiping]);
+    animateToIndex(prevIndex, 'right'); // Go back rightward
+  }, [currentIndex, messages.length, isTransitioning]);
 
-  const animateTransition = (toIndex: number, direction: number) => {
+  const animateToIndex = (toIndex: number, direction: 'left' | 'right') => {
     if (isReduceMotionEnabled) {
       // Quick fade for reduced motion
+      setIsTransitioning(true);
       Animated.sequence([
         Animated.timing(fadeAnim, {
           toValue: 0,
@@ -107,18 +107,20 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
           duration: FADE_DURATION,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        setIsTransitioning(false);
+      });
       setCurrentIndex(toIndex);
     } else {
-      // Smooth slide + fade transition
-      slideAnim.setValue(0);
-      fadeAnim.setValue(1);
+      // Smooth slide animation
+      setIsTransitioning(true);
+      const targetOffset = direction === 'left' ? -SCREEN_WIDTH : SCREEN_WIDTH;
 
       Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: direction * SCREEN_WIDTH * 0.3,
+        Animated.timing(translateX, {
+          toValue: targetOffset,
           duration: ANIMATION_DURATION,
-          easing: Easing.bezier(0.22, 1, 0.36, 1), // Smooth ease-out
+          easing: Easing.bezier(0.22, 1, 0.36, 1),
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
@@ -127,12 +129,14 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
           useNativeDriver: true,
         }),
       ]).start(() => {
+        // Update index and reset position
         setCurrentIndex(toIndex);
-        slideAnim.setValue(direction * SCREEN_WIDTH * -0.3);
+        translateX.setValue(-targetOffset);
         fadeAnim.setValue(0.3);
         
+        // Animate back to center
         Animated.parallel([
-          Animated.timing(slideAnim, {
+          Animated.timing(translateX, {
             toValue: 0,
             duration: ANIMATION_DURATION,
             easing: Easing.bezier(0.22, 1, 0.36, 1),
@@ -143,7 +147,9 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
             duration: ANIMATION_DURATION,
             useNativeDriver: true,
           }),
-        ]).start();
+        ]).start(() => {
+          setIsTransitioning(false);
+        });
       });
     }
   };
@@ -159,50 +165,49 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     }, 1500);
   }, []);
 
-  // Pan responder for swipe gestures with RTL support
+  // Pan responder for continuous swipe gestures
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < Math.abs(gestureState.dx);
+        const horizontalSwipe = Math.abs(gestureState.dx) > 10 && 
+                                Math.abs(gestureState.dy) < Math.abs(gestureState.dx);
+        return horizontalSwipe && !isTransitioning;
       },
       onPanResponderGrant: () => {
-        setIsSwiping(true);
+        gestureInProgress.current = true;
         pauseAutoRotation();
       },
       onPanResponderMove: (_, gestureState) => {
-        if (isReduceMotionEnabled) return;
+        if (isReduceMotionEnabled || isTransitioning) return;
         
-        // RTL: positive dx = swipe right (showing from left), negative = swipe left (showing from right)
-        // For RTL, we want right swipe to go to previous, left swipe to go next
-        const multiplier = isRTL ? -1 : 1;
-        const translation = gestureState.dx * multiplier;
+        const dragDistance = gestureState.dx;
         
         // Apply rubber band effect at edges
-        const resistance = Math.abs(translation) > SCREEN_WIDTH * 0.5 ? 0.5 : 1;
-        slideAnim.setValue(translation * resistance);
+        const resistance = Math.abs(dragDistance) > SCREEN_WIDTH * 0.5 ? 0.5 : 1;
+        translateX.setValue(dragDistance * resistance);
         
         // Fade slightly during drag
-        const progress = Math.min(Math.abs(translation) / SCREEN_WIDTH, 0.3);
+        const progress = Math.min(Math.abs(dragDistance) / SCREEN_WIDTH, 0.3);
         fadeAnim.setValue(1 - progress);
       },
       onPanResponderRelease: (_, gestureState) => {
-        setIsSwiping(false);
+        gestureInProgress.current = false;
         const threshold = SWIPE_THRESHOLD;
         const velocity = Math.abs(gestureState.vx);
         const absDistance = Math.abs(gestureState.dx);
 
         if (absDistance > threshold || velocity > 0.5) {
-          // RTL: positive dx (swipe right) = previous, negative dx (swipe left) = next
-          if ((isRTL && gestureState.dx > 0) || (!isRTL && gestureState.dx < 0)) {
+          // Swipe left = next, swipe right = previous
+          if (gestureState.dx < 0) {
             goToNext();
-          } else if ((isRTL && gestureState.dx < 0) || (!isRTL && gestureState.dx > 0)) {
+          } else {
             goToPrevious();
           }
         } else {
-          // Return to original position with smooth spring
+          // Return to current position with smooth spring
           Animated.parallel([
-            Animated.spring(slideAnim, {
+            Animated.spring(translateX, {
               toValue: 0,
               tension: 50,
               friction: 10,
@@ -218,9 +223,9 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         }
       },
       onPanResponderTerminate: () => {
-        setIsSwiping(false);
+        gestureInProgress.current = false;
         Animated.parallel([
-          Animated.spring(slideAnim, {
+          Animated.spring(translateX, {
             toValue: 0,
             useNativeDriver: true,
           }),
@@ -233,15 +238,15 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     })
   ).current;
 
-  // Auto-rotation logic
+  // Auto-rotation logic - advance leftward every 10s
   useEffect(() => {
     // Only rotate when app is active, not paused, and has multiple messages
-    if (messages.length <= 1 || isPaused || appState !== 'active' || isSwiping) {
+    if (messages.length <= 1 || isPaused || appState !== 'active' || isTransitioning) {
       return;
     }
 
     autoRotateTimer.current = setTimeout(() => {
-      goToNext();
+      goToNext(); // Auto-advance leftward
     }, autoRotateInterval);
 
     return () => {
@@ -249,7 +254,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         clearTimeout(autoRotateTimer.current);
       }
     };
-  }, [currentIndex, isPaused, messages.length, appState, isSwiping, goToNext, autoRotateInterval]);
+  }, [currentIndex, isPaused, messages.length, appState, isTransitioning, goToNext, autoRotateInterval]);
 
   // Cleanup timers
   useEffect(() => {
@@ -317,7 +322,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
   }
 
   const currentMessage = messages[currentIndex];
-  const transform = isReduceMotionEnabled ? [] : [{ translateX: slideAnim }];
 
   return (
     <View
@@ -336,7 +340,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         {...panResponder.panHandlers}
         style={{
           opacity: fadeAnim,
-          transform,
+          transform: [{ translateX }],
         }}
       >
         <View
@@ -346,20 +350,22 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
             borderWidth: 1,
             borderColor: getBorderColorForType(currentMessage.type),
             paddingHorizontal: spacing[4],
-            paddingVertical: spacing[3] + 2,
-            minHeight: 76,
+            paddingVertical: spacing[4],
+            minHeight: 80,
             ...shadows.sm,
-            flexDirection: isRTL ? 'row-reverse' : 'row',
+            // Center content horizontally and vertically
+            flexDirection: 'column',
             alignItems: 'center',
-            gap: spacing[3],
+            justifyContent: 'center',
+            gap: spacing[2],
           }}
         >
-          {/* Icon */}
+          {/* Icon - centered */}
           <View
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: 17,
+              width: 36,
+              height: 36,
+              borderRadius: 18,
               backgroundColor: colors.white,
               justifyContent: 'center',
               alignItems: 'center',
@@ -371,17 +377,24 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
             </Typography>
           </View>
 
-          {/* Content */}
-          <View style={{ flex: 1, gap: spacing[1] }}>
+          {/* Content - centered */}
+          <View style={{ 
+            width: '100%',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: spacing[1],
+          }}>
             <Typography
               variant="body1"
               weight="semibold"
-              align={isRTL ? 'right' : 'left'}
+              align="center"
               numberOfLines={2}
               ellipsizeMode="tail"
               style={{ 
                 fontSize: 16,
                 lineHeight: 22,
+                textAlign: 'center',
+                width: '100%',
               }}
             >
               {truncateText(currentMessage.title, 65)}
@@ -390,12 +403,14 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
               <Typography
                 variant="caption"
                 color="textSecondary"
-                align={isRTL ? 'right' : 'left'}
+                align="center"
                 numberOfLines={1}
                 ellipsizeMode="tail"
                 style={{
                   fontSize: 13,
                   lineHeight: 18,
+                  textAlign: 'center',
+                  width: '100%',
                 }}
               >
                 {truncateText(currentMessage.subtitle, 80)}
@@ -405,7 +420,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         </View>
       </Animated.View>
 
-      {/* Indicator Dots */}
+      {/* Indicator Dots - synced with leftward advance */}
       {messages.length > 1 && (
         <View
           style={{
