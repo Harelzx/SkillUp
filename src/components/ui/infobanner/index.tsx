@@ -71,9 +71,8 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     return () => subscription.remove();
   }, []);
 
-  // Navigate with FIXED visual direction: current → RIGHT, next ← LEFT
-  // But logical progression is LEFTWARD (index decreases)
-  const navigateToIndex = useCallback((toIndex: number) => {
+  // Navigate to specific index with REVERSED animation direction
+  const navigateToIndex = useCallback((toIndex: number, direction: 'next' | 'prev') => {
     if (messages.length <= 1 || isTransitioning || isDragging.current) return;
 
     setIsTransitioning(true);
@@ -95,11 +94,13 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
       });
       setActiveIndex(toIndex);
     } else {
-      // FIXED VISUAL: current → RIGHT (+100%), next ← LEFT (-100% → 0)
-      const currentOutOffset = SCREEN_WIDTH;    // Always RIGHT
-      const nextInFromOffset = -SCREEN_WIDTH;   // Always from LEFT
+      // REVERSED ANIMATION:
+      // For NEXT: current → RIGHT (+100%), next ← LEFT (-100% → 0)
+      // For PREV: current → LEFT (-100%), prev ← RIGHT (+100% → 0)
+      const currentOutOffset = direction === 'next' ? SCREEN_WIDTH : -SCREEN_WIDTH;
+      const nextInFromOffset = direction === 'next' ? -SCREEN_WIDTH : SCREEN_WIDTH;
 
-      // Phase 1: Slide current out to the right
+      // Phase 1: Slide current out
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: currentOutOffset,
@@ -113,14 +114,14 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
           useNativeDriver: true,
         }),
       ]).start(() => {
-        // Update index (single source of truth)
+        // Update index
         setActiveIndex(toIndex);
         
-        // Position next slide off-screen on the left
+        // Position next slide off-screen
         translateX.setValue(nextInFromOffset);
         fadeAnim.setValue(0.3);
         
-        // Phase 2: Slide next in from the left
+        // Phase 2: Slide next in
         Animated.parallel([
           Animated.timing(translateX, {
             toValue: 0,
@@ -140,12 +141,16 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     }
   }, [messages.length, isTransitioning, isReduceMotionEnabled, translateX, fadeAnim]);
 
-  // Advance LEFTWARD logically (index decreases)
-  const advanceLeftward = useCallback(() => {
+  const goToNext = useCallback(() => {
     if (messages.length <= 1) return;
-    // Move dots LEFT: index - 1
-    const nextIndex = (activeIndexRef.current - 1 + messages.length) % messages.length;
-    navigateToIndex(nextIndex);
+    const nextIndex = (activeIndexRef.current + 1) % messages.length;
+    navigateToIndex(nextIndex, 'next');
+  }, [messages.length, navigateToIndex]);
+
+  const goToPrevious = useCallback(() => {
+    if (messages.length <= 1) return;
+    const prevIndex = (activeIndexRef.current - 1 + messages.length) % messages.length;
+    navigateToIndex(prevIndex, 'prev');
   }, [messages.length, navigateToIndex]);
 
   const pauseAutoRotation = useCallback(() => {
@@ -156,7 +161,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     }, 1500);
   }, []);
 
-  // Pan responder: swipe RIGHT = advance LEFTWARD (index decreases)
+  // Pan responder with REVERSED swipe mapping
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
@@ -185,26 +190,13 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         const shouldAdvance = absDistance > threshold || Math.abs(velocity) > 0.5;
 
         if (shouldAdvance) {
-          // Swipe RIGHT (dx > 0) = advance LEFTWARD (dots move left, index decreases)
+          // REVERSED MAPPING:
+          // Swipe RIGHT (dx > 0) → go to NEXT (current slides right out, next comes from left)
+          // Swipe LEFT (dx < 0) → go to PREVIOUS (current slides left out, prev comes from right)
           if (gestureState.dx > 0 || velocity > 0.5) {
-            advanceLeftward();
-          } 
-          // Swipe LEFT (dx < 0) = snap back (maintain consistency)
-          else {
-            Animated.parallel([
-              Animated.spring(translateX, {
-                toValue: 0,
-                tension: 50,
-                friction: 10,
-                useNativeDriver: true,
-              }),
-              Animated.spring(fadeAnim, {
-                toValue: 1,
-                tension: 50,
-                friction: 10,
-                useNativeDriver: true,
-              }),
-            ]).start();
+            goToNext(); // Swipe right → next
+          } else if (gestureState.dx < 0 || velocity < -0.5) {
+            goToPrevious(); // Swipe left → previous
           }
         } else {
           // Snap back to current
@@ -234,7 +226,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     })
   ).current;
 
-  // Auto-rotation: advance LEFTWARD (index decreases) every 10s
+  // Auto-rotation timer (unchanged - still advances to next every 10s)
   useEffect(() => {
     if (autoRotateTimer.current) {
       clearTimeout(autoRotateTimer.current);
@@ -249,7 +241,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
       appState === 'active'
     ) {
       autoRotateTimer.current = setTimeout(() => {
-        advanceLeftward(); // Dots move LEFT (index - 1)
+        goToNext(); // Auto-advance to next
       }, autoRotateInterval);
     }
 
@@ -259,7 +251,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         autoRotateTimer.current = null;
       }
     };
-  }, [activeIndex, isPaused, isTransitioning, messages.length, appState, autoRotateInterval, advanceLeftward]);
+  }, [activeIndex, isPaused, isTransitioning, messages.length, appState, autoRotateInterval, goToNext]);
 
   useEffect(() => {
     return () => {
@@ -363,12 +355,14 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
               minHeight: 84,
             }}
           >
+            {/* Text with inline emoji */}
             <View style={{ 
               width: '100%',
               alignItems: 'center',
               justifyContent: 'center',
               gap: spacing[1],
             }}>
+              {/* Title with emoji */}
               <View style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -401,6 +395,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
                 </Typography>
               </View>
 
+              {/* Subtitle */}
               {currentMessage.subtitle && (
                 <Typography
                   variant="caption"
@@ -423,31 +418,35 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         </View>
       </Animated.View>
 
-      {/* Indicator Dots - index 0 on LEFT, moves LEFT as index decreases */}
+      {/* Indicator Dots - visual leftward progression */}
       {messages.length > 1 && (
         <View
           style={{
-            flexDirection: 'row',
+            flexDirection: 'row', // Regular row direction
             justifyContent: 'center',
             alignItems: 'center',
             marginTop: spacing[2] + 4,
             gap: spacing[2],
           }}
         >
-          {messages.map((_, index) => (
-            <View
-              key={index}
-              style={{
-                width: index === activeIndex ? 18 : 6,
-                height: 6,
-                borderRadius: 3,
-                backgroundColor:
-                  index === activeIndex ? colors.primary[600] : colors.gray[300],
-                opacity: index === activeIndex ? 1 : 0.5,
-              }}
-              accessible={false}
-            />
-          ))}
+          {[...messages].reverse().map((_, reverseIdx) => {
+            // Render in reverse order: highest index appears on left
+            const index = messages.length - 1 - reverseIdx;
+            return (
+              <View
+                key={index}
+                style={{
+                  width: index === activeIndex ? 18 : 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor:
+                    index === activeIndex ? colors.primary[600] : colors.gray[300],
+                  opacity: index === activeIndex ? 1 : 0.5,
+                }}
+                accessible={false}
+              />
+            );
+          })}
         </View>
       )}
     </View>
