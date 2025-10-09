@@ -235,9 +235,9 @@ export default function HomeScreen() {
         activeOpacity={0.98}
         style={{ padding: spacing[4] }}
       >
-        {/* Header: Avatar + Name + Badge */}
+        {/* Header: Avatar + Name */}
         <View style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row-reverse',
           alignItems: 'center',
           gap: spacing[2],
           marginBottom: spacing[3],
@@ -258,61 +258,48 @@ export default function HomeScreen() {
             </Typography>
           </View>
 
-          {/* Name */}
+          {/* Name - right aligned */}
           <Typography
             variant="body1"
             weight="semibold"
-            align={isRTL ? "right" : "left"}
+            align="right"
             numberOfLines={1}
-            style={{ flex: 1, fontSize: 16 }}
+            style={{ flex: 1, fontSize: 16, textAlign: 'right' }}
           >
             {item.displayName}
           </Typography>
-
-          {/* Badge (if high rating) */}
-          {item.rating && item.rating >= 4.8 && (
-            <View style={{
-              backgroundColor: colors.warning[50],
-              paddingHorizontal: 6,
-              paddingVertical: 2,
-              borderRadius: 9999,
-              borderWidth: 1,
-              borderColor: colors.warning[200],
-            }}>
-              <Typography style={{ fontSize: 10 }}>⭐</Typography>
-            </View>
-          )}
         </View>
 
-        {/* Meta Strip: Price + Time */}
+        {/* Meta Strip: Price + Time - right aligned */}
         <View style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row-reverse',
           alignItems: 'center',
+          justifyContent: 'flex-end',
           gap: spacing[2],
           marginBottom: spacing[3],
         }}>
-          {/* Price Pill - highlighted */}
+          {/* Price Pill - neutral brand style */}
           <View style={{
-            backgroundColor: colors.primary[600],
+            backgroundColor: colors.gray[100],
             paddingHorizontal: spacing[3],
             paddingVertical: spacing[2] - 2,
             borderRadius: 9999,
-            flexDirection: isRTL ? 'row-reverse' : 'row',
+            borderWidth: 1,
+            borderColor: colors.gray[200],
+            flexDirection: 'row-reverse',
             alignItems: 'center',
             gap: 4,
           }}>
             <Typography
               variant="body2"
               weight="semibold"
-              color="white"
-              style={{ fontSize: 14 }}
+              style={{ fontSize: 14, color: colors.gray[900] }}
             >
               ₪{item.hourlyRate}
             </Typography>
             <Typography
               variant="caption"
-              color="white"
-              style={{ fontSize: 11, opacity: 0.9 }}
+              style={{ fontSize: 11, color: colors.gray[600] }}
             >
               /שעה
             </Typography>
@@ -329,7 +316,7 @@ export default function HomeScreen() {
           {/* Availability */}
           {item.nextAvailable ? (
             <View style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: 'row-reverse',
               alignItems: 'center',
               gap: 4,
             }}>
@@ -347,19 +334,20 @@ export default function HomeScreen() {
             <Typography
               variant="caption"
               color="textSecondary"
-              style={{ fontSize: 12 }}
+              style={{ fontSize: 12, textAlign: 'right' }}
             >
               זמינות גמישה
             </Typography>
           )}
         </View>
 
-        {/* Subjects Chips */}
+        {/* Subjects Chips - right aligned */}
         <View style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row-reverse',
           flexWrap: 'wrap',
           gap: spacing[2],
           marginBottom: spacing[2],
+          justifyContent: 'flex-end',
         }}>
           {item.subjects.slice(0, 3).map((subject, index) => (
             <View
@@ -378,6 +366,7 @@ export default function HomeScreen() {
                 style={{
                   fontSize: 12,
                   color: colors.gray[700],
+                  textAlign: 'right',
                 }}
               >
                 {t(`home.subjects.${subject}`)}
@@ -392,7 +381,7 @@ export default function HomeScreen() {
               <Typography
                 variant="caption"
                 color="textSecondary"
-                style={{ fontSize: 11 }}
+                style={{ fontSize: 11, textAlign: 'right' }}
               >
                 +{item.subjects.length - 3} עוד
               </Typography>
@@ -400,11 +389,12 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Rating (if exists) */}
+        {/* Rating (if exists) - right aligned */}
         {item.rating && (
           <View style={{
-            flexDirection: isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row-reverse',
             alignItems: 'center',
+            justifyContent: 'flex-end',
             gap: 4,
           }}>
             <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
@@ -418,7 +408,7 @@ export default function HomeScreen() {
             <Typography
               variant="caption"
               color="textSecondary"
-              style={{ fontSize: 12 }}
+              style={{ fontSize: 12, textAlign: 'right' }}
             >
               ({item.totalReviews} ביקורות)
             </Typography>
