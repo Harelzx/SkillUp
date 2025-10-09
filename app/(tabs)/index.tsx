@@ -9,14 +9,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Search, Filter, Star, Clock, CreditCard, Gift } from 'lucide-react-native';
+import { Star, Clock, CreditCard, Gift } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Typography } from '@/ui/Typography';
 import { Card, CardContent } from '@/ui/Card';
-import { Input } from '@/ui/Input';
 import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
+import { InfoBanner } from '@/components/ui/infobanner';
+import { getBannerMessages } from '@/data/banner-messages';
 
 interface Teacher {
   id: string;
@@ -192,14 +193,14 @@ export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isRTL, direction, getFlexDirection } = useRTL();
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
   const popularSubjects = getPopularSubjects(t);
+  const bannerMessages = getBannerMessages();
 
   // Will be replaced with actual query
   const { data: teachers = mockTeachers } = useQuery({
-    queryKey: ['teachers', searchQuery, selectedSubject],
+    queryKey: ['teachers', selectedSubject],
     queryFn: async () => {
       // Placeholder - will query Supabase
       return mockTeachers;
@@ -207,18 +208,6 @@ export default function HomeScreen() {
   });
 
   const filteredTeachers = teachers.filter(teacher => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        teacher.displayName.toLowerCase().includes(query) ||
-        teacher.bio.toLowerCase().includes(query) ||
-        teacher.subjects.some(s => {
-          // Search in both the key and Hebrew translation
-          const hebrewSubject = t(`home.subjects.${s}`).toLowerCase();
-          return s.toLowerCase().includes(query) || hebrewSubject.includes(query);
-        })
-      );
-    }
     if (selectedSubject) {
       return teacher.subjects.includes(selectedSubject);
     }
@@ -401,22 +390,6 @@ export default function HomeScreen() {
       backgroundColor: colors.gray[50],
     },
 
-    header: {
-      backgroundColor: colors.white,
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing[4],
-      borderBottomWidth: 1,
-      borderBottomColor: colors.gray[200],
-    },
-    headerRow: {
-      alignItems: 'flex-start',
-    },
-    headerTextContainer: {
-      flex: 1,
-    },
-    headerAvatar: {
-      marginLeft: spacing[3],
-    },
     avatar: {
       width: 48,
       height: 48,
@@ -426,27 +399,6 @@ export default function HomeScreen() {
       alignItems: 'center',
       borderWidth: 2,
       borderColor: colors.primary[100],
-    },
-
-    searchContainer: {
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing[3],
-      backgroundColor: colors.white,
-    },
-
-    searchInputContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.gray[100],
-      borderRadius: 12,
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing[3],
-    },
-
-    searchInput: {
-      flex: 1,
-      marginLeft: spacing[3],
-      fontSize: 16,
     },
 
     subjectsSection: {
@@ -649,57 +601,11 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.container, { direction }]}>
       <StatusBar barStyle="dark-content" />
 
-        {/* Header with User Greeting */}
-        <View style={styles.header}>
-          <View style={[
-            styles.headerRow,
-            {
-              flexDirection: 'row',
-              justifyContent: 'flex-start',
-              direction: 'ltr'
-            }
-          ]}>
-            <TouchableOpacity
-              style={styles.headerAvatar}
-              onPress={() => router.push('/(tabs)/profile')}
-            >
-              <View style={styles.avatar}>
-                <Typography variant="h4" color="white" weight="bold">
-                  ד
-                </Typography>
-              </View>
-            </TouchableOpacity>
-            <View style={[styles.headerTextContainer, { flex: 1 }]}>
-              <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right' }}>
-                {new Date().getHours() < 12 ? '🌅 בוקר טוב' :
-                 new Date().getHours() < 17 ? '☀️ צהריים טובים' :
-                 new Date().getHours() < 21 ? '🌆 ערב טוב' : '🌙 לילה טוב'}
-              </Typography>
-              <Typography variant="h3" color="text" weight="bold" style={{ marginTop: spacing[1], textAlign: 'right' }}>
-                שלום, דניאל! 👋
-              </Typography>
-              <Typography variant="body2" color="textSecondary" style={{ marginTop: spacing[2], textAlign: 'right' }}>
-                {t('home.findTeacher')}
-              </Typography>
-            </View>
-          </View>
-        </View>
-
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Input
-            placeholder={t('home.searchPlaceholder')}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            leftIcon={isRTL ? <Filter size={20} color={colors.gray[600]} /> : <Search size={20} color={colors.gray[600]} />}
-            rightIcon={
-              <TouchableOpacity>
-                {isRTL ? <Search size={20} color={colors.gray[600]} /> : <Filter size={20} color={colors.gray[600]} />}
-              </TouchableOpacity>
-            }
-            containerStyle={{ marginBottom: 0 }}
-          />
-        </View>
+      {/* Info Banner - replaces greeting and search */}
+      <InfoBanner
+        messages={bannerMessages}
+        autoRotateInterval={10000}
+      />
 
         <ScrollView
           style={{ flex: 1 }}
