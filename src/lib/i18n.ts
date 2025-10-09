@@ -205,6 +205,14 @@ const resources = {
         thursday: 'חמישי',
         friday: 'שישי',
         saturday: 'שבת',
+        // Teacher App
+        accessDenied: 'גישה מוגבלת',
+        accessDeniedMessage: 'ממשק זה מיועד למורים בלבד',
+        tabs: {
+          home: 'בית',
+          calendar: 'יומן',
+          profile: 'פרופיל',
+        },
       },
       tabs: {
         home: 'בית',
