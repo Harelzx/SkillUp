@@ -418,11 +418,11 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         </View>
       </Animated.View>
 
-      {/* Indicator Dots */}
+      {/* Indicator Dots - reversed to match slide direction */}
       {messages.length > 1 && (
         <View
           style={{
-            flexDirection: isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row-reverse', // Always reversed: higher indices appear on left
             justifyContent: 'center',
             alignItems: 'center',
             marginTop: spacing[2] + 4,
