@@ -9,9 +9,7 @@ import {
   AppState,
   AppStateStatus,
   Easing,
-  ImageBackground,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing, borderRadius, shadows } from '@/theme/tokens';
 import { useRTL } from '@/context/RTLContext';
@@ -22,7 +20,6 @@ export interface BannerMessage {
   title: string;
   subtitle?: string;
   emoji?: string;
-  imageUrl?: string; // For PROMO background image
 }
 
 interface InfoBannerProps {
@@ -41,7 +38,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
 }) => {
   const { isRTL } = useRTL();
   
-  // Single source of truth for active index
   const [activeIndex, setActiveIndex] = useState(0);
   const activeIndexRef = useRef(0);
   
@@ -56,12 +52,10 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
   const pauseTimer = useRef<NodeJS.Timeout | null>(null);
   const isDragging = useRef(false);
 
-  // Sync state with ref to avoid stale closures
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
 
-  // Check for reduce motion preference
   useEffect(() => {
     if (Platform.OS !== 'web') {
       AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
@@ -70,7 +64,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     }
   }, []);
 
-  // Monitor app state
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       setAppState(nextAppState);
@@ -78,14 +71,12 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     return () => subscription.remove();
   }, []);
 
-  // Navigate to specific index with animation
   const navigateToIndex = useCallback((toIndex: number, direction: 'left' | 'right') => {
     if (messages.length <= 1 || isTransitioning || isDragging.current) return;
 
     setIsTransitioning(true);
     
     if (isReduceMotionEnabled) {
-      // Quick fade for reduced motion
       Animated.sequence([
         Animated.timing(fadeAnim, {
           toValue: 0,
@@ -102,7 +93,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
       });
       setActiveIndex(toIndex);
     } else {
-      // Smooth slide animation
       const targetOffset = direction === 'left' ? -SCREEN_WIDTH : SCREEN_WIDTH;
 
       Animated.parallel([
@@ -161,7 +151,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     }, 1500);
   }, []);
 
-  // Pan responder for continuous swipe
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
@@ -222,7 +211,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     })
   ).current;
 
-  // Auto-rotation timer
   useEffect(() => {
     if (autoRotateTimer.current) {
       clearTimeout(autoRotateTimer.current);
@@ -249,7 +237,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     };
   }, [activeIndex, isPaused, isTransitioning, messages.length, appState, autoRotateInterval, goToNext]);
 
-  // Cleanup
   useEffect(() => {
     return () => {
       if (autoRotateTimer.current) clearTimeout(autoRotateTimer.current);
@@ -270,29 +257,16 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     }
   };
 
-  const getGradientColors = (type: BannerMessage['type']): string[] => {
+  const getBackgroundColors = (type: BannerMessage['type']): { start: string; end: string } => {
     switch (type) {
       case 'SYSTEM':
-        return ['rgba(59, 130, 246, 0.08)', 'rgba(37, 99, 235, 0.12)'];
+        return { start: '#EFF6FF', end: '#DBEAFE' };
       case 'PROMO':
-        return ['rgba(168, 85, 247, 0.12)', 'rgba(147, 51, 234, 0.18)'];
+        return { start: '#FAF5FF', end: '#F3E8FF' };
       case 'LESSON_REMINDER':
-        return ['rgba(34, 197, 94, 0.08)', 'rgba(22, 163, 74, 0.12)'];
+        return { start: '#F0FDF4', end: '#DCFCE7' };
       default:
-        return ['rgba(107, 114, 128, 0.05)', 'rgba(75, 85, 99, 0.08)'];
-    }
-  };
-
-  const getBorderColor = (type: BannerMessage['type']): string => {
-    switch (type) {
-      case 'SYSTEM':
-        return 'rgba(59, 130, 246, 0.15)';
-      case 'PROMO':
-        return 'rgba(168, 85, 247, 0.15)';
-      case 'LESSON_REMINDER':
-        return 'rgba(34, 197, 94, 0.15)';
-      default:
-        return 'rgba(107, 114, 128, 0.1)';
+        return { start: '#F9FAFB', end: '#F3F4F6' };
     }
   };
 
@@ -312,81 +286,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
 
   const currentMessage = messages[activeIndex];
   const emoji = currentMessage.emoji || getDefaultEmoji(currentMessage.type);
-  const hasImage = currentMessage.type === 'PROMO' && currentMessage.imageUrl;
-
-  const CardContent = (
-    <View
-      style={{
-        flex: 1,
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: spacing[4],
-        paddingVertical: spacing[4],
-        minHeight: 84,
-      }}
-    >
-      {/* Text with inline emoji */}
-      <View style={{ 
-        width: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: spacing[1],
-      }}>
-        {/* Title with emoji */}
-        <View style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-        }}>
-          <Typography
-            style={{
-              fontSize: 18,
-              lineHeight: 24,
-            }}
-          >
-            {emoji}
-          </Typography>
-          <Typography
-            variant="body1"
-            weight="semibold"
-            align="center"
-            numberOfLines={2}
-            ellipsizeMode="tail"
-            style={{ 
-              fontSize: 16,
-              lineHeight: 22,
-              textAlign: 'center',
-              flex: 1,
-              color: hasImage ? colors.white : colors.gray[900],
-            }}
-          >
-            {truncateText(currentMessage.title, 65)}
-          </Typography>
-        </View>
-
-        {/* Subtitle */}
-        {currentMessage.subtitle && (
-          <Typography
-            variant="caption"
-            align="center"
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            style={{
-              fontSize: 13,
-              lineHeight: 18,
-              textAlign: 'center',
-              width: '100%',
-              color: hasImage ? 'rgba(255, 255, 255, 0.9)' : colors.gray[600],
-            }}
-          >
-            {truncateText(currentMessage.subtitle, 80)}
-          </Typography>
-        )}
-      </View>
-    </View>
-  );
+  const bgColors = getBackgroundColors(currentMessage.type);
 
   return (
     <View
@@ -412,38 +312,94 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
           style={{
             borderRadius: 14,
             borderWidth: 1,
-            borderColor: getBorderColor(currentMessage.type),
+            borderColor: colors.gray[200],
             overflow: 'hidden',
             ...shadows.sm,
+            // Simple gradient effect with overlapping views
+            backgroundColor: bgColors.start,
           }}
         >
-          {hasImage && currentMessage.imageUrl ? (
-            // PROMO with background image + gradient overlay
-            <ImageBackground
-              source={{ uri: currentMessage.imageUrl }}
-              style={{ width: '100%' }}
-              imageStyle={{ borderRadius: 14 }}
-            >
-              <LinearGradient
-                colors={['rgba(0, 0, 0, 0.6)', 'rgba(0, 0, 0, 0.4)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{ flex: 1 }}
-              >
-                {CardContent}
-              </LinearGradient>
-            </ImageBackground>
-          ) : (
-            // SYSTEM / LESSON_REMINDER with subtle gradient
-            <LinearGradient
-              colors={getGradientColors(currentMessage.type)}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ flex: 1 }}
-            >
-              {CardContent}
-            </LinearGradient>
-          )}
+          {/* Gradient overlay simulation */}
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            backgroundColor: bgColors.end,
+            opacity: 0.3,
+          }} />
+
+          <View
+            style={{
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingHorizontal: spacing[4],
+              paddingVertical: spacing[4],
+              minHeight: 84,
+            }}
+          >
+            {/* Text with inline emoji */}
+            <View style={{ 
+              width: '100%',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing[1],
+            }}>
+              {/* Title with emoji */}
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+              }}>
+                <Typography
+                  style={{
+                    fontSize: 18,
+                    lineHeight: 24,
+                  }}
+                >
+                  {emoji}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  weight="semibold"
+                  align="center"
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                  style={{ 
+                    fontSize: 16,
+                    lineHeight: 22,
+                    textAlign: 'center',
+                    color: colors.gray[900],
+                  }}
+                >
+                  {truncateText(currentMessage.title, 65)}
+                </Typography>
+              </View>
+
+              {/* Subtitle */}
+              {currentMessage.subtitle && (
+                <Typography
+                  variant="caption"
+                  align="center"
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 18,
+                    textAlign: 'center',
+                    width: '100%',
+                    color: colors.gray[600],
+                  }}
+                >
+                  {truncateText(currentMessage.subtitle, 80)}
+                </Typography>
+              )}
+            </View>
+          </View>
         </View>
       </Animated.View>
 
