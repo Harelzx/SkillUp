@@ -217,169 +217,213 @@ export default function HomeScreen() {
   const renderTeacherCard = ({ item }: { item: Teacher }) => (
     <Card
       variant="elevated"
-      padding="md"
+      padding="none"
       style={{
         marginBottom: spacing[2],
         marginRight: isRTL ? 0 : spacing[2],
         marginLeft: isRTL ? spacing[2] : 0,
-        width: 320, // Increased from 270
-        maxWidth: 320,
-        minHeight: 180, // Increased from 160
+        width: 300,
+        maxWidth: 300,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(0, 0, 0, 0.08)',
+        overflow: 'hidden',
       }}
     >
       <TouchableOpacity
         onPress={() => router.push(`/(tabs)/teacher/${item.id}`)}
-        activeOpacity={0.7}
+        activeOpacity={0.98}
+        style={{ padding: spacing[4] }}
       >
-        <View style={[styles.teacherCardRow, isRTL ? styles.teacherCardRowRTL : styles.teacherCardRowLTR]}>
-          {/* Avatar - smaller size */}
-          <View style={[styles.avatar, {
-            width: 45,
-            height: 45,
-            borderRadius: 22.5
-          }]}>
-            <Typography variant="h5" color="white" align="center">
+        {/* Header: Avatar + Name + Badge */}
+        <View style={{
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+          alignItems: 'center',
+          gap: spacing[2],
+          marginBottom: spacing[3],
+        }}>
+          {/* Avatar */}
+          <View style={{
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: colors.primary[600],
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderWidth: 2,
+            borderColor: colors.primary[100],
+          }}>
+            <Typography variant="body2" color="white" weight="bold">
               {item.displayName.charAt(0)}
             </Typography>
           </View>
 
-          {/* Teacher Info */}
-          <View style={[
-            styles.teacherInfo,
-            isRTL ? styles.teacherInfoRTL : styles.teacherInfoLTR,
-            { gap: spacing[1], flex: 1 } // Added flex: 1 to take available space
-          ]}>
-            {/* Name */}
-            <Typography
-              variant="body1"
-              weight="semibold"
-              align={isRTL ? "right" : "left"}
-              numberOfLines={1}
-            >
-              {item.displayName}
-            </Typography>
+          {/* Name */}
+          <Typography
+            variant="body1"
+            weight="semibold"
+            align={isRTL ? "right" : "left"}
+            numberOfLines={1}
+            style={{ flex: 1, fontSize: 16 }}
+          >
+            {item.displayName}
+          </Typography>
 
-            {/* Bio - more compact */}
-            <Typography
-              variant="caption"
-              color="textSecondary"
-              align={isRTL ? "right" : "left"}
-              numberOfLines={3}
-              ellipsizeMode="tail"
-              style={{
-                lineHeight: 20,
-                marginTop: 2,
-                fontSize: 15
-              }}
-            >
-              {item.bio}
-            </Typography>
-
-            {/* Subjects - aligned to the right of this line */}
-            <View style={[
-              styles.subjectsContainer,
-              {
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-                gap: spacing[1],
-                marginTop: spacing[1],
-                justifyContent: isRTL ? 'flex-end' : 'flex-end',
-                alignItems: 'center',
-              }
-            ]}>
-              {item.subjects.slice(0, 2).map((subject, index) => (
-                <View key={index} style={[styles.subjectBadge, {
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
-                  borderRadius: 8,
-                }]}>
-                  <Typography
-                    variant="caption"
-                    color="primary"
-                    style={{
-                      fontSize: 13,
-                      textAlign: isRTL ? 'right' : 'center'
-                    }}
-                  >
-                    {t(`home.subjects.${subject}`)}
-                  </Typography>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* Meta info - more compact */}
-        <View style={[
-          styles.metaContainer,
-          {
-            flexDirection: isRTL ? 'row-reverse' : 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginTop: spacing[1] + 2,
-            gap: spacing[3]
-          }
-        ]}>
-          {/* Rating */}
-          {item.rating && (
-            <View style={[
-              styles.ratingContainer,
-              { flexDirection: isRTL ? 'row' : 'row-reverse', alignItems: 'center' }
-            ]}>
-              <Star size={11} color={colors.warning[500]} fill={colors.warning[500]} />
-              <Typography
-                variant="caption"
-                weight="medium"
-                style={{
-                  marginLeft: isRTL ? 3 : 0,
-                  marginRight: isRTL ? 0 : 3,
-                  fontSize: 13
-                }}
-              >
-                {item.rating} ({item.totalReviews})
-              </Typography>
+          {/* Badge (if high rating) */}
+          {item.rating && item.rating >= 4.8 && (
+            <View style={{
+              backgroundColor: colors.warning[50],
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              borderRadius: 9999,
+              borderWidth: 1,
+              borderColor: colors.warning[200],
+            }}>
+              <Typography style={{ fontSize: 10 }}>⭐</Typography>
             </View>
           )}
+        </View>
 
-          {/* Price */}
-          <View style={[
-            styles.priceContainer,
-            { flexDirection: isRTL ? 'row' : 'row-reverse', alignItems: 'center' }
-          ]}>
-            <CreditCard size={11} color={colors.gray[600]} />
+        {/* Meta Strip: Price + Time */}
+        <View style={{
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+          alignItems: 'center',
+          gap: spacing[2],
+          marginBottom: spacing[3],
+        }}>
+          {/* Price Pill - highlighted */}
+          <View style={{
+            backgroundColor: colors.primary[600],
+            paddingHorizontal: spacing[3],
+            paddingVertical: spacing[2] - 2,
+            borderRadius: 9999,
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            gap: 4,
+          }}>
+            <Typography
+              variant="body2"
+              weight="semibold"
+              color="white"
+              style={{ fontSize: 14 }}
+            >
+              ₪{item.hourlyRate}
+            </Typography>
             <Typography
               variant="caption"
-              color="textSecondary"
-              style={{
-                marginLeft: isRTL ? 3 : 0,
-                marginRight: isRTL ? 0 : 3,
-                fontSize: 13
-              }}
+              color="white"
+              style={{ fontSize: 11, opacity: 0.9 }}
             >
-              {item.hourlyRate}/לשעה
+              /שעה
             </Typography>
           </View>
 
+          {/* Separator */}
+          <View style={{
+            width: 3,
+            height: 3,
+            borderRadius: 1.5,
+            backgroundColor: colors.gray[400],
+          }} />
+
           {/* Availability */}
-          {item.nextAvailable && (
-            <View style={[
-              styles.availabilityContainer,
-              { flexDirection: isRTL ? 'row' : 'row-reverse', alignItems: 'center' }
-            ]}>
-              <Clock size={10} color={colors.success[600]} />
+          {item.nextAvailable ? (
+            <View style={{
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              gap: 4,
+            }}>
+              <Clock size={13} color={colors.success[600]} />
               <Typography
                 variant="caption"
                 color="success"
-                style={{
-                  marginLeft: isRTL ? 3 : 0,
-                  marginRight: isRTL ? 0 : 3,
-                  fontSize: 13
-                }}
+                weight="medium"
+                style={{ fontSize: 13 }}
               >
                 {item.nextAvailable}
               </Typography>
             </View>
+          ) : (
+            <Typography
+              variant="caption"
+              color="textSecondary"
+              style={{ fontSize: 12 }}
+            >
+              זמינות גמישה
+            </Typography>
           )}
         </View>
+
+        {/* Subjects Chips */}
+        <View style={{
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexWrap: 'wrap',
+          gap: spacing[2],
+          marginBottom: spacing[2],
+        }}>
+          {item.subjects.slice(0, 3).map((subject, index) => (
+            <View
+              key={index}
+              style={{
+                backgroundColor: colors.gray[100],
+                paddingHorizontal: spacing[2] + 2,
+                paddingVertical: spacing[1] + 2,
+                borderRadius: 9999,
+                borderWidth: 1,
+                borderColor: colors.gray[200],
+              }}
+            >
+              <Typography
+                variant="caption"
+                style={{
+                  fontSize: 12,
+                  color: colors.gray[700],
+                }}
+              >
+                {t(`home.subjects.${subject}`)}
+              </Typography>
+            </View>
+          ))}
+          {item.subjects.length > 3 && (
+            <View style={{
+              paddingHorizontal: spacing[2],
+              paddingVertical: spacing[1] + 2,
+            }}>
+              <Typography
+                variant="caption"
+                color="textSecondary"
+                style={{ fontSize: 11 }}
+              >
+                +{item.subjects.length - 3} עוד
+              </Typography>
+            </View>
+          )}
+        </View>
+
+        {/* Rating (if exists) */}
+        {item.rating && (
+          <View style={{
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            gap: 4,
+          }}>
+            <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
+            <Typography
+              variant="caption"
+              weight="medium"
+              style={{ fontSize: 13 }}
+            >
+              {item.rating}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="textSecondary"
+              style={{ fontSize: 12 }}
+            >
+              ({item.totalReviews} ביקורות)
+            </Typography>
+          </View>
+        )}
       </TouchableOpacity>
     </Card>
   );
@@ -444,75 +488,6 @@ export default function HomeScreen() {
       paddingBottom: spacing[2],
     },
 
-    teacherCardRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing[2],
-    },
-
-    teacherCardRowLTR: {
-      flexDirection: 'row',
-    },
-
-    teacherCardRowRTL: {
-      flexDirection: 'row-reverse',
-    },
-
-    teacherInfo: {
-      flex: 1,
-      gap: spacing[1],
-    },
-
-    teacherInfoLTR: {
-      flex: 1,
-    },
-
-    teacherInfoRTL: {
-      flex: 1,
-    },
-
-    subjectsContainer: {
-      flexWrap: 'wrap',
-      gap: spacing[1],
-    },
-
-    subjectBadge: {
-      backgroundColor: colors.primary[50],
-      borderRadius: 8,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-    },
-
-    metaContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 6,
-    },
-
-    leftMeta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-
-    ratingContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-    },
-
-    priceContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-    },
-
-    availabilityContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-    },
 
     emptyState: {
       paddingVertical: spacing[8],
