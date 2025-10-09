@@ -418,11 +418,11 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         </View>
       </Animated.View>
 
-      {/* Indicator Dots - single inversion strategy via CSS row-reverse */}
+      {/* Indicator Dots - natural order: dots move right as index increases */}
       {messages.length > 1 && (
         <View
           style={{
-            flexDirection: 'row-reverse', // CSS inversion: index 0 appears on right
+            flexDirection: 'row', // Natural order: index 0 on left, moves right
             justifyContent: 'center',
             alignItems: 'center',
             marginTop: spacing[2] + 4,
