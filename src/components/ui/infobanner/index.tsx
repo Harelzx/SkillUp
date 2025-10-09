@@ -24,20 +24,24 @@ export interface BannerMessage {
 
 interface InfoBannerProps {
   messages: BannerMessage[];
-  autoRotateInterval?: number; // in milliseconds, default 10000
+  autoRotateInterval?: number;
 }
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25; // 25% of screen width
-const ANIMATION_DURATION = 320; // milliseconds for smooth slide transition
-const FADE_DURATION = 140; // milliseconds for reduce motion fade
+const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
+const ANIMATION_DURATION = 320;
+const FADE_DURATION = 140;
 
 export const InfoBanner: React.FC<InfoBannerProps> = ({
   messages,
   autoRotateInterval = 10000,
 }) => {
   const { isRTL } = useRTL();
-  const [currentIndex, setCurrentIndex] = useState(0);
+  
+  // Single source of truth for active index
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeIndexRef = useRef(0);
+  
   const [isPaused, setIsPaused] = useState(false);
   const [isReduceMotionEnabled, setIsReduceMotionEnabled] = useState(false);
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
@@ -47,8 +51,12 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const autoRotateTimer = useRef<NodeJS.Timeout | null>(null);
   const pauseTimer = useRef<NodeJS.Timeout | null>(null);
-  const lastSwipeTime = useRef<number>(0);
-  const gestureInProgress = useRef(false);
+  const isDragging = useRef(false);
+
+  // Sync state with ref to avoid stale closures
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
 
   // Check for reduce motion preference
   useEffect(() => {
@@ -59,43 +67,22 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     }
   }, []);
 
-  // Monitor app state to pause rotation when app is in background
+  // Monitor app state
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       setAppState(nextAppState);
     });
-
-    return () => {
-      subscription.remove();
-    };
+    return () => subscription.remove();
   }, []);
 
-  const goToNext = useCallback(() => {
-    if (messages.length <= 1 || isTransitioning || gestureInProgress.current) return;
+  // Navigate to specific index with animation
+  const navigateToIndex = useCallback((toIndex: number, direction: 'left' | 'right') => {
+    if (messages.length <= 1 || isTransitioning || isDragging.current) return;
+
+    setIsTransitioning(true);
     
-    const now = Date.now();
-    if (now - lastSwipeTime.current < 400) return; // Debounce
-    lastSwipeTime.current = now;
-
-    const nextIndex = (currentIndex + 1) % messages.length;
-    animateToIndex(nextIndex, 'left'); // Advance leftward
-  }, [currentIndex, messages.length, isTransitioning]);
-
-  const goToPrevious = useCallback(() => {
-    if (messages.length <= 1 || isTransitioning || gestureInProgress.current) return;
-
-    const now = Date.now();
-    if (now - lastSwipeTime.current < 400) return; // Debounce
-    lastSwipeTime.current = now;
-
-    const prevIndex = (currentIndex - 1 + messages.length) % messages.length;
-    animateToIndex(prevIndex, 'right'); // Go back rightward
-  }, [currentIndex, messages.length, isTransitioning]);
-
-  const animateToIndex = (toIndex: number, direction: 'left' | 'right') => {
     if (isReduceMotionEnabled) {
       // Quick fade for reduced motion
-      setIsTransitioning(true);
       Animated.sequence([
         Animated.timing(fadeAnim, {
           toValue: 0,
@@ -110,10 +97,9 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
       ]).start(() => {
         setIsTransitioning(false);
       });
-      setCurrentIndex(toIndex);
+      setActiveIndex(toIndex);
     } else {
       // Smooth slide animation
-      setIsTransitioning(true);
       const targetOffset = direction === 'left' ? -SCREEN_WIDTH : SCREEN_WIDTH;
 
       Animated.parallel([
@@ -129,12 +115,14 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
           useNativeDriver: true,
         }),
       ]).start(() => {
-        // Update index and reset position
-        setCurrentIndex(toIndex);
+        // Update index (single source of truth)
+        setActiveIndex(toIndex);
+        
+        // Reset position for next animation
         translateX.setValue(-targetOffset);
         fadeAnim.setValue(0.3);
         
-        // Animate back to center
+        // Animate in
         Animated.parallel([
           Animated.timing(translateX, {
             toValue: 0,
@@ -152,30 +140,47 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         });
       });
     }
-  };
+  }, [messages.length, isTransitioning, isReduceMotionEnabled, translateX, fadeAnim]);
 
+  // Navigate to next (leftward)
+  const goToNext = useCallback(() => {
+    if (messages.length <= 1) return;
+    const nextIndex = (activeIndexRef.current + 1) % messages.length;
+    navigateToIndex(nextIndex, 'left');
+  }, [messages.length, navigateToIndex]);
+
+  // Navigate to previous (rightward)
+  const goToPrevious = useCallback(() => {
+    if (messages.length <= 1) return;
+    const prevIndex = (activeIndexRef.current - 1 + messages.length) % messages.length;
+    navigateToIndex(prevIndex, 'right');
+  }, [messages.length, navigateToIndex]);
+
+  // Pause auto-rotation
   const pauseAutoRotation = useCallback(() => {
     setIsPaused(true);
+    
     if (pauseTimer.current) {
       clearTimeout(pauseTimer.current);
     }
-    // Resume after 1.5 seconds
+    
     pauseTimer.current = setTimeout(() => {
       setIsPaused(false);
     }, 1500);
   }, []);
 
-  // Pan responder for continuous swipe gestures
+  // Pan responder for continuous swipe
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        const horizontalSwipe = Math.abs(gestureState.dx) > 10 && 
-                                Math.abs(gestureState.dy) < Math.abs(gestureState.dx);
-        return horizontalSwipe && !isTransitioning;
+        // Lock to horizontal axis
+        const isHorizontal = Math.abs(gestureState.dx) > 10 && 
+                            Math.abs(gestureState.dy) < Math.abs(gestureState.dx);
+        return isHorizontal && !isTransitioning;
       },
       onPanResponderGrant: () => {
-        gestureInProgress.current = true;
+        isDragging.current = true;
         pauseAutoRotation();
       },
       onPanResponderMove: (_, gestureState) => {
@@ -183,29 +188,31 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         
         const dragDistance = gestureState.dx;
         
-        // Apply rubber band effect at edges
+        // Rubber band at edges
         const resistance = Math.abs(dragDistance) > SCREEN_WIDTH * 0.5 ? 0.5 : 1;
         translateX.setValue(dragDistance * resistance);
         
-        // Fade slightly during drag
+        // Fade during drag
         const progress = Math.min(Math.abs(dragDistance) / SCREEN_WIDTH, 0.3);
         fadeAnim.setValue(1 - progress);
       },
       onPanResponderRelease: (_, gestureState) => {
-        gestureInProgress.current = false;
+        isDragging.current = false;
+        
         const threshold = SWIPE_THRESHOLD;
-        const velocity = Math.abs(gestureState.vx);
+        const velocity = gestureState.vx;
         const absDistance = Math.abs(gestureState.dx);
+        const shouldAdvance = absDistance > threshold || Math.abs(velocity) > 0.5;
 
-        if (absDistance > threshold || velocity > 0.5) {
+        if (shouldAdvance) {
           // Swipe left = next, swipe right = previous
-          if (gestureState.dx < 0) {
+          if (gestureState.dx < 0 || velocity < -0.5) {
             goToNext();
-          } else {
+          } else if (gestureState.dx > 0 || velocity > 0.5) {
             goToPrevious();
           }
         } else {
-          // Return to current position with smooth spring
+          // Return to current position
           Animated.parallel([
             Animated.spring(translateX, {
               toValue: 0,
@@ -223,7 +230,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         }
       },
       onPanResponderTerminate: () => {
-        gestureInProgress.current = false;
+        isDragging.current = false;
         Animated.parallel([
           Animated.spring(translateX, {
             toValue: 0,
@@ -238,25 +245,36 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     })
   ).current;
 
-  // Auto-rotation logic - advance leftward every 10s
+  // Auto-rotation timer - always advances leftward
   useEffect(() => {
-    // Only rotate when app is active, not paused, and has multiple messages
-    if (messages.length <= 1 || isPaused || appState !== 'active' || isTransitioning) {
-      return;
+    // Clear any existing timer
+    if (autoRotateTimer.current) {
+      clearTimeout(autoRotateTimer.current);
+      autoRotateTimer.current = null;
     }
 
-    autoRotateTimer.current = setTimeout(() => {
-      goToNext(); // Auto-advance leftward
-    }, autoRotateInterval);
+    // Only start timer if conditions are met
+    if (
+      messages.length > 1 &&
+      !isPaused &&
+      !isTransitioning &&
+      !isDragging.current &&
+      appState === 'active'
+    ) {
+      autoRotateTimer.current = setTimeout(() => {
+        goToNext(); // Always advance leftward
+      }, autoRotateInterval);
+    }
 
     return () => {
       if (autoRotateTimer.current) {
         clearTimeout(autoRotateTimer.current);
+        autoRotateTimer.current = null;
       }
     };
-  }, [currentIndex, isPaused, messages.length, appState, isTransitioning, goToNext, autoRotateInterval]);
+  }, [activeIndex, isPaused, isTransitioning, messages.length, appState, autoRotateInterval, goToNext]);
 
-  // Cleanup timers
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (autoRotateTimer.current) clearTimeout(autoRotateTimer.current);
@@ -303,14 +321,10 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     }
   };
 
-  // Smart text truncation
   const truncateText = (text: string, maxLength: number): string => {
     if (text.length <= maxLength) return text;
-    
-    // Find last space before maxLength
     const truncated = text.substring(0, maxLength);
     const lastSpace = truncated.lastIndexOf(' ');
-    
     if (lastSpace > maxLength * 0.7) {
       return truncated.substring(0, lastSpace) + '…';
     }
@@ -321,7 +335,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     return null;
   }
 
-  const currentMessage = messages[currentIndex];
+  const currentMessage = messages[activeIndex];
 
   return (
     <View
@@ -353,7 +367,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
             paddingVertical: spacing[4],
             minHeight: 80,
             ...shadows.sm,
-            // Center content horizontally and vertically
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
@@ -420,7 +433,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         </View>
       </Animated.View>
 
-      {/* Indicator Dots - synced with leftward advance */}
+      {/* Indicator Dots - synced with activeIndex */}
       {messages.length > 1 && (
         <View
           style={{
@@ -435,11 +448,11 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
             <View
               key={index}
               style={{
-                width: index === currentIndex ? 20 : 6,
+                width: index === activeIndex ? 20 : 6,
                 height: 6,
                 borderRadius: 3,
                 backgroundColor:
-                  index === currentIndex ? colors.primary[600] : colors.gray[300],
+                  index === activeIndex ? colors.primary[600] : colors.gray[300],
               }}
               accessible={false}
             />
