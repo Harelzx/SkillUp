@@ -71,7 +71,8 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     return () => subscription.remove();
   }, []);
 
-  const navigateToIndex = useCallback((toIndex: number, direction: 'left' | 'right') => {
+  // Navigate to specific index with REVERSED animation direction
+  const navigateToIndex = useCallback((toIndex: number, direction: 'next' | 'prev') => {
     if (messages.length <= 1 || isTransitioning || isDragging.current) return;
 
     setIsTransitioning(true);
@@ -93,11 +94,16 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
       });
       setActiveIndex(toIndex);
     } else {
-      const targetOffset = direction === 'left' ? -SCREEN_WIDTH : SCREEN_WIDTH;
+      // REVERSED ANIMATION:
+      // For NEXT: current → RIGHT (+100%), next ← LEFT (-100% → 0)
+      // For PREV: current → LEFT (-100%), prev ← RIGHT (+100% → 0)
+      const currentOutOffset = direction === 'next' ? SCREEN_WIDTH : -SCREEN_WIDTH;
+      const nextInFromOffset = direction === 'next' ? -SCREEN_WIDTH : SCREEN_WIDTH;
 
+      // Phase 1: Slide current out
       Animated.parallel([
         Animated.timing(translateX, {
-          toValue: targetOffset,
+          toValue: currentOutOffset,
           duration: ANIMATION_DURATION,
           easing: Easing.bezier(0.22, 1, 0.36, 1),
           useNativeDriver: true,
@@ -108,10 +114,14 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
           useNativeDriver: true,
         }),
       ]).start(() => {
+        // Update index
         setActiveIndex(toIndex);
-        translateX.setValue(-targetOffset);
+        
+        // Position next slide off-screen
+        translateX.setValue(nextInFromOffset);
         fadeAnim.setValue(0.3);
         
+        // Phase 2: Slide next in
         Animated.parallel([
           Animated.timing(translateX, {
             toValue: 0,
@@ -134,13 +144,13 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
   const goToNext = useCallback(() => {
     if (messages.length <= 1) return;
     const nextIndex = (activeIndexRef.current + 1) % messages.length;
-    navigateToIndex(nextIndex, 'left');
+    navigateToIndex(nextIndex, 'next');
   }, [messages.length, navigateToIndex]);
 
   const goToPrevious = useCallback(() => {
     if (messages.length <= 1) return;
     const prevIndex = (activeIndexRef.current - 1 + messages.length) % messages.length;
-    navigateToIndex(prevIndex, 'right');
+    navigateToIndex(prevIndex, 'prev');
   }, [messages.length, navigateToIndex]);
 
   const pauseAutoRotation = useCallback(() => {
@@ -151,6 +161,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     }, 1500);
   }, []);
 
+  // Pan responder with REVERSED swipe mapping
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
@@ -179,12 +190,16 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         const shouldAdvance = absDistance > threshold || Math.abs(velocity) > 0.5;
 
         if (shouldAdvance) {
-          if (gestureState.dx < 0 || velocity < -0.5) {
-            goToNext();
-          } else if (gestureState.dx > 0 || velocity > 0.5) {
-            goToPrevious();
+          // REVERSED MAPPING:
+          // Swipe RIGHT (dx > 0) → go to NEXT (current slides right out, next comes from left)
+          // Swipe LEFT (dx < 0) → go to PREVIOUS (current slides left out, prev comes from right)
+          if (gestureState.dx > 0 || velocity > 0.5) {
+            goToNext(); // Swipe right → next
+          } else if (gestureState.dx < 0 || velocity < -0.5) {
+            goToPrevious(); // Swipe left → previous
           }
         } else {
+          // Snap back to current
           Animated.parallel([
             Animated.spring(translateX, {
               toValue: 0,
@@ -211,6 +226,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
     })
   ).current;
 
+  // Auto-rotation timer (unchanged - still advances to next every 10s)
   useEffect(() => {
     if (autoRotateTimer.current) {
       clearTimeout(autoRotateTimer.current);
@@ -225,7 +241,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
       appState === 'active'
     ) {
       autoRotateTimer.current = setTimeout(() => {
-        goToNext();
+        goToNext(); // Auto-advance to next
       }, autoRotateInterval);
     }
 
@@ -315,7 +331,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
             borderColor: colors.gray[200],
             overflow: 'hidden',
             ...shadows.sm,
-            // Simple gradient effect with overlapping views
             backgroundColor: bgColors.start,
           }}
         >
