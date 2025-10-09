@@ -418,35 +418,31 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
         </View>
       </Animated.View>
 
-      {/* Indicator Dots - inverted mapping for leftward visual progression */}
+      {/* Indicator Dots - single inversion strategy via CSS row-reverse */}
       {messages.length > 1 && (
         <View
           style={{
-            flexDirection: 'row', // Regular row: index 0 on left, high on right
+            flexDirection: 'row-reverse', // CSS inversion: index 0 appears on right
             justifyContent: 'center',
             alignItems: 'center',
             marginTop: spacing[2] + 4,
             gap: spacing[2],
           }}
         >
-          {messages.map((_, index) => {
-            // Inverted mapping: when activeIndex increases, highlighted dot moves LEFT
-            const dotIndex = messages.length - 1 - activeIndex;
-            return (
-              <View
-                key={index}
-                style={{
-                  width: index === dotIndex ? 18 : 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor:
-                    index === dotIndex ? colors.primary[600] : colors.gray[300],
-                  opacity: index === dotIndex ? 1 : 0.5,
-                }}
-                accessible={false}
-              />
-            );
-          })}
+          {messages.map((_, index) => (
+            <View
+              key={index}
+              style={{
+                width: index === activeIndex ? 18 : 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor:
+                  index === activeIndex ? colors.primary[600] : colors.gray[300],
+                opacity: index === activeIndex ? 1 : 0.5,
+              }}
+              accessible={false}
+            />
+          ))}
         </View>
       )}
     </View>
