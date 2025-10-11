@@ -1,5 +1,5 @@
-import { supabase } from '@/src/lib/supabase';
-import type { CreditTransaction } from '@/src/types/api';
+import { supabase } from '@/lib/supabase';
+import type { CreditTransaction } from '@/types/api';
 
 // ============================================
 // GET CREDITS & TRANSACTIONS

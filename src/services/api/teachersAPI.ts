@@ -1,10 +1,10 @@
-import { supabase } from '@/src/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import type {
   TeacherProfile,
   Subject,
   TeacherAvailability,
   Review
-} from '@/src/types/api';
+} from '@/types/api';
 
 // ============================================
 // TEACHER PROFILES
@@ -90,8 +90,11 @@ export async function getFeaturedTeachers(limit: number = 10) {
     .select('*')
     .eq('is_active', true)
     .eq('is_verified', true)
-    .gte('avg_rating', 4.5)
-    .gte('review_count', 5)
+    // In development: show all verified teachers
+    // In production: uncomment the rating/review filters
+    // .gte('avg_rating', 4.5)
+    // .gte('review_count', 5)
+    .order('avg_rating', { ascending: false, nullsFirst: false })
     .order('total_students', { ascending: false })
     .limit(limit);
 

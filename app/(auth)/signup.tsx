@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,6 +23,7 @@ import {
   ArrowRight,
 } from 'lucide-react-native';
 import { useRTL } from '@/context/RTLContext';
+import { useAuth } from '@/features/auth/auth-context';
 
 interface FormData {
   firstName: string;
@@ -40,6 +40,7 @@ interface FormData {
 export default function SignupScreen() {
   const router = useRouter();
   const { isRTL } = useRTL();
+  const { signUp, signOut } = useAuth();
 
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
@@ -129,12 +130,66 @@ export default function SignupScreen() {
   const handleSignup = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      router.push('/(tabs)');
+      // CRITICAL: Sign out any existing session (especially DEV users)
+      console.log('🔄 Signing out existing session before signup...');
+      try {
+        await signOut();
+        // Small delay to ensure signout completes
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (signOutError) {
+        console.log('Note: Could not sign out (no existing session) - continuing...');
+      }
+
+      // Create full display name
+      const displayName = `${formData.firstName} ${formData.lastName}`.trim();
+
+      console.log('🔄 Starting signup process...', {
+        email: formData.email,
+        displayName,
+        role: formData.userType,
+      });
+
+      // Sign up with Supabase
+      const { error } = await signUp(
+        formData.email,
+        formData.password,
+        {
+          role: formData.userType as 'teacher' | 'student',
+          displayName,
+          phoneNumber: formData.phone,
+        }
+      );
+
+      if (error) {
+        console.error('❌ Signup error:', error);
+        Alert.alert('שגיאה ביצירת חשבון', error.message);
+        return;
+      }
+
+      console.log('✅ Signup successful!');
+
+      // Success! Navigate directly to app based on role
+      // Supabase signs in the user automatically after signup
+      Alert.alert(
+        'ברוכים הבאים! 🎉',
+        'החשבון שלך נוצר בהצלחה. ברוך הבא ל-SkillUp!',
+        [
+          {
+            text: 'התחל',
+            onPress: () => {
+              // Navigate based on user type
+              if (formData.userType === 'teacher') {
+                router.replace('/(teacher)');
+              } else {
+                router.replace('/(tabs)');
+              }
+            },
+          },
+        ]
+      );
     } catch (error) {
-      console.error('Signup error:', error);
-      Alert.alert('שגיאה', 'אירעה שגיאה במהלך יצירת החשבון');
+      console.error('❌ Unexpected signup error:', error);
+      Alert.alert('שגיאה', 'אירעה שגיאה לא צפויה במהלך יצירת החשבון');
     } finally {
       setIsLoading(false);
     }

@@ -1,5 +1,5 @@
-import { supabase } from '@/src/lib/supabase';
-import type { Review } from '@/src/types/api';
+import { supabase } from '@/lib/supabase';
+import type { Review } from '@/types/api';
 
 // ============================================
 // GET REVIEWS

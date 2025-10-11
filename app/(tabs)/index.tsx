@@ -5,6 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -18,6 +19,8 @@ import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { InfoBanner } from '@/components/ui/infobanner';
 import { getBannerMessages } from '@/data/banner-messages';
+import { getFeaturedTeachers, getSubjects } from '@/services/api';
+import { useAuth } from '@/features/auth/auth-context';
 
 interface Teacher {
   id: string;
@@ -34,150 +37,6 @@ interface Teacher {
   totalStudents?: number;
 }
 
-// Mock data for now - will be replaced with actual API calls
-const mockTeachers: Teacher[] = [
-  {
-    id: '1',
-    displayName: 'ד"ר שרה כהן',
-    bio: 'דוקטורט במתמטיקה מאוניברסיטת תל-אביב. מתמחה בחשבון דיפרנציאלי, אלגברה ליניארית וסטטיסטיקה. 12 שנות ניסיון בהוראה אקדמית',
-    hourlyRate: 150,
-    subjects: ['mathematics', 'physics'],
-    rating: 4.9,
-    totalReviews: 127,
-    nextAvailable: 'היום, 16:00',
-    location: 'תל אביב',
-    experienceYears: 12,
-    totalStudents: 245,
-  },
-  {
-    id: '2',
-    displayName: 'דוד לוי',
-    bio: 'מורה אנגלית בכיר עם תואר שני מאוניברסיטת הרווארד. מתמחה בהכנה לבחינות בגרות, פסיכומטרי ואיילטס',
-    hourlyRate: 120,
-    subjects: ['english', 'literature'],
-    rating: 4.8,
-    totalReviews: 89,
-    nextAvailable: 'מחר, 14:00',
-    location: 'רמת גן',
-    experienceYears: 8,
-    totalStudents: 186,
-  },
-  {
-    id: '3',
-    displayName: 'רחל מור',
-    bio: 'פסנתרנית קונצרטים ומורה למוזיקה. בוגרת האקדמיה למוזיקה ירושלים. מתמחה בכל הגילאים ורמות הידע',
-    hourlyRate: 110,
-    subjects: ['music', 'piano'],
-    rating: 4.9,
-    totalReviews: 156,
-    nextAvailable: 'עוד שעה',
-  },
-  {
-    id: '4',
-    displayName: 'פרופ\' אבי דוד',
-    bio: 'פרופסור לפיזיקה באוניברסיטת תל-אביב. מתמחה בפיזיקה תיאורטית, מכניקת הקוונטים ואסטרופיזיקה',
-    hourlyRate: 200,
-    subjects: ['physics', 'mathematics'],
-    rating: 5.0,
-    totalReviews: 43,
-    nextAvailable: 'השבוע',
-  },
-  {
-    id: '5',
-    displayName: 'מיכל גרין',
-    bio: 'מפתחת תוכנה ב-Google ומורה לתכנות. 8 שנות ניסיון בפיתוח אפליקציות ובהוראה טכנולוגית. מתמחה ב-Python ו-JavaScript',
-    hourlyRate: 140,
-    subjects: ['programming', 'mathematics'],
-    rating: 4.7,
-    totalReviews: 94,
-    nextAvailable: 'מחרתיים, 18:00',
-  },
-  {
-    id: '6',
-    displayName: 'יוסף נחמני',
-    bio: 'מורה לכימיה ובעל דוקטורט בכימיה אורגנית מהטכניון. מתמחה בהכנה לבגרות, בחינות קבלה ותואר ראשון',
-    hourlyRate: 130,
-    subjects: ['chemistry', 'physics'],
-    rating: 4.8,
-    totalReviews: 67,
-    nextAvailable: 'היום, 19:00',
-  },
-  {
-    id: '7',
-    displayName: 'לינה עבאס',
-    bio: 'בעלת תואר שני בהיסטוריה ובלשנות מהאוניברסיטה העברית. מתמחה בהיסטוריה של המזרח התיכון ולימודי ערבית',
-    hourlyRate: 90,
-    subjects: ['history', 'english'],
-    rating: 4.6,
-    totalReviews: 38,
-    nextAvailable: 'מחר, 16:30',
-  },
-  {
-    id: '8',
-    displayName: 'אליעזר כהן',
-    bio: 'אמן פלסטי ומורה לציור ועיצוב גרפי. 15 שנות ניסיון בהוראת אמנות, ציור דיגיטלי ויצירה מולטימדיה',
-    hourlyRate: 100,
-    subjects: ['art', 'programming'],
-    rating: 4.5,
-    totalReviews: 52,
-    nextAvailable: 'מחרתיים, 10:00',
-  },
-  // ספורט ואימונים
-  {
-    id: '9',
-    displayName: 'עידו שמואלי',
-    bio: 'מאמן אישי מוסמך עם 10 שנות ניסיון באימוני כוח וריצות מרתון. התמחות באימונים פונקציונליים ו-TRX',
-    hourlyRate: 180,
-    subjects: ['personal_training', 'running', 'trx', 'fitness'],
-    rating: 4.9,
-    totalReviews: 156,
-    nextAvailable: 'היום, 17:00',
-    location: 'תל אביב',
-    experienceYears: 10,
-    totalStudents: 320,
-  },
-  {
-    id: '10',
-    displayName: 'דנה פרידמן',
-    bio: 'מורה ליוגה ופילאטיס מוסמכת. בוגרת לימודי יוגה בהודו והתמחות בפילאטיס טיפולי. מתמחה בכל רמות הידע',
-    hourlyRate: 160,
-    subjects: ['yoga', 'pilates', 'fitness'],
-    rating: 4.8,
-    totalReviews: 203,
-    nextAvailable: 'מחר, 8:00',
-    location: 'רמת גן',
-    experienceYears: 8,
-    totalStudents: 410,
-  },
-  // קורסי אקדמיה
-  {
-    id: '11',
-    displayName: 'ד"ר אביב כהן',
-    bio: 'דוקטורט במתמטיקה שימושית מהטכניון. מתמחה בהוראת חדו״א, אלגברה לינארית וסטטיסטיקה לסטודנטים במדעים',
-    hourlyRate: 220,
-    subjects: ['calculus', 'linear_algebra', 'statistics', 'mathematics'],
-    rating: 4.9,
-    totalReviews: 187,
-    nextAvailable: 'מחרתיים, 15:00',
-    location: 'חיפה',
-    experienceYears: 15,
-    totalStudents: 520,
-  },
-  {
-    id: '12',
-    displayName: 'מיכל לוי',
-    bio: 'בוגרת תואר שני בכלכלה מאוניברסיטת תל-אביב. מתמחה בהוראת מיקרו, מאקרו ומימון לתואר ראשון',
-    hourlyRate: 200,
-    subjects: ['microeconomics', 'macroeconomics', 'finance'],
-    rating: 4.7,
-    totalReviews: 142,
-    nextAvailable: 'היום, 18:00',
-    location: 'תל אביב',
-    experienceYears: 9,
-    totalStudents: 285,
-  },
-];
-
 const getPopularSubjects = (t: any) => [
   { key: 'mathematics', label: t('home.subjects.mathematics') },
   { key: 'english', label: t('home.subjects.english') },
@@ -193,23 +52,57 @@ export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isRTL, direction, getFlexDirection } = useRTL();
+  const { profile } = useAuth();
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
   const popularSubjects = getPopularSubjects(t);
   const bannerMessages = getBannerMessages();
 
-  // Will be replaced with actual query
-  const { data: teachers = mockTeachers } = useQuery({
-    queryKey: ['teachers', selectedSubject],
+  // Fetch real teachers from Supabase
+  const { data: teachers = [], isLoading, error } = useQuery({
+    queryKey: ['featuredTeachers', selectedSubject],
     queryFn: async () => {
-      // Placeholder - will query Supabase
-      return mockTeachers;
+      const teachersData = await getFeaturedTeachers(20);
+      console.log('📚 Teachers data from API:', JSON.stringify(teachersData, null, 2));
+      // Transform API data to match UI interface
+      return teachersData.map((t: any) => {
+        const subjects = Array.isArray(t.subject_names)
+          ? t.subject_names.filter((s: any) => typeof s === 'string' && s.trim())
+          : [];
+
+        return {
+          id: t.id,
+          displayName: t.display_name || 'לא ידוע',
+          bio: t.bio || '',
+          avatarUrl: t.avatar_url,
+          hourlyRate: t.hourly_rate || 0,
+          subjects: subjects,
+          rating: t.avg_rating || 0,
+          totalReviews: t.review_count || 0,
+          location: t.location || '',
+          experienceYears: t.experience_years || 0,
+          totalStudents: t.total_students || 0,
+        };
+      });
     },
   });
 
+  // Map subject keys to Hebrew names from database
+  const subjectKeyToHebrew: Record<string, string> = {
+    'mathematics': 'מתמטיקה',
+    'english': 'אנגלית',
+    'physics': 'פיזיקה',
+    'chemistry': 'כימיה',
+    'history': 'היסטוריה',
+    'music': 'מוזיקה',
+    'art': 'אמנות',
+    'programming': 'מדעי המחשב',
+  };
+
   const filteredTeachers = teachers.filter(teacher => {
     if (selectedSubject) {
-      return teacher.subjects.includes(selectedSubject);
+      const hebrewSubject = subjectKeyToHebrew[selectedSubject];
+      return teacher.subjects.includes(hebrewSubject);
     }
     return true;
   });
@@ -259,10 +152,19 @@ export default function HomeScreen() {
               alignItems: 'center',
               borderWidth: 2,
               borderColor: colors.primary[100],
+              overflow: 'hidden',
             }}>
-              <Typography variant="body2" color="white" weight="bold">
-                {item.displayName.charAt(0)}
-              </Typography>
+              {item.avatarUrl ? (
+                <Image
+                  source={{ uri: item.avatarUrl }}
+                  style={{ width: 32, height: 32 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Typography variant="body2" color="white" weight="bold">
+                  {item.displayName.charAt(0)}
+                </Typography>
+              )}
             </View>
 
             {/* Name - right aligned */}
@@ -277,7 +179,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Left side: Rating */}
-          {item.rating && (
+          {item.rating > 0 && (
             <View style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -401,7 +303,7 @@ export default function HomeScreen() {
                   textAlign: 'right',
                 }}
               >
-                {t(`home.subjects.${subject}`)}
+                {subject || ''}
               </Typography>
             </View>
           ))}
@@ -460,6 +362,7 @@ export default function HomeScreen() {
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 4,
+      overflow: 'hidden',
     },
 
     avatar: {
@@ -619,13 +522,21 @@ export default function HomeScreen() {
                 {new Date().getHours() < 12 ? 'בוקר טוב' : new Date().getHours() < 18 ? 'צהריים טובים' : 'ערב טוב'}
               </Typography>
               <Typography variant="h3" weight="bold" style={{ textAlign: 'right', color: colors.gray[900], marginTop: spacing[1] }}>
-                יוסי כהן
+                {profile?.display_name || 'אורח'}
               </Typography>
             </View>
             <View style={styles.userAvatar}>
-              <Typography variant="h5" color="white" weight="bold">
-                י
-              </Typography>
+              {profile?.avatar_url ? (
+                <Image
+                  source={{ uri: profile.avatar_url }}
+                  style={{ width: 48, height: 48 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Typography variant="h5" color="white" weight="bold">
+                  {profile?.display_name?.charAt(0) || 'א'}
+                </Typography>
+              )}
             </View>
           </View>
         </View>
@@ -677,24 +588,38 @@ export default function HomeScreen() {
               {t('home.featuredTeachers')}
             </Typography>
 
-            <FlatList
-              data={filteredTeachers}
-              renderItem={renderTeacherCard}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              inverted={isRTL}
-              contentContainerStyle={{
-                paddingHorizontal: spacing[4]
-              }}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <Typography variant="body1" color="textSecondary">
-                    {t('home.noTeachersFound')}
-                  </Typography>
-                </View>
-              }
-            />
+            {isLoading ? (
+              <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[6] }}>
+                <Typography variant="body1" color="textSecondary" style={{ textAlign: 'center' }}>
+                  טוען מורים...
+                </Typography>
+              </View>
+            ) : error ? (
+              <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[6] }}>
+                <Typography variant="body1" color="error" style={{ textAlign: 'center' }}>
+                  שגיאה בטעינת נתונים
+                </Typography>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredTeachers}
+                renderItem={renderTeacherCard}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                inverted={isRTL}
+                contentContainerStyle={{
+                  paddingHorizontal: spacing[4]
+                }}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Typography variant="body1" color="textSecondary">
+                      {t('home.noTeachersFound')}
+                    </Typography>
+                  </View>
+                }
+              />
+            )}
           </View>
 
           {/* Featured Categories */}

@@ -35,6 +35,7 @@ import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { useCredits } from '@/context/CreditsContext';
+import { useAuth } from '@/features/auth/auth-context';
 
 interface MenuSection {
   id: string;
@@ -57,20 +58,21 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { getFlexDirection, isRTL } = useRTL();
   const { credits } = useCredits();
+  const { profile } = useAuth();
   const [pressedItem, setPressedItem] = useState<string | null>(null);
   const [showCreditsInfo, setShowCreditsInfo] = useState(false);
   const [gotItPressed, setGotItPressed] = useState(false);
 
-  // Mock user data
+  // Use real user data from auth context
   const user = {
-    name: 'יוסי כהן',
-    email: 'yossi@example.com',
-    phone: '050-123-4567',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
-    bio: 'תלמיד כיתה יב מחפש שיפור בציונים באנגלית ומתמטיקה',
-    totalLessons: 15,
-    memberSince: '2023',
-    role: 'student' as 'student' | 'teacher', // student or teacher
+    name: profile?.display_name || 'משתמש',
+    email: profile?.email || '',
+    phone: profile?.phone_number || '',
+    avatar: profile?.avatar_url || '',
+    bio: profile?.bio || '',
+    totalLessons: 15, // TODO: Get from API
+    memberSince: profile?.created_at ? new Date(profile.created_at).getFullYear().toString() : '2024',
+    role: (profile?.role || 'student') as 'student' | 'teacher',
   };
 
   const handleLogout = () => {

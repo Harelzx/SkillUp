@@ -1,5 +1,5 @@
-import { supabase } from '@/src/lib/supabase';
-import type { Notification } from '@/src/types/api';
+import { supabase } from '@/lib/supabase';
+import type { Notification } from '@/types/api';
 
 // ============================================
 // GET NOTIFICATIONS

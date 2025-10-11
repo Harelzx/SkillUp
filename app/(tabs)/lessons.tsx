@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import {
   Calendar,
   Clock,
@@ -28,6 +29,7 @@ import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { useCredits } from '@/context/CreditsContext';
+import { getMyBookings, cancelBooking, rescheduleBooking, getTeacherAvailability } from '@/services/api';
 
 interface Lesson {
   id: string;
@@ -55,9 +57,10 @@ export default function LessonsScreen() {
   const router = useRouter();
   const { getFlexDirection, isRTL } = useRTL();
   const { addCredits } = useCredits();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const [pressedButton, setPressedButton] = useState<string | null>(null);
-  
+
   // Modal states
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
@@ -67,55 +70,61 @@ export default function LessonsScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Mock lessons data - using state so we can update it
-  const [lessons, setLessons] = useState<Lesson[]>([
-    {
-      id: '1',
-      teacherId: '1',
-      teacherName: 'ד"ר שרה כהן',
-      subject: 'מתמטיקה',
-      date: '2024-02-20',
-      time: '17:00',
-      status: 'upcoming',
-      price: 120,
-      isOnline: true,
+  // Fetch upcoming lessons from API
+  const { data: upcomingBookings = [], isLoading: loadingUpcoming } = useQuery({
+    queryKey: ['myBookings', 'upcoming'],
+    queryFn: async () => {
+      const bookings = await getMyBookings({ upcoming: true });
+      return bookings.map((b: any) => ({
+        id: b.id,
+        teacherId: b.teacher_id,
+        teacherName: b.teacher?.display_name || '',
+        subject: b.subject?.name_he || '',
+        date: new Date(b.start_at).toLocaleDateString('he-IL'),
+        time: new Date(b.start_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+        status: b.status === 'completed' ? 'completed' : b.status === 'cancelled' ? 'cancelled' : 'upcoming',
+        price: b.price || 0,
+        isOnline: b.location_type === 'online',
+      }));
     },
-    {
-      id: '2',
-      teacherId: '2',
-      teacherName: 'דוד לוי',
-      subject: 'אנגלית',
-      date: '2024-02-25',
-      time: '19:00',
-      status: 'upcoming',
-      price: 100,
-      isOnline: false,
-    },
-    {
-      id: '3',
-      teacherId: '3',
-      teacherName: 'רחל מור',
-      subject: 'פיזיקה',
-      date: '2024-01-15',
-      time: '16:00',
-      status: 'completed',
-      price: 150,
-      isOnline: true,
-    },
-  ]);
+  });
 
-  // Mock teacher availability
-  const mockAvailability: TimeSlot[] = [
-    { date: '2024-02-22', time: '10:00', available: true },
-    { date: '2024-02-22', time: '14:00', available: true },
-    { date: '2024-02-23', time: '11:00', available: true },
-    { date: '2024-02-23', time: '15:00', available: true },
-    { date: '2024-02-24', time: '09:00', available: true },
-    { date: '2024-02-24', time: '16:00', available: true },
-  ];
+  // Fetch past lessons from API
+  const { data: pastBookings = [], isLoading: loadingPast } = useQuery({
+    queryKey: ['myBookings', 'past'],
+    queryFn: async () => {
+      const bookings = await getMyBookings({ upcoming: false });
+      return bookings.map((b: any) => ({
+        id: b.id,
+        teacherId: b.teacher_id,
+        teacherName: b.teacher?.display_name || '',
+        subject: b.subject?.name_he || '',
+        date: new Date(b.start_at).toLocaleDateString('he-IL'),
+        time: new Date(b.start_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+        status: b.status === 'completed' ? 'completed' : b.status === 'cancelled' ? 'cancelled' : 'upcoming',
+        price: b.price || 0,
+        isOnline: b.location_type === 'online',
+      }));
+    },
+  });
 
-  const upcomingLessons = lessons.filter(lesson => lesson.status === 'upcoming');
-  const pastLessons = lessons.filter(lesson => lesson.status !== 'upcoming');
+  // Fetch teacher availability for rescheduling
+  const { data: availability = [] } = useQuery({
+    queryKey: ['teacherAvailability', selectedLesson?.teacherId],
+    queryFn: async () => {
+      if (!selectedLesson?.teacherId) return [];
+      const slots = await getTeacherAvailability(selectedLesson.teacherId);
+      return slots.map((slot: any) => ({
+        date: slot.date,
+        time: `${slot.start_time}-${slot.end_time}`,
+        available: slot.is_active,
+      }));
+    },
+    enabled: !!selectedLesson?.teacherId && rescheduleModalVisible,
+  });
+
+  const upcomingLessons = upcomingBookings as Lesson[];
+  const pastLessons = pastBookings as Lesson[];
 
   const getStatusColor = (status: Lesson['status']) => {
     switch (status) {
@@ -161,19 +170,12 @@ export default function LessonsScreen() {
     if (!selectedLesson || !selectedRefundMethod) return;
 
     setIsProcessing(true);
-    
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Update lesson status
-      setLessons(prevLessons =>
-        prevLessons.map(lesson =>
-          lesson.id === selectedLesson.id
-            ? { ...lesson, status: 'cancelled' as const, cancelledAt: new Date().toISOString() }
-            : lesson
-        )
-      );
+      await cancelBooking(selectedLesson.id, selectedRefundMethod);
+
+      // Refresh bookings
+      queryClient.invalidateQueries({ queryKey: ['myBookings'] });
 
       // Add credits if refund method is credits
       if (selectedRefundMethod === 'credits') {
@@ -204,19 +206,15 @@ export default function LessonsScreen() {
     if (!selectedLesson || !selectedTimeSlot) return;
 
     setIsProcessing(true);
-    
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Update lesson date and time
-      setLessons(prevLessons =>
-        prevLessons.map(lesson =>
-          lesson.id === selectedLesson.id
-            ? { ...lesson, date: selectedTimeSlot.date, time: selectedTimeSlot.time }
-            : lesson
-        )
-      );
+      await rescheduleBooking(selectedLesson.id, {
+        newDate: selectedTimeSlot.date,
+        newTime: selectedTimeSlot.time,
+      });
+
+      // Refresh bookings
+      queryClient.invalidateQueries({ queryKey: ['myBookings'] });
 
       showToast('המועד עודכן בהצלחה');
       setRescheduleModalVisible(false);
@@ -747,8 +745,8 @@ export default function LessonsScreen() {
 
               {/* Time Slots */}
               <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
-                {mockAvailability.length > 0 ? (
-                  mockAvailability.map((slot, index) => (
+                {availability.length > 0 ? (
+                  availability.map((slot, index) => (
                     <TouchableOpacity
                       key={index}
                       style={[

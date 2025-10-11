@@ -21,4 +21,4 @@ export * from './paymentsAPI';
 export * from './notificationsAPI';
 
 // Re-export all types
-export * from '@/src/types/api';
+export * from '@/types/api';

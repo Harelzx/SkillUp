@@ -4,6 +4,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -24,480 +25,9 @@ import { useQuery } from '@tanstack/react-query';
 import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
+import { getTeacherById, getTeacherReviews } from '@/services/api';
 
 const { width } = Dimensions.get('window');
-
-interface TeacherProfile {
-  id: string;
-  displayName: string;
-  bio: string;
-  avatarUrl?: string;
-  videoUrl?: string;
-  hourlyRate: number;
-  subjects: string[];
-  languages: string[];
-  location: string;
-  rating: number;
-  totalReviews: number;
-  totalStudents: number;
-  experience: string;
-  education: string[];
-  availability: {
-    [key: string]: string[];
-  };
-  reviews: {
-    id: string;
-    studentName: string;
-    rating: number;
-    text: string;
-    date: string;
-  }[];
-}
-
-// Mock data - will be replaced with actual API call
-const mockTeachers: TeacherProfile[] = [
-  {
-    id: '1',
-    displayName: 'ד"ר שרה כהן',
-    bio: 'דוקטורט במתמטיקה מאוניברסיטת תל-אביב. מתמחה בחשבון דיפרנציאלי, אלגברה ליניארית וסטטיסטיקה. 12 שנות ניסיון בהוראה אקדמית',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 150,
-    subjects: ['מתמטיקה', 'פיזיקה', 'חשבון דיפרנציאלי'],
-    languages: ['עברית', 'אנגלית'],
-    location: 'תל אביב',
-    rating: 4.9,
-    totalReviews: 127,
-    totalStudents: 245,
-    experience: '12 שנים',
-    education: [
-      'דוקטורט במתמטיקה - אוניברסיטת תל אביב',
-      'מוסמך בפיזיקה - הטכניון',
-    ],
-    availability: {
-      'ראשון': ['09:00', '10:00', '11:00', '14:00', '15:00'],
-      'שני': ['09:00', '10:00', '11:00'],
-      'שלישי': ['14:00', '15:00', '16:00'],
-      'רביעי': ['09:00', '10:00', '11:00', '14:00'],
-      'חמישי': ['14:00', '15:00', '16:00', '17:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'דוד ל.',
-        rating: 5,
-        text: 'שרה היא מורה מדהימה! היא עזרה לי להבין חשבון דיפרנציאלי בצורה שסוף סוף הייתה הגיונית.',
-        date: '15/01/2024',
-      },
-      {
-        id: '2',
-        studentName: 'רחל מ.',
-        rating: 5,
-        text: 'מאוד סבלנית ובעלת ידע. מומלצת בחום לתלמידי מתמטיקה.',
-        date: '10/01/2024',
-      },
-    ],
-  },
-  {
-    id: '2',
-    displayName: 'דוד לוי',
-    bio: 'מורה אנגלית בכיר עם תואר שני מאוניברסיטת הרווארד. מתמחה בהכנה לבחינות בגרות, פסיכומטרי ואיילטס',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 120,
-    subjects: ['אנגלית', 'ספרות'],
-    languages: ['עברית', 'אנגלית'],
-    location: 'רמת גן',
-    rating: 4.8,
-    totalReviews: 89,
-    totalStudents: 186,
-    experience: '8 שנים',
-    education: [
-      'תואר שני באנגלית - אוניברסיטת הרווארד',
-      'תואר ראשון בספרות - האוניברסיטה העברית',
-    ],
-    availability: {
-      'ראשון': ['14:00', '15:00', '16:00'],
-      'שני': ['09:00', '10:00', '14:00', '15:00'],
-      'שלישי': ['09:00', '10:00', '11:00'],
-      'רביעי': ['14:00', '15:00', '16:00', '17:00'],
-      'חמישי': ['09:00', '10:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'מירי כ.',
-        rating: 5,
-        text: 'דוד עזר לי מאוד להכין לבחינת האיילטס. קיבלתי ציון 8!',
-        date: '20/01/2024',
-      },
-    ],
-  },
-  {
-    id: '3',
-    displayName: 'רחל מור',
-    bio: 'פסנתרנית קונצרטים ומורה למוזיקה. בוגרת האקדמיה למוזיקה ירושלים. מתמחה בכל הגילאים ורמות הידע',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 110,
-    subjects: ['מוזיקה', 'פסנתר'],
-    languages: ['עברית', 'אנגלית', 'רוסית'],
-    location: 'ירושלים',
-    rating: 4.9,
-    totalReviews: 156,
-    totalStudents: 320,
-    experience: '15 שנים',
-    education: [
-      'תואר במוזיקה - האקדמיה למוזיקה ירושלים',
-      'הסמכה בהוראת פסנתר - המכללה למוזיקה',
-    ],
-    availability: {
-      'ראשון': ['10:00', '11:00', '15:00', '16:00'],
-      'שני': ['10:00', '11:00', '15:00', '16:00'],
-      'שלישי': ['10:00', '11:00', '15:00', '16:00'],
-      'רביעי': ['10:00', '11:00', '15:00', '16:00'],
-      'חמישי': ['10:00', '11:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'יעל ש.',
-        rating: 5,
-        text: 'מורה מעולה! בתי התקדמה מאוד במשך שנה.',
-        date: '18/01/2024',
-      },
-    ],
-  },
-  {
-    id: '4',
-    displayName: 'פרופ\' אבי דוד',
-    bio: 'פרופסור לפיזיקה באוניברסיטת תל-אביב. מתמחה בפיזיקה תיאורטית, מכניקת הקוונטים ואסטרופיזיקה',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 200,
-    subjects: ['פיזיקה', 'מתמטיקה'],
-    languages: ['עברית', 'אנגלית'],
-    location: 'תל אביב',
-    rating: 5.0,
-    totalReviews: 43,
-    totalStudents: 98,
-    experience: '20 שנים',
-    education: [
-      'דוקטורט בפיזיקה תיאורטית - אוניברסיטת תל אביב',
-      'תואר שני במכניקת קוונטים - MIT',
-    ],
-    availability: {
-      'ראשון': ['11:00', '12:00', '16:00', '17:00'],
-      'שני': ['11:00', '12:00'],
-      'שלישי': ['11:00', '12:00', '16:00', '17:00'],
-      'רביעי': ['11:00', '12:00'],
-      'חמישי': ['16:00', '17:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'אריאל ב.',
-        rating: 5,
-        text: 'פרופסור מצוין! הסברים ברורים ומעמיקים בפיזיקה תיאורטית.',
-        date: '12/01/2024',
-      },
-      {
-        id: '2',
-        studentName: 'נועה ר.',
-        rating: 5,
-        text: 'המורה הכי טוב שהיה לי. עזר לי להבין מכניקת קוונטים.',
-        date: '08/01/2024',
-      },
-    ],
-  },
-  {
-    id: '5',
-    displayName: 'מיכל גרין',
-    bio: 'מפתחת תוכנה ב-Google ומורה לתכנות. 8 שנות ניסיון בפיתוח אפליקציות ובהוראה טכנולוגית. מתמחה ב-Python ו-JavaScript',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 140,
-    subjects: ['תכנות', 'מתמטיקה'],
-    languages: ['עברית', 'אנגלית'],
-    location: 'תל אביב',
-    rating: 4.7,
-    totalReviews: 94,
-    totalStudents: 156,
-    experience: '8 שנים',
-    education: [
-      'תואר ראשון במדעי המחשב - אוניברסיטת תל אביב',
-      'קורסים מתקדמים ב-Full Stack Development',
-    ],
-    availability: {
-      'ראשון': ['18:00', '19:00', '20:00'],
-      'שני': ['18:00', '19:00', '20:00'],
-      'שלישי': ['18:00', '19:00', '20:00'],
-      'רביעי': ['18:00', '19:00', '20:00'],
-      'חמישי': ['18:00', '19:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'עומר ש.',
-        rating: 5,
-        text: 'מיכל עזרה לי מאוד ללמוד React ו-Node.js. המלצה חמה!',
-        date: '16/01/2024',
-      },
-      {
-        id: '2',
-        studentName: 'רותם כ.',
-        rating: 4,
-        text: 'מורה מצוינת עם ידע רחב בתכנות.',
-        date: '11/01/2024',
-      },
-    ],
-  },
-  {
-    id: '6',
-    displayName: 'יוסף נחמני',
-    bio: 'מורה לכימיה ובעל דוקטורט בכימיה אורגנית מהטכניון. מתמחה בהכנה לבגרות, בחינות קבלה ותואר ראשון',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 130,
-    subjects: ['כימיה', 'פיזיקה'],
-    languages: ['עברית', 'אנגלית', 'ערבית'],
-    location: 'חיפה',
-    rating: 4.8,
-    totalReviews: 67,
-    totalStudents: 142,
-    experience: '11 שנים',
-    education: [
-      'דוקטורט בכימיה אורגנית - הטכניון',
-      'תואר שני בכימיה - אוניברסיטת בן גוריון',
-    ],
-    availability: {
-      'ראשון': ['14:00', '15:00', '16:00', '19:00'],
-      'שני': ['14:00', '15:00', '16:00'],
-      'שלישי': ['14:00', '15:00', '16:00', '19:00'],
-      'רביעי': ['14:00', '15:00', '16:00'],
-      'חמישי': ['14:00', '15:00', '19:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'דניאל מ.',
-        rating: 5,
-        text: 'יוסף עזר לי לעבור כימיה אורגנית עם ציון 95!',
-        date: '19/01/2024',
-      },
-    ],
-  },
-  {
-    id: '7',
-    displayName: 'לינה עבאס',
-    bio: 'בעלת תואר שני בהיסטוריה ובלשנות מהאוניברסיטה העברית. מתמחה בהיסטוריה של המזרח התיכון ולימודי ערבית',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 90,
-    subjects: ['היסטוריה', 'אנגלית'],
-    languages: ['עברית', 'אנגלית', 'ערבית'],
-    location: 'ירושלים',
-    rating: 4.6,
-    totalReviews: 38,
-    totalStudents: 89,
-    experience: '6 שנים',
-    education: [
-      'תואר שני בהיסטוריה - האוניברסיטה העברית',
-      'תואר ראשון בלשנות - אוניברסיטת בן גוריון',
-    ],
-    availability: {
-      'ראשון': ['10:00', '11:00', '16:00', '17:00'],
-      'שני': ['10:00', '11:00', '16:00'],
-      'שלישי': ['10:00', '11:00', '16:00', '17:00'],
-      'רביעי': ['10:00', '11:00'],
-      'חמישי': ['16:00', '17:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'איתי ל.',
-        rating: 5,
-        text: 'לינה היא מורה מעולה להיסטוריה. הסברים ברורים ומעניינים.',
-        date: '14/01/2024',
-      },
-    ],
-  },
-  {
-    id: '8',
-    displayName: 'אליעזר כהן',
-    bio: 'אמן פלסטי ומורה לציור ועיצוב גרפי. 15 שנות ניסיון בהוראת אמנות, ציור דיגיטלי ויצירה מולטימדיה',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 100,
-    subjects: ['אמנות', 'תכנות'],
-    languages: ['עברית', 'אנגלית'],
-    location: 'תל אביב',
-    rating: 4.5,
-    totalReviews: 52,
-    totalStudents: 127,
-    experience: '15 שנים',
-    education: [
-      'תואר במוזיקה ואמנות - בצלאל',
-      'קורס עיצוב גרפי מתקדם - Shenkar',
-    ],
-    availability: {
-      'ראשון': ['10:00', '11:00', '12:00'],
-      'שני': ['10:00', '11:00', '12:00', '15:00'],
-      'שלישי': ['10:00', '11:00', '12:00'],
-      'רביעי': ['10:00', '11:00', '15:00'],
-      'חמישי': ['10:00', '11:00', '12:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'שירה ד.',
-        rating: 5,
-        text: 'אליעזר עזר לי מאוד לפתח את הכישורים האמנותיים שלי.',
-        date: '21/01/2024',
-      },
-    ],
-  },
-  {
-    id: '9',
-    displayName: 'עידו שמואלי',
-    bio: 'מאמן אישי מוסמך עם 10 שנות ניסיון באימוני כוח וריצות מרתון. התמחות באימונים פונקציונליים ו-TRX',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 180,
-    subjects: ['אימון אישי', 'ריצה', 'TRX', 'כושר'],
-    languages: ['עברית', 'אנגלית'],
-    location: 'תל אביב',
-    rating: 4.9,
-    totalReviews: 156,
-    totalStudents: 320,
-    experience: '10 שנים',
-    education: [
-      'הסמכה בהדרכת כושר - Wingate Institute',
-      'קורס אימון אישי מתקדם',
-    ],
-    availability: {
-      'ראשון': ['06:00', '07:00', '17:00', '18:00'],
-      'שני': ['06:00', '07:00', '17:00', '18:00', '19:00'],
-      'שלישי': ['06:00', '07:00', '17:00', '18:00'],
-      'רביעי': ['06:00', '07:00', '17:00', '18:00', '19:00'],
-      'חמישי': ['06:00', '07:00', '17:00', '18:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'אלון מ.',
-        rating: 5,
-        text: 'עידו הוא מאמן מדהים! עזר לי להגיע לכושר הטוב ביותר שלי.',
-        date: '22/01/2024',
-      },
-    ],
-  },
-  {
-    id: '10',
-    displayName: 'דנה פרידמן',
-    bio: 'מורה ליוגה ופילאטיס מוסמכת. בוגרת לימודי יוגה בהודו והתמחות בפילאטיס טיפולי. מתמחה בכל רמות הידע',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 160,
-    subjects: ['יוגה', 'פילאטיס', 'כושר'],
-    languages: ['עברית', 'אנגלית'],
-    location: 'רמת גן',
-    rating: 4.8,
-    totalReviews: 203,
-    totalStudents: 410,
-    experience: '8 שנים',
-    education: [
-      'תעודת הוראת יוגה - Rishikesh Yog Peeth',
-      'הסמכה בפילאטיס טיפולי',
-    ],
-    availability: {
-      'ראשון': ['08:00', '09:00', '10:00', '17:00', '18:00'],
-      'שני': ['08:00', '09:00', '10:00', '17:00', '18:00'],
-      'שלישי': ['08:00', '09:00', '10:00'],
-      'רביעי': ['08:00', '09:00', '10:00', '17:00', '18:00'],
-      'חמישי': ['08:00', '09:00', '10:00', '17:00', '18:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'שירה ל.',
-        rating: 5,
-        text: 'דנה היא מורה נפלאה עם גישה אישית וסבלנית.',
-        date: '25/01/2024',
-      },
-    ],
-  },
-  {
-    id: '11',
-    displayName: 'ד"ר אביב כהן',
-    bio: 'דוקטורט במתמטיקה שימושית מהטכניון. מתמחה בהוראת חדו״א, אלגברה לינארית וסטטיסטיקה לסטודנטים במדעים',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 220,
-    subjects: ['חדו״א', 'אלגברה לינארית', 'סטטיסטיקה', 'מתמטיקה'],
-    languages: ['עברית', 'אנגלית'],
-    location: 'חיפה',
-    rating: 4.9,
-    totalReviews: 187,
-    totalStudents: 520,
-    experience: '15 שנים',
-    education: [
-      'דוקטורט במתמטיקה שימושית - הטכניון',
-      'תואר שני במתמטיקה - האוניברסיטה העברית',
-    ],
-    availability: {
-      'ראשון': ['10:00', '11:00', '15:00', '16:00', '17:00'],
-      'שני': ['10:00', '11:00', '15:00', '16:00'],
-      'שלישי': ['10:00', '11:00', '15:00', '16:00', '17:00'],
-      'רביעי': ['10:00', '11:00', '15:00', '16:00'],
-      'חמישי': ['10:00', '11:00', '15:00', '16:00', '17:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'יונתן ר.',
-        rating: 5,
-        text: 'ד"ר כהן עזר לי לעבור חדו"א עם ציון מעולה. הסברים ברורים ומקצועיים.',
-        date: '28/01/2024',
-      },
-    ],
-  },
-  {
-    id: '12',
-    displayName: 'מיכל לוי',
-    bio: 'בוגרת תואר שני בכלכלה מאוניברסיטת תל-אביב. מתמחה בהוראת מיקרו, מאקרו ומימון לתואר ראשון',
-    avatarUrl: undefined,
-    videoUrl: undefined,
-    hourlyRate: 200,
-    subjects: ['כלכלת מיקרו', 'כלכלת מאקרו', 'מימון'],
-    languages: ['עברית', 'אנגלית'],
-    location: 'תל אביב',
-    rating: 4.7,
-    totalReviews: 142,
-    totalStudents: 285,
-    experience: '9 שנים',
-    education: [
-      'תואר שני בכלכלה - אוניברסיטת תל אביב',
-      'תואר ראשון בכלכלה וחשבונאות - המכללה למנהל',
-    ],
-    availability: {
-      'ראשון': ['09:00', '10:00', '14:00', '15:00', '16:00'],
-      'שני': ['09:00', '10:00', '14:00', '15:00'],
-      'שלישי': ['09:00', '10:00', '14:00', '15:00', '16:00'],
-      'רביעי': ['09:00', '10:00', '14:00', '15:00'],
-      'חמישי': ['09:00', '10:00', '14:00', '15:00', '16:00'],
-    },
-    reviews: [
-      {
-        id: '1',
-        studentName: 'תומר ב.',
-        rating: 5,
-        text: 'מיכל הסבירה לי כלכלה בצורה הכי ברורה שיכולתי לקבל. תודה רבה!',
-        date: '30/01/2024',
-      },
-    ],
-  },
-];
 
 export default function TeacherProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -506,19 +36,62 @@ export default function TeacherProfileScreen() {
   const { isRTL, getFlexDirection } = useRTL();
   const [activeTab, setActiveTab] = useState<'about' | 'availability' | 'reviews'>('about');
 
-  const { data: teacher, isLoading, error } = useQuery({
+  const { data: teacherData, isLoading: loadingTeacher, error: teacherError } = useQuery({
     queryKey: ['teacher', id],
     queryFn: async () => {
-      // Placeholder - will query Supabase
-      // For now, find teacher from mock data by ID
-      const foundTeacher = mockTeachers.find(t => t.id === id);
-      if (!foundTeacher) {
-        throw new Error('Teacher not found');
-      }
-      return foundTeacher;
+      if (!id) throw new Error('Teacher ID is required');
+      const data = await getTeacherById(id as string);
+      console.log('📚 Teacher data from API:', JSON.stringify(data, null, 2));
+      return data;
     },
-    enabled: !!id, // Only run query if ID exists
+    enabled: !!id,
   });
+
+  const { data: reviewsData = [], isLoading: loadingReviews } = useQuery({
+    queryKey: ['teacherReviews', id],
+    queryFn: async () => {
+      if (!id) return [];
+      const reviews = await getTeacherReviews(id as string);
+      console.log('⭐ Reviews from API:', JSON.stringify(reviews, null, 2));
+      return reviews;
+    },
+    enabled: !!id,
+  });
+
+  const isLoading = loadingTeacher || loadingReviews;
+  const error = teacherError;
+
+  // Transform API data to match component interface
+  const teacher = teacherData ? {
+    id: teacherData.id,
+    displayName: teacherData.display_name || 'לא ידוע',
+    bio: teacherData.bio || '',
+    avatarUrl: teacherData.avatar_url,
+    videoUrl: teacherData.video_url,
+    hourlyRate: teacherData.hourly_rate || 0,
+    subjects: Array.isArray(teacherData.subject_names)
+      ? teacherData.subject_names.filter((s: any) => typeof s === 'string' && s.trim())
+      : [],
+    languages: Array.isArray(teacherData.languages)
+      ? teacherData.languages.filter((l: any) => typeof l === 'string' && l.trim())
+      : ['עברית'],
+    location: teacherData.location || '',
+    rating: teacherData.avg_rating || 0,
+    totalReviews: teacherData.review_count || 0,
+    totalStudents: teacherData.total_students || 0,
+    experience: teacherData.experience_years ? `${teacherData.experience_years} שנים` : '',
+    education: Array.isArray(teacherData.education)
+      ? teacherData.education.filter((e: any) => typeof e === 'string' && e.trim())
+      : [],
+    availability: teacherData.availability || {},
+    reviews: reviewsData.map((r: any) => ({
+      id: r.id,
+      studentName: r.student?.display_name || 'תלמיד',
+      rating: r.rating || 0,
+      text: r.comment || '',
+      date: new Date(r.created_at).toLocaleDateString('he-IL'),
+    })),
+  } : null;
 
   // Loading state
   if (isLoading) {
@@ -597,6 +170,7 @@ export default function TeacherProfileScreen() {
       backgroundColor: colors.primary[600],
       justifyContent: 'center',
       alignItems: 'center',
+      overflow: 'hidden',
     },
     profileInfo: {
       flex: 1,
@@ -730,9 +304,17 @@ export default function TeacherProfileScreen() {
         <View style={styles.headerSection}>
           <View style={[styles.profileRow, { flexDirection: getFlexDirection() }]}>
             <View style={styles.avatar}>
-              <Typography variant="h4" color="white" align="center">
-                {teacher.displayName.charAt(0)}
-              </Typography>
+              {teacher.avatarUrl ? (
+                <Image
+                  source={{ uri: teacher.avatarUrl }}
+                  style={{ width: 80, height: 80 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Typography variant="h4" color="white" align="center">
+                  {teacher.displayName.charAt(0)}
+                </Typography>
+              )}
             </View>
             <View style={[styles.profileInfo, isRTL ? styles.profileInfoRTL : styles.profileInfoLTR]}>
               <Typography variant="h2" weight="bold">

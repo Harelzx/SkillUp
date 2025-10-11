@@ -27,7 +27,8 @@ import {
 } from 'lucide-react-native';
 import { useRTL } from '@/context/RTLContext';
 import Svg, { Path } from 'react-native-svg';
-import { DevUsersHelper } from '@/components/dev/DevUsersHelper';
+// DEV mode removed - users must signup/login normally
+// import { DevUsersHelper } from '@/components/dev/DevUsersHelper';
 import { useAuth } from '@/features/auth/auth-context';
 import { Profile } from '@/lib/supabase';
 
@@ -221,16 +222,7 @@ export default function LoginScreen() {
     }
   };
 
-  // Handler for DEV user quick selection
-  const handleDevUserSelect = (email: string, password: string) => {
-    setFormData(prev => ({
-      ...prev,
-      email,
-      password,
-    }));
-    // Clear any errors
-    setErrors({});
-  };
+  // DEV mode removed
 
   const handleBiometricAuth = async () => {
     setBiometricLoading(true);
@@ -539,8 +531,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* DEV Users Helper (only in dev mode) */}
-          <DevUsersHelper onSelectUser={handleDevUserSelect} />
+          {/* DEV mode removed - users must signup/login normally */}
 
           {/* Sign Up Link */}
           <View style={[styles.signupContainer, { flexDirection: getFlexDirection() }]}>

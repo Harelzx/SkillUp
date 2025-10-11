@@ -1,5 +1,5 @@
-import { supabase } from '@/src/lib/supabase';
-import type { PaymentIntent, PayoutAccount } from '@/src/types/api';
+import { supabase } from '@/lib/supabase';
+import type { PaymentIntent, PayoutAccount } from '@/types/api';
 
 // ============================================
 // PAYMENT INTENTS (Student Payments)

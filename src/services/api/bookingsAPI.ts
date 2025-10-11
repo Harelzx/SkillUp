@@ -1,5 +1,5 @@
-import { supabase } from '@/src/lib/supabase';
-import type { Booking, BookingWithDetails } from '@/src/types/api';
+import { supabase } from '@/lib/supabase';
+import type { Booking, BookingWithDetails } from '@/types/api';
 
 // ============================================
 // GET BOOKINGS

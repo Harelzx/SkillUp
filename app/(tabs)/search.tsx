@@ -7,6 +7,8 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { getTeachers, getSubjects } from '@/services/api';
 import {
   BottomSheet,
   BottomSheetPortal,
@@ -52,160 +54,15 @@ interface Teacher {
   totalStudents?: number;
 }
 
-// Mock teachers data (same as home page)
-const mockTeachers: Teacher[] = [
-  {
-    id: '1',
-    displayName: 'ד"ר שרה כהן',
-    bio: 'דוקטורט במתמטיקה מאוניברסיטת תל-אביב. מתמחה בחשבון דיפרנציאלי, אלגברה ליניארית וסטטיסטיקה',
-    hourlyRate: 150,
-    subjects: ['mathematics', 'physics'],
-    rating: 4.9,
-    totalReviews: 127,
-    nextAvailable: 'היום, 16:00',
-    location: 'תל אביב',
-    experienceYears: 12,
-    totalStudents: 245,
-  },
-  {
-    id: '2',
-    displayName: 'דוד לוי',
-    bio: 'מורה אנגלית בכיר עם תואר שני מאוניברסיטת הרווארד. מתמחה בהכנה לבחינות בגרות, פסיכומטרי ואיילטס',
-    hourlyRate: 120,
-    subjects: ['english', 'literature'],
-    rating: 4.8,
-    totalReviews: 89,
-    nextAvailable: 'מחר, 14:00',
-    location: 'רמת גן',
-    experienceYears: 8,
-    totalStudents: 186,
-  },
-  {
-    id: '3',
-    displayName: 'רחל מור',
-    bio: 'פסנתרנית קונצרטים ומורה למוזיקה. בוגרת האקדמיה למוזיקה ירושלים. מתמחה בכל הגילאים ורמות הידע',
-    hourlyRate: 110,
-    subjects: ['music', 'piano'],
-    rating: 4.9,
-    totalReviews: 156,
-    nextAvailable: 'עוד שעה',
-    location: 'ירושלים',
-  },
-  {
-    id: '4',
-    displayName: 'פרופ\' אבי דוד',
-    bio: 'פרופסור לפיזיקה באוניברסיטת תל-אביב. מתמחה בפיזיקה תיאורטית, מכניקת הקוונטים ואסטרופיזיקה',
-    hourlyRate: 200,
-    subjects: ['physics', 'mathematics'],
-    rating: 5.0,
-    totalReviews: 43,
-    nextAvailable: 'השבוע',
-    location: 'תל אביב',
-  },
-  {
-    id: '5',
-    displayName: 'מיכל גרין',
-    bio: 'מפתחת תוכנה ב-Google ומורה לתכנות. 8 שנות ניסיון בפיתוח אפליקציות ובהוראה טכנולוגית. מתמחה ב-Python ו-JavaScript',
-    hourlyRate: 140,
-    subjects: ['programming', 'mathematics'],
-    rating: 4.7,
-    totalReviews: 94,
-    nextAvailable: 'מחרתיים, 18:00',
-  },
-  {
-    id: '6',
-    displayName: 'יוסף נחמני',
-    bio: 'מורה לכימיה ובעל דוקטורט בכימיה אורגנית מהטכניון. מתמחה בהכנה לבגרות, בחינות קבלה ותואר ראשון',
-    hourlyRate: 130,
-    subjects: ['chemistry', 'physics'],
-    rating: 4.8,
-    totalReviews: 67,
-    nextAvailable: 'היום, 19:00',
-  },
-  {
-    id: '7',
-    displayName: 'לינה עבאס',
-    bio: 'בעלת תואר שני בהיסטוריה ובלשנות מהאוניברסיטה העברית. מתמחה בהיסטוריה של המזרח התיכון ולימודי ערבית',
-    hourlyRate: 90,
-    subjects: ['history', 'english'],
-    rating: 4.6,
-    totalReviews: 38,
-    nextAvailable: 'מחר, 16:30',
-  },
-  {
-    id: '8',
-    displayName: 'אליעזר כהן',
-    bio: 'אמן פלסטי ומורה לציור ועיצוג גרפי. 15 שנות ניסיון בהוראת אמנות, ציור דיגיטלי ויצירה מולטימדיה',
-    hourlyRate: 100,
-    subjects: ['art', 'programming'],
-    rating: 4.5,
-    totalReviews: 52,
-    nextAvailable: 'מחרתיים, 10:00',
-  },
-  // ספורט ואימונים
-  {
-    id: '9',
-    displayName: 'עידו שמואלי',
-    bio: 'מאמן אישי מוסמך עם 10 שנות ניסיון באימוני כוח וריצות מרתון. התמחות באימונים פונקציונליים ו-TRX',
-    hourlyRate: 180,
-    subjects: ['personal_training', 'running', 'trx', 'fitness'],
-    rating: 4.9,
-    totalReviews: 156,
-    nextAvailable: 'היום, 17:00',
-    location: 'תל אביב',
-    experienceYears: 10,
-    totalStudents: 320,
-  },
-  {
-    id: '10',
-    displayName: 'דנה פרידמן',
-    bio: 'מורה ליוגה ופילאטיס מוסמכת. בוגרת לימודי יוגה בהודו והתמחות בפילאטיס טיפולי. מתמחה בכל רמות הידע',
-    hourlyRate: 160,
-    subjects: ['yoga', 'pilates', 'fitness'],
-    rating: 4.8,
-    totalReviews: 203,
-    nextAvailable: 'מחר, 8:00',
-    location: 'רמת גן',
-    experienceYears: 8,
-    totalStudents: 410,
-  },
-  // קורסי אקדמיה
-  {
-    id: '11',
-    displayName: 'ד"ר אביב כהן',
-    bio: 'דוקטורט במתמטיקה שימושית מהטכניון. מתמחה בהוראת חדו״א, אלגברה לינארית וסטטיסטיקה לסטודנטים במדעים',
-    hourlyRate: 220,
-    subjects: ['calculus', 'linear_algebra', 'statistics', 'mathematics'],
-    rating: 4.9,
-    totalReviews: 187,
-    nextAvailable: 'מחרתיים, 15:00',
-    location: 'חיפה',
-    experienceYears: 15,
-    totalStudents: 520,
-  },
-  {
-    id: '12',
-    displayName: 'מיכל לוי',
-    bio: 'בוגרת תואר שני בכלכלה מאוניברסיטת תל-אביב. מתמחה בהוראת מיקרו, מאקרו ומימון לתואר ראשון',
-    hourlyRate: 200,
-    subjects: ['microeconomics', 'macroeconomics', 'finance'],
-    rating: 4.7,
-    totalReviews: 142,
-    nextAvailable: 'היום, 18:00',
-    location: 'תל אביב',
-    experienceYears: 9,
-    totalStudents: 285,
-  },
-];
 
-// Category to subjects mapping
+// Category to subjects mapping (Hebrew names from database)
 const categorySubjectsMap: Record<string, string[]> = {
-  'mathematics_sciences': ['mathematics', 'physics', 'chemistry'],
-  'languages': ['english', 'literature', 'history'],
-  'music_arts': ['music', 'piano', 'art'],
-  'technology': ['programming'],
-  'sports_fitness': ['personal_training', 'fitness', 'trx', 'running', 'yoga', 'pilates', 'soccer', 'basketball', 'tennis'],
-  'academic_courses': ['calculus', 'linear_algebra', 'statistics', 'microeconomics', 'macroeconomics', 'finance', 'data_structures', 'physics', 'chemistry'],
+  'mathematics_sciences': ['מתמטיקה', 'פיזיקה', 'כימיה', 'ביולוגיה'],
+  'languages': ['אנגלית', 'עברית', 'ספרות'],
+  'music_arts': ['מוזיקה', 'אמנות'],
+  'technology': ['מדעי המחשב'],
+  'sports_fitness': ['אימון אישי', 'כושר', 'יוגה', 'פילאטיס', 'כדורגל', 'כדורסל', 'טניס'],
+  'academic_courses': ['מתמטיקה', 'פיזיקה', 'כימיה', 'מדעי המחשב'],
 };
 
 // Category display names
@@ -241,6 +98,62 @@ export default function SearchScreen() {
     }
   }, [incomingCategory]);
 
+  // Fetch subjects from API
+  const { data: subjects = [] } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: getSubjects,
+  });
+
+  // Fetch teachers from API with filters
+  const { data: teachersData, isLoading: loadingTeachers } = useQuery({
+    queryKey: ['teachers', selectedCategory, selectedCity, priceRange, selectedRating, searchQuery],
+    queryFn: async () => {
+      const params: any = {
+        limit: 100,
+      };
+
+      // Add subject filter
+      if (selectedCategory && selectedCategory !== 'all') {
+        // Find subject ID from name
+        const subject = subjects.find(s => s.name_en === selectedCategory);
+        if (subject) {
+          params.subjectId = subject.id;
+        }
+      }
+
+      // Add location filter
+      if (selectedCity && selectedCity !== 'הכל') {
+        params.location = selectedCity;
+      }
+
+      // Add price range filter
+      params.minRate = priceRange[0];
+      params.maxRate = priceRange[1];
+
+      // Add search query
+      if (searchQuery.trim()) {
+        params.searchQuery = searchQuery.trim();
+      }
+
+      const result = await getTeachers(params);
+      return result.teachers.map((t: any) => ({
+        id: t.id,
+        displayName: t.display_name,
+        bio: t.bio || '',
+        avatarUrl: t.avatar_url,
+        hourlyRate: t.hourly_rate || 0,
+        subjects: t.subject_names || [],
+        rating: t.avg_rating || 0,
+        totalReviews: t.review_count || 0,
+        location: t.location,
+        experienceYears: t.experience_years,
+        totalStudents: t.total_students,
+      }));
+    },
+  });
+
+  const mockTeachers: Teacher[] = teachersData || [];
+
   // Bottom Sheet
   const snapPoints = useMemo(() => ['50%', '85%'], []);
   const [recentSearches, setRecentSearches] = useState<string[]>([
@@ -252,24 +165,22 @@ export default function SearchScreen() {
   const cities = ['הכל', 'תל אביב', 'רמת גן', 'ירושלים', 'הרצליה', 'חיפה', 'פתח תקווה'];
   const ratings = [4.5, 4.0, 3.5, 3.0];
 
-  // Popular subjects - specific subjects, not categories
+  // Popular subjects - using Hebrew names from database
   const popularSubjects = [
     { id: 'all', name: 'הכל', icon: '🌟' },
-    // כלליים ופופולריים
-    { id: 'english', name: 'אנגלית', icon: '🇬🇧' },
-    { id: 'mathematics', name: 'מתמטיקה', icon: '📐' },
-    { id: 'physics', name: 'פיזיקה', icon: '⚗️' },
-    { id: 'piano', name: 'פסנתר', icon: '🎹' },
-    // ספורט ואימונים
-    { id: 'yoga', name: 'יוגה', icon: '🧘' },
-    { id: 'pilates', name: 'פילאטיס', icon: '🤸' },
-    { id: 'personal_training', name: 'אימון אישי', icon: '💪' },
-    { id: 'running', name: 'ריצה', icon: '🏃' },
-    // קורסי אקדמיה
-    { id: 'calculus', name: 'חדו״א', icon: '∫' },
-    { id: 'linear_algebra', name: 'אלגברה לינארית', icon: '📊' },
-    { id: 'statistics', name: 'סטטיסטיקה', icon: '📈' },
-    { id: 'programming', name: 'תכנות', icon: '💻' },
+    // Subjects from database
+    { id: 'אנגלית', name: 'אנגלית', icon: '🇬🇧' },
+    { id: 'מתמטיקה', name: 'מתמטיקה', icon: '📐' },
+    { id: 'פיזיקה', name: 'פיזיקה', icon: '⚗️' },
+    { id: 'כימיה', name: 'כימיה', icon: '⚗️' },
+    { id: 'מוזיקה', name: 'מוזיקה', icon: '🎹' },
+    { id: 'אמנות', name: 'אמנות', icon: '🎨' },
+    { id: 'מדעי המחשב', name: 'מדעי המחשב', icon: '💻' },
+    { id: 'ביולוגיה', name: 'ביולוגיה', icon: '🧬' },
+    { id: 'היסטוריה', name: 'היסטוריה', icon: '📚' },
+    { id: 'עברית', name: 'עברית', icon: '📖' },
+    { id: 'גיאוגרפיה', name: 'גיאוגרפיה', icon: '🌍' },
+    { id: 'ספרות', name: 'ספרות', icon: '📚' },
   ];
 
   // Advanced filtering logic
@@ -337,22 +248,17 @@ export default function SearchScreen() {
     });
 
     return results;
-  }, [incomingCategory, searchQuery, selectedCategory, selectedCity, priceRange, selectedRating, sortBy]);
+  }, [mockTeachers, incomingCategory, searchQuery, selectedCategory, selectedCity, priceRange, selectedRating, sortBy]);
 
   // Check if any filters are active
   const hasActiveFilters = incomingCategory || searchQuery || (selectedCategory && selectedCategory !== 'all') ||
                           (selectedCity && selectedCity !== 'הכל') ||
                           priceRange[0] > 50 || priceRange[1] < 300 || selectedRating;
 
-  // Simulate search delay
+  // Update isSearching based on API loading state
   useEffect(() => {
-    if (searchQuery) {
-      setIsSearching(true);
-      const timer = setTimeout(() => setIsSearching(false), 300);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [searchQuery]);
+    setIsSearching(loadingTeachers);
+  }, [loadingTeachers]);
 
 
   const handleSearch = (text: string) => {
@@ -410,7 +316,7 @@ export default function SearchScreen() {
                 {item.subjects.slice(0, 2).map((subject, idx) => (
                   <View key={idx} style={styles.subjectBadge}>
                     <Typography variant="caption" color="primary" style={{ fontSize: 10 }}>
-                      {t(`home.subjects.${subject}`)}
+                      {subject}
                     </Typography>
                   </View>
                 ))}

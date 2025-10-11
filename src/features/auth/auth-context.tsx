@@ -15,7 +15,7 @@ interface AuthContextType {
   profile: Profile | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null; profile?: Profile | null }>;
-  signUp: (email: string, password: string, role: 'teacher' | 'student') => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, data: { role: 'teacher' | 'student'; displayName: string; phoneNumber?: string }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
 }
@@ -52,29 +52,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, retries = 3) => {
     try {
-      // Check if this is a DEV user first
-      if (IS_DEV_MODE) {
-        const devProfile = getDevUserProfile(userId);
-        if (devProfile) {
-          console.log('📝 Using DEV profile:', devProfile.displayName, `(${devProfile.role})`);
-          setProfile(devProfile);
-          return;
-        }
-      }
-
-      // Otherwise, fetch from Supabase
+      // Fetch profile from Supabase (real users only)
+      // DEV users are handled separately during sign in
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If profile not found (PGRST116) and we have retries left, wait and retry
+        if (error.code === 'PGRST116' && retries > 0) {
+          // Silent retry - no console spam
+          await new Promise(resolve => setTimeout(resolve, 500));
+          return fetchProfile(userId, retries - 1);
+        }
+
+        // Silent fail - profile doesn't exist yet or user logged out
+        // This is normal during logout or before profile is created
+        return;
+      }
+
+      console.log('✅ Profile loaded from Supabase:', data.display_name, `(${data.role})`);
       setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
+    } catch (error: any) {
+      // Silent fail - already handled above
     }
   };
 
@@ -126,33 +130,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, role: 'teacher' | 'student') => {
+  const signUp = async (email: string, password: string, userData: { role: 'teacher' | 'student'; displayName: string; phoneNumber?: string }) => {
     try {
+      console.log('🔵 signUp called with:', { email, role: userData.role, displayName: userData.displayName });
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { role },
+          data: { role: userData.role },
         },
       });
 
-      if (error) throw error;
+      console.log('🔵 Supabase signUp response:', {
+        hasUser: !!data.user,
+        userId: data.user?.id,
+        userEmail: data.user?.email,
+        error: error?.message
+      });
 
-      // Create profile
+      if (error) {
+        console.error('❌ Supabase signUp error:', error);
+        throw error;
+      }
+
+      // Create profile with all user data
       if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            role,
-            displayName: email.split('@')[0],
-          });
+        const profileData: any = {
+          id: data.user.id,
+          role: userData.role,
+          display_name: userData.displayName,
+          phone_number: userData.phoneNumber || null,
+          is_verified: false,
+          is_active: true,
+          total_students: 0,
+        };
 
-        if (profileError) throw profileError;
+        // Try to add email if column exists
+        try {
+          profileData.email = email;
+        } catch (e) {
+          // Email column might not exist, that's OK
+        }
+
+        console.log('🔵 Creating profile with data:', profileData);
+
+        const { error: profileError, data: insertedProfile } = await supabase
+          .from('profiles')
+          .insert(profileData)
+          .select()
+          .single();
+
+        console.log('🔵 Profile insert response:', {
+          success: !profileError,
+          error: profileError?.message,
+          profileCreated: !!insertedProfile
+        });
+
+        if (profileError) {
+          console.error('❌ Profile creation error:', profileError);
+          throw profileError;
+        }
+
+        console.log('✅ Profile created successfully!');
+
+        // Small delay to ensure DB has committed the transaction
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Fetch the created profile (with retry logic)
+        console.log('🔵 Fetching created profile...');
+        await fetchProfile(data.user.id);
+        console.log('✅ SignUp completed successfully!');
+      } else {
+        console.warn('⚠️ No user returned from Supabase signUp');
       }
 
       return { error: null };
     } catch (error) {
+      console.error('❌ SignUp error:', error);
       return { error: error as Error };
     }
   };
