@@ -28,7 +28,7 @@ export const RTLProvider: React.FC<RTLProviderProps> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
 
   const isRTL = language === 'he';
-  const direction: 'ltr' | 'rtl' = isRTL ? 'rtl' : 'ltr';
+  const direction: 'ltr' | 'rtl' = isRTL ? 'ltr' : 'rtl';
 
   useEffect(() => {
     const initializeLanguage = async () => {
@@ -71,7 +71,7 @@ export const RTLProvider: React.FC<RTLProviderProps> = ({ children }) => {
 
   const getFlexDirection = (defaultDirection: 'row' | 'column' = 'row'): 'row' | 'row-reverse' | 'column' => {
     if (defaultDirection === 'column') return 'column';
-    return isRTL ? 'row-reverse' : 'row';
+    return isRTL ? 'row-reverse' : 'column';
   };
 
   const getMarginStart = (value: number) => {
@@ -106,7 +106,7 @@ export const RTLProvider: React.FC<RTLProviderProps> = ({ children }) => {
   // Provide safe defaults during initialization
   const defaultValue: RTLContextValue = {
     isRTL: true, // Default to Hebrew RTL
-    direction: 'rtl',
+    direction: 'ltr',
     language: 'he',
     setLanguage,
     getTextAlign,

@@ -9,14 +9,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Search, Filter, Star, Clock, CreditCard, Gift } from 'lucide-react-native';
+import { Star, Clock, CreditCard, Gift } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Typography } from '@/ui/Typography';
 import { Card, CardContent } from '@/ui/Card';
-import { Input } from '@/ui/Input';
 import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
+import { InfoBanner } from '@/components/ui/infobanner';
+import { getBannerMessages } from '@/data/banner-messages';
 
 interface Teacher {
   id: string;
@@ -121,6 +122,60 @@ const mockTeachers: Teacher[] = [
     totalReviews: 52,
     nextAvailable: 'מחרתיים, 10:00',
   },
+  // ספורט ואימונים
+  {
+    id: '9',
+    displayName: 'עידו שמואלי',
+    bio: 'מאמן אישי מוסמך עם 10 שנות ניסיון באימוני כוח וריצות מרתון. התמחות באימונים פונקציונליים ו-TRX',
+    hourlyRate: 180,
+    subjects: ['personal_training', 'running', 'trx', 'fitness'],
+    rating: 4.9,
+    totalReviews: 156,
+    nextAvailable: 'היום, 17:00',
+    location: 'תל אביב',
+    experienceYears: 10,
+    totalStudents: 320,
+  },
+  {
+    id: '10',
+    displayName: 'דנה פרידמן',
+    bio: 'מורה ליוגה ופילאטיס מוסמכת. בוגרת לימודי יוגה בהודו והתמחות בפילאטיס טיפולי. מתמחה בכל רמות הידע',
+    hourlyRate: 160,
+    subjects: ['yoga', 'pilates', 'fitness'],
+    rating: 4.8,
+    totalReviews: 203,
+    nextAvailable: 'מחר, 8:00',
+    location: 'רמת גן',
+    experienceYears: 8,
+    totalStudents: 410,
+  },
+  // קורסי אקדמיה
+  {
+    id: '11',
+    displayName: 'ד"ר אביב כהן',
+    bio: 'דוקטורט במתמטיקה שימושית מהטכניון. מתמחה בהוראת חדו״א, אלגברה לינארית וסטטיסטיקה לסטודנטים במדעים',
+    hourlyRate: 220,
+    subjects: ['calculus', 'linear_algebra', 'statistics', 'mathematics'],
+    rating: 4.9,
+    totalReviews: 187,
+    nextAvailable: 'מחרתיים, 15:00',
+    location: 'חיפה',
+    experienceYears: 15,
+    totalStudents: 520,
+  },
+  {
+    id: '12',
+    displayName: 'מיכל לוי',
+    bio: 'בוגרת תואר שני בכלכלה מאוניברסיטת תל-אביב. מתמחה בהוראת מיקרו, מאקרו ומימון לתואר ראשון',
+    hourlyRate: 200,
+    subjects: ['microeconomics', 'macroeconomics', 'finance'],
+    rating: 4.7,
+    totalReviews: 142,
+    nextAvailable: 'היום, 18:00',
+    location: 'תל אביב',
+    experienceYears: 9,
+    totalStudents: 285,
+  },
 ];
 
 const getPopularSubjects = (t: any) => [
@@ -138,14 +193,14 @@ export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isRTL, direction, getFlexDirection } = useRTL();
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
   const popularSubjects = getPopularSubjects(t);
+  const bannerMessages = getBannerMessages();
 
   // Will be replaced with actual query
   const { data: teachers = mockTeachers } = useQuery({
-    queryKey: ['teachers', searchQuery, selectedSubject],
+    queryKey: ['teachers', selectedSubject],
     queryFn: async () => {
       // Placeholder - will query Supabase
       return mockTeachers;
@@ -153,18 +208,6 @@ export default function HomeScreen() {
   });
 
   const filteredTeachers = teachers.filter(teacher => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        teacher.displayName.toLowerCase().includes(query) ||
-        teacher.bio.toLowerCase().includes(query) ||
-        teacher.subjects.some(s => {
-          // Search in both the key and Hebrew translation
-          const hebrewSubject = t(`home.subjects.${s}`).toLowerCase();
-          return s.toLowerCase().includes(query) || hebrewSubject.includes(query);
-        })
-      );
-    }
     if (selectedSubject) {
       return teacher.subjects.includes(selectedSubject);
     }
@@ -174,169 +217,203 @@ export default function HomeScreen() {
   const renderTeacherCard = ({ item }: { item: Teacher }) => (
     <Card
       variant="elevated"
-      padding="md"
+      padding="none"
       style={{
         marginBottom: spacing[2],
         marginRight: isRTL ? 0 : spacing[2],
         marginLeft: isRTL ? spacing[2] : 0,
-        width: 320, // Increased from 270
-        maxWidth: 320,
-        minHeight: 180, // Increased from 160
+        width: 300,
+        maxWidth: 300,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(0, 0, 0, 0.08)',
+        overflow: 'hidden',
       }}
     >
       <TouchableOpacity
         onPress={() => router.push(`/(tabs)/teacher/${item.id}`)}
-        activeOpacity={0.7}
+        activeOpacity={0.98}
+        style={{ padding: spacing[4] }}
       >
-        <View style={[styles.teacherCardRow, isRTL ? styles.teacherCardRowRTL : styles.teacherCardRowLTR]}>
-          {/* Avatar - smaller size */}
-          <View style={[styles.avatar, {
-            width: 45,
-            height: 45,
-            borderRadius: 22.5
-          }]}>
-            <Typography variant="h5" color="white" align="center">
+        {/* Header: Avatar + Name */}
+        <View style={{
+          flexDirection: 'row-reverse',
+          alignItems: 'center',
+          gap: spacing[2],
+          marginBottom: spacing[3],
+        }}>
+          {/* Avatar */}
+          <View style={{
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: colors.primary[600],
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderWidth: 2,
+            borderColor: colors.primary[100],
+          }}>
+            <Typography variant="body2" color="white" weight="bold">
               {item.displayName.charAt(0)}
             </Typography>
           </View>
 
-          {/* Teacher Info */}
-          <View style={[
-            styles.teacherInfo,
-            isRTL ? styles.teacherInfoRTL : styles.teacherInfoLTR,
-            { gap: spacing[1], flex: 1 } // Added flex: 1 to take available space
-          ]}>
-            {/* Name */}
-            <Typography
-              variant="body1"
-              weight="semibold"
-              align={isRTL ? "right" : "left"}
-              numberOfLines={1}
-            >
-              {item.displayName}
-            </Typography>
-
-            {/* Bio - more compact */}
-            <Typography
-              variant="caption"
-              color="textSecondary"
-              align={isRTL ? "right" : "left"}
-              numberOfLines={3}
-              ellipsizeMode="tail"
-              style={{
-                lineHeight: 20,
-                marginTop: 2,
-                fontSize: 15
-              }}
-            >
-              {item.bio}
-            </Typography>
-
-            {/* Subjects - aligned to the right of this line */}
-            <View style={[
-              styles.subjectsContainer,
-              {
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-                gap: spacing[1],
-                marginTop: spacing[1],
-                justifyContent: isRTL ? 'flex-end' : 'flex-end',
-                alignItems: 'center',
-              }
-            ]}>
-              {item.subjects.slice(0, 2).map((subject, index) => (
-                <View key={index} style={[styles.subjectBadge, {
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
-                  borderRadius: 8,
-                }]}>
-                  <Typography
-                    variant="caption"
-                    color="primary"
-                    style={{
-                      fontSize: 13,
-                      textAlign: isRTL ? 'right' : 'center'
-                    }}
-                  >
-                    {t(`home.subjects.${subject}`)}
-                  </Typography>
-                </View>
-              ))}
-            </View>
-          </View>
+          {/* Name - right aligned */}
+          <Typography
+            variant="body1"
+            weight="semibold"
+            align="right"
+            numberOfLines={1}
+            style={{ flex: 1, fontSize: 16, textAlign: 'right' }}
+          >
+            {item.displayName}
+          </Typography>
         </View>
 
-        {/* Meta info - more compact */}
-        <View style={[
-          styles.metaContainer,
-          {
-            flexDirection: isRTL ? 'row-reverse' : 'row',
-            justifyContent: 'center',
+        {/* Meta Strip: Price + Time - right aligned */}
+        <View style={{
+          flexDirection: 'row-reverse',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: spacing[2],
+          marginBottom: spacing[3],
+        }}>
+          {/* Price Pill - neutral brand style */}
+          <View style={{
+            backgroundColor: colors.gray[100],
+            paddingHorizontal: spacing[3],
+            paddingVertical: spacing[2] - 2,
+            borderRadius: 9999,
+            borderWidth: 1,
+            borderColor: colors.gray[200],
+            flexDirection: 'row-reverse',
             alignItems: 'center',
-            marginTop: spacing[1] + 2,
-            gap: spacing[3]
-          }
-        ]}>
-          {/* Rating */}
-          {item.rating && (
-            <View style={[
-              styles.ratingContainer,
-              { flexDirection: isRTL ? 'row' : 'row-reverse', alignItems: 'center' }
-            ]}>
-              <Star size={11} color={colors.warning[500]} fill={colors.warning[500]} />
-              <Typography
-                variant="caption"
-                weight="medium"
-                style={{
-                  marginLeft: isRTL ? 3 : 0,
-                  marginRight: isRTL ? 0 : 3,
-                  fontSize: 13
-                }}
-              >
-                {item.rating} ({item.totalReviews})
-              </Typography>
-            </View>
-          )}
-
-          {/* Price */}
-          <View style={[
-            styles.priceContainer,
-            { flexDirection: isRTL ? 'row' : 'row-reverse', alignItems: 'center' }
-          ]}>
-            <CreditCard size={11} color={colors.gray[600]} />
+            gap: 4,
+          }}>
+            <Typography
+              variant="body2"
+              weight="semibold"
+              style={{ fontSize: 14, color: colors.gray[900] }}
+            >
+              ₪{item.hourlyRate}
+            </Typography>
             <Typography
               variant="caption"
-              color="textSecondary"
-              style={{
-                marginLeft: isRTL ? 3 : 0,
-                marginRight: isRTL ? 0 : 3,
-                fontSize: 13
-              }}
+              style={{ fontSize: 11, color: colors.gray[600] }}
             >
-              {item.hourlyRate}/לשעה
+              /שעה
             </Typography>
           </View>
 
+          {/* Separator */}
+          <View style={{
+            width: 3,
+            height: 3,
+            borderRadius: 1.5,
+            backgroundColor: colors.gray[400],
+          }} />
+
           {/* Availability */}
-          {item.nextAvailable && (
-            <View style={[
-              styles.availabilityContainer,
-              { flexDirection: isRTL ? 'row' : 'row-reverse', alignItems: 'center' }
-            ]}>
-              <Clock size={10} color={colors.success[600]} />
+          {item.nextAvailable ? (
+            <View style={{
+              flexDirection: 'row-reverse',
+              alignItems: 'center',
+              gap: 4,
+            }}>
+              <Clock size={13} color={colors.success[600]} />
               <Typography
                 variant="caption"
                 color="success"
-                style={{
-                  marginLeft: isRTL ? 3 : 0,
-                  marginRight: isRTL ? 0 : 3,
-                  fontSize: 13
-                }}
+                weight="medium"
+                style={{ fontSize: 13 }}
               >
                 {item.nextAvailable}
               </Typography>
             </View>
+          ) : (
+            <Typography
+              variant="caption"
+              color="textSecondary"
+              style={{ fontSize: 12, textAlign: 'right' }}
+            >
+              זמינות גמישה
+            </Typography>
           )}
         </View>
+
+        {/* Subjects Chips - right aligned */}
+        <View style={{
+          flexDirection: 'row-reverse',
+          flexWrap: 'wrap',
+          gap: spacing[2],
+          marginBottom: spacing[2],
+          justifyContent: 'flex-end',
+        }}>
+          {item.subjects.slice(0, 3).map((subject, index) => (
+            <View
+              key={index}
+              style={{
+                backgroundColor: colors.gray[100],
+                paddingHorizontal: spacing[2] + 2,
+                paddingVertical: spacing[1] + 2,
+                borderRadius: 9999,
+                borderWidth: 1,
+                borderColor: colors.gray[200],
+              }}
+            >
+              <Typography
+                variant="caption"
+                style={{
+                  fontSize: 12,
+                  color: colors.gray[700],
+                  textAlign: 'right',
+                }}
+              >
+                {t(`home.subjects.${subject}`)}
+              </Typography>
+            </View>
+          ))}
+          {item.subjects.length > 3 && (
+            <View style={{
+              paddingHorizontal: spacing[2],
+              paddingVertical: spacing[1] + 2,
+            }}>
+              <Typography
+                variant="caption"
+                color="textSecondary"
+                style={{ fontSize: 11, textAlign: 'right' }}
+              >
+                +{item.subjects.length - 3} עוד
+              </Typography>
+            </View>
+          )}
+        </View>
+
+        {/* Rating (if exists) - right aligned */}
+        {item.rating && (
+          <View style={{
+            flexDirection: 'row-reverse',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 4,
+          }}>
+            <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
+            <Typography
+              variant="caption"
+              weight="medium"
+              style={{ fontSize: 13 }}
+            >
+              {item.rating}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="textSecondary"
+              style={{ fontSize: 12, textAlign: 'right' }}
+            >
+              ({item.totalReviews} ביקורות)
+            </Typography>
+          </View>
+        )}
       </TouchableOpacity>
     </Card>
   );
@@ -347,22 +424,6 @@ export default function HomeScreen() {
       backgroundColor: colors.gray[50],
     },
 
-    header: {
-      backgroundColor: colors.white,
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing[4],
-      borderBottomWidth: 1,
-      borderBottomColor: colors.gray[200],
-    },
-    headerRow: {
-      alignItems: 'flex-start',
-    },
-    headerTextContainer: {
-      flex: 1,
-    },
-    headerAvatar: {
-      marginLeft: spacing[3],
-    },
     avatar: {
       width: 48,
       height: 48,
@@ -372,27 +433,6 @@ export default function HomeScreen() {
       alignItems: 'center',
       borderWidth: 2,
       borderColor: colors.primary[100],
-    },
-
-    searchContainer: {
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing[3],
-      backgroundColor: colors.white,
-    },
-
-    searchInputContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.gray[100],
-      borderRadius: 12,
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing[3],
-    },
-
-    searchInput: {
-      flex: 1,
-      marginLeft: spacing[3],
-      fontSize: 16,
     },
 
     subjectsSection: {
@@ -438,85 +478,6 @@ export default function HomeScreen() {
       paddingBottom: spacing[2],
     },
 
-    teacherCardRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing[2],
-    },
-
-    teacherCardRowLTR: {
-      flexDirection: 'row',
-    },
-
-    teacherCardRowRTL: {
-      flexDirection: 'row-reverse',
-    },
-
-    avatar: {
-      width: 45,
-      height: 45,
-      borderRadius: 22.5,
-      backgroundColor: colors.primary[600],
-      justifyContent: 'center',
-      alignItems: 'center',
-      flexShrink: 0,
-    },
-
-    teacherInfo: {
-      flex: 1,
-      gap: spacing[1],
-    },
-
-    teacherInfoLTR: {
-      flex: 1,
-    },
-
-    teacherInfoRTL: {
-      flex: 1,
-    },
-
-    subjectsContainer: {
-      flexWrap: 'wrap',
-      gap: spacing[1],
-    },
-
-    subjectBadge: {
-      backgroundColor: colors.primary[50],
-      borderRadius: 8,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-    },
-
-    metaContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 6,
-    },
-
-    leftMeta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-
-    ratingContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-    },
-
-    priceContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-    },
-
-    availabilityContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-    },
 
     emptyState: {
       paddingVertical: spacing[8],
@@ -605,57 +566,11 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.container, { direction }]}>
       <StatusBar barStyle="dark-content" />
 
-        {/* Header with User Greeting */}
-        <View style={styles.header}>
-          <View style={[
-            styles.headerRow,
-            {
-              flexDirection: 'row',
-              justifyContent: 'flex-start',
-              direction: 'ltr'
-            }
-          ]}>
-            <TouchableOpacity
-              style={styles.headerAvatar}
-              onPress={() => router.push('/(tabs)/profile')}
-            >
-              <View style={styles.avatar}>
-                <Typography variant="h4" color="white" weight="bold">
-                  ד
-                </Typography>
-              </View>
-            </TouchableOpacity>
-            <View style={[styles.headerTextContainer, { flex: 1 }]}>
-              <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right' }}>
-                {new Date().getHours() < 12 ? '🌅 בוקר טוב' :
-                 new Date().getHours() < 17 ? '☀️ צהריים טובים' :
-                 new Date().getHours() < 21 ? '🌆 ערב טוב' : '🌙 לילה טוב'}
-              </Typography>
-              <Typography variant="h3" color="text" weight="bold" style={{ marginTop: spacing[1], textAlign: 'right' }}>
-                שלום, דניאל! 👋
-              </Typography>
-              <Typography variant="body2" color="textSecondary" style={{ marginTop: spacing[2], textAlign: 'right' }}>
-                {t('home.findTeacher')}
-              </Typography>
-            </View>
-          </View>
-        </View>
-
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Input
-            placeholder={t('home.searchPlaceholder')}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            leftIcon={isRTL ? <Filter size={20} color={colors.gray[600]} /> : <Search size={20} color={colors.gray[600]} />}
-            rightIcon={
-              <TouchableOpacity>
-                {isRTL ? <Search size={20} color={colors.gray[600]} /> : <Filter size={20} color={colors.gray[600]} />}
-              </TouchableOpacity>
-            }
-            containerStyle={{ marginBottom: 0 }}
-          />
-        </View>
+      {/* Info Banner - replaces greeting and search */}
+      <InfoBanner
+        messages={bannerMessages}
+        autoRotateInterval={10000}
+      />
 
         <ScrollView
           style={{ flex: 1 }}
@@ -729,7 +644,11 @@ export default function HomeScreen() {
               {t('home.featuredCategories')}
             </Typography>
             <View style={styles.categoriesGrid}>
-              <TouchableOpacity style={[styles.categoryCard, { backgroundColor: colors.blue[50] }]}>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.blue[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=mathematics_sciences')}
+                activeOpacity={0.7}
+              >
                 <Typography style={styles.categoryIcon}>🔢</Typography>
                 <Typography variant="body1" weight="medium" align="center">
                   מתמטיקה ומדעים
@@ -738,7 +657,11 @@ export default function HomeScreen() {
                   350+ מורים
                 </Typography>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.categoryCard, { backgroundColor: colors.green[50] }]}>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.green[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=languages')}
+                activeOpacity={0.7}
+              >
                 <Typography style={styles.categoryIcon}>🌍</Typography>
                 <Typography variant="body1" weight="medium" align="center">
                   שפות זרות
@@ -747,7 +670,11 @@ export default function HomeScreen() {
                   280+ מורים
                 </Typography>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.categoryCard, { backgroundColor: colors.purple[50] }]}>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.purple[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=music_arts')}
+                activeOpacity={0.7}
+              >
                 <Typography style={styles.categoryIcon}>🎵</Typography>
                 <Typography variant="body1" weight="medium" align="center">
                   מוזיקה ואמנות
@@ -756,13 +683,43 @@ export default function HomeScreen() {
                   150+ מורים
                 </Typography>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.categoryCard, { backgroundColor: colors.orange[50] }]}>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.orange[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=technology')}
+                activeOpacity={0.7}
+              >
                 <Typography style={styles.categoryIcon}>💻</Typography>
                 <Typography variant="body1" weight="medium" align="center">
                   טכנולוגיה ותכנות
                 </Typography>
                 <Typography variant="caption" color="textSecondary" align="center" style={{ marginTop: spacing[1] }}>
                   120+ מורים
+                </Typography>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.red[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=sports_fitness')}
+                activeOpacity={0.7}
+              >
+                <Typography style={styles.categoryIcon}>⚽</Typography>
+                <Typography variant="body1" weight="medium" align="center">
+                  ספורט ואימונים
+                </Typography>
+                <Typography variant="caption" color="textSecondary" align="center" style={{ marginTop: spacing[1] }}>
+                  95+ מורים
+                </Typography>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.categoryCard, { backgroundColor: colors.indigo[50] }]}
+                onPress={() => router.push('/(tabs)/search?category=academic_courses')}
+                activeOpacity={0.7}
+              >
+                <Typography style={styles.categoryIcon}>🎓</Typography>
+                <Typography variant="body1" weight="medium" align="center">
+                  קורסי אקדמיה
+                </Typography>
+                <Typography variant="caption" color="textSecondary" align="center" style={{ marginTop: spacing[1] }}>
+                  180+ מורים
                 </Typography>
               </TouchableOpacity>
             </View>
