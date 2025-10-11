@@ -2,6 +2,26 @@
 
 A modern React Native/Expo application for connecting students with teachers in Israel, featuring Hebrew language support and RTL layout.
 
+---
+
+## 📋 תוכן עניינים
+
+1. [Project Overview](#project-overview)
+2. [Quick Start Commands](#quick-start-commands)
+3. [Project Structure](#project-structure)
+4. [Core Technologies](#core-technologies)
+5. [Teacher Interface](#teacher-interface)
+6. [Student Interface](#student-interface)
+7. [DEV Users System](#dev-users-system)
+8. [RTL Support](#rtl-support)
+9. [Authentication Flow](#authentication-flow)
+10. [Common Issues & Solutions](#common-issues--solutions)
+11. [Development Guidelines](#development-guidelines)
+12. [Testing Guide](#testing-guide)
+13. [Deployment](#deployment)
+
+---
+
 ## Project Overview
 
 **SkillUp Teachers** is a mobile application built with Expo SDK 54 that connects students with private tutors. The app supports Hebrew language with full RTL (Right-to-Left) layout and includes features for finding teachers, booking lessons, managing profiles, and handling payments.
@@ -192,4 +212,155 @@ npx expo install --fix
 
 ---
 
-*This documentation was generated for Claude Code instances working on the SkillUp Teachers application. Keep this file updated as the project evolves.*
+## Additional Features & Updates
+
+### Teacher Interface - Detailed Features
+
+#### Dashboard Home
+- **Notifications Banner**: Auto-rotating teacher alerts (10s interval)
+- **Activity Stats Cards**:
+  - Clean, minimal design
+  - Right-aligned text (RTL)
+  - No icons (professional look)
+  - Consistent height (96px)
+  - Subtle borders and shadows
+- **Growth Chart**: 12-month revenue/lessons visualization with toggle
+
+#### Calendar Features
+- **Responsive Grid**: Dynamic cell sizing (minimum 44px)
+- **Separated Layers**: Date numbers (top-right), lesson dots (bottom-center)
+- **No Overlap**: Proper spacing between elements
+- **Safe Area**: Proper padding on all devices
+- **Accessibility**: Full labels and hints for screen readers
+
+#### Navigation Enhancements
+- **Dynamic Padding**: 12-34px based on device safe area
+- **RTL Order**: Home | Calendar | Profile (right-to-left)
+- **Shadow/Elevation**: Platform-specific depth effects
+- **Min Height**: 64px for AA accessibility
+
+### DEV Users - Complete System
+
+The DEV users system provides a complete authentication bypass for local development:
+
+**Security Measures**:
+- Environment check: `IS_DEV_MODE = process.env.NODE_ENV === 'development' || __DEV__`
+- Console warnings if imported in production
+- Guard functions in every DEV-related method
+- Error throwing on production session creation attempts
+
+**Files Involved**:
+1. `src/data/dev-users.ts` - User definitions + validation (167 lines)
+2. `src/components/dev/DevUsersHelper.tsx` - UI helper component (196 lines)
+3. `src/features/auth/auth-context.tsx` - Authentication integration (+50 lines)
+4. `app/(auth)/login.tsx` - Login screen integration (+70 lines)
+
+**Mock Data**:
+- Teacher: 45 students, 487 lessons, ₪18,500 monthly income
+- Student: Basic profile with search capabilities
+- Stub data in `src/data/teacher-data.ts`
+
+### RTL Implementation Details
+
+**Key Patterns**:
+```typescript
+// Container with RTL flow
+<View style={{ flexDirection: 'row-reverse', justifyContent: 'flex-start' }}>
+  {/* flex-start = right side in row-reverse */}
+</View>
+
+// Text alignment (always use style, not prop)
+<Typography style={{ textAlign: 'right' }}>Hebrew Text</Typography>
+
+// Horizontal scrolling
+<FlatList horizontal inverted={isRTL} data={items} />
+```
+
+**Common Mistakes to Avoid**:
+- ❌ Using `align` prop on Typography components
+- ❌ Using `justifyContent: 'flex-end'` with `row-reverse` (use `flex-start`)
+- ❌ Forgetting `width: '100%'` on section titles
+- ❌ Not using `inverted` on horizontal FlatLists
+
+### Authentication Flow - Technical Details
+
+**Login Process**:
+1. User submits credentials
+2. Double-tap prevention: `if (isLoading) return`
+3. DEV check: `if (IS_DEV_MODE && isDevUser(email))`
+4. Mock auth or Supabase auth
+5. Profile fetch with role
+6. `redirectPostLogin(profile)` function
+7. Role-based navigation:
+   - Teacher: `router.replace('/(teacher)')`
+   - Student/Default: `router.replace('/(tabs)')`
+8. Fallback on error: Always redirect to student interface
+
+**Security Features**:
+- Role verification in teacher layout guard
+- Session validation on app resume
+- Auto-logout on role mismatch
+- Secure session storage (Supabase JWT or mock)
+
+### Testing Checklist
+
+#### Pre-Deployment Tests
+- [ ] Login as teacher → correct interface
+- [ ] Login as student → correct interface
+- [ ] Wrong password → error alert
+- [ ] Double-tap login → prevented
+- [ ] Logout → returns to login
+- [ ] Calendar responsive on all devices
+- [ ] Nav bar safe area on iPhone X+
+- [ ] RTL layout on all screens
+- [ ] All tap targets ≥44px
+- [ ] Dark mode (if enabled)
+
+#### Device-Specific Tests
+- **iPhone SE**: Min cells 44px, readable text
+- **iPhone 14 Pro**: Proper safe area, ~48px cells
+- **iPad**: Scales properly, maintains aspect ratio
+- **Android**: Gesture bar spacing, elevation visible
+
+### File Changes Summary
+
+**New Files (16)**:
+- Teacher app: 5 files (~1,100 lines)
+- Data layer: 2 files (~340 lines)
+- Components: 1 file (~200 lines)
+- Documentation: 8+ files (~2,700 lines)
+
+**Modified Files (6)**:
+- `app/_layout.tsx`: +4 lines (teacher route)
+- `app/index.tsx`: +30 lines (role routing)
+- `src/lib/i18n.ts`: +8 lines (translations)
+- `app/(auth)/login.tsx`: +70 lines (redirect + DEV UI)
+- `src/features/auth/auth-context.tsx`: +50 lines (DEV support)
+- `app/(teacher)/_layout.tsx`: Updated (safe area)
+
+**Total Code**: ~2,800 lines
+**Total Docs**: ~2,700 lines
+**Linter Errors**: 0 ✅
+
+---
+
+## Troubleshooting Reference
+
+### Issue: "DEV users not accessible"
+**Solution**: Ensure `npm start` (not production build). Check `console.log('DEV:', __DEV__)`.
+
+### Issue: "Calendar cells overlapping"
+**Solution**: Verify `justifyContent: 'space-between'` in cell content and `alignSelf: 'flex-end'` for date.
+
+### Issue: "Text not right-aligned in RTL"
+**Solution**: Use `textAlign: 'right'` in style object, not `align` prop.
+
+### Issue: "Nav bar stuck to bottom edge"
+**Solution**: Check `useSafeAreaInsets()` returns correct values. Should be 0-34px.
+
+### Issue: "Role redirect not working"
+**Solution**: Verify `signIn()` returns profile object. Check console logs.
+
+---
+
+*This comprehensive documentation consolidates all implementation details, testing procedures, and troubleshooting guides for the SkillUp Teachers application. Keep this file updated as the project evolves.*

@@ -222,8 +222,8 @@ export default function HomeScreen() {
         marginBottom: spacing[2],
         marginRight: isRTL ? 0 : spacing[2],
         marginLeft: isRTL ? spacing[2] : 0,
-        width: 300,
-        maxWidth: 300,
+        width: 260,
+        maxWidth: 280,
         borderRadius: 16,
         borderWidth: 1,
         borderColor: 'rgba(0, 0, 0, 0.08)',
@@ -233,50 +233,82 @@ export default function HomeScreen() {
       <TouchableOpacity
         onPress={() => router.push(`/(tabs)/teacher/${item.id}`)}
         activeOpacity={0.98}
-        style={{ padding: spacing[4] }}
+        style={{ padding: spacing[3] }}
       >
-        {/* Header: Avatar + Name */}
+        {/* Header: Avatar + Name + Rating */}
         <View style={{
           flexDirection: 'row-reverse',
           alignItems: 'center',
-          gap: spacing[2],
-          marginBottom: spacing[3],
+          justifyContent: 'space-between',
+          marginBottom: spacing[2],
         }}>
-          {/* Avatar */}
+          {/* Right side: Avatar + Name */}
           <View style={{
-            width: 32,
-            height: 32,
-            borderRadius: 16,
-            backgroundColor: colors.primary[600],
-            justifyContent: 'center',
+            flexDirection: 'row-reverse',
             alignItems: 'center',
-            borderWidth: 2,
-            borderColor: colors.primary[100],
+            gap: spacing[2],
+            flex: 1,
           }}>
-            <Typography variant="body2" color="white" weight="bold">
-              {item.displayName.charAt(0)}
+            {/* Avatar */}
+            <View style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: colors.primary[600],
+              justifyContent: 'center',
+              alignItems: 'center',
+              borderWidth: 2,
+              borderColor: colors.primary[100],
+            }}>
+              <Typography variant="body2" color="white" weight="bold">
+                {item.displayName.charAt(0)}
+              </Typography>
+            </View>
+
+            {/* Name - right aligned */}
+            <Typography
+              variant="body1"
+              weight="semibold"
+              numberOfLines={1}
+              style={{ flex: 1, fontSize: 16, textAlign: 'right' }}
+            >
+              {item.displayName}
             </Typography>
           </View>
 
-          {/* Name - right aligned */}
-          <Typography
-            variant="body1"
-            weight="semibold"
-            align="right"
-            numberOfLines={1}
-            style={{ flex: 1, fontSize: 16, textAlign: 'right' }}
-          >
-            {item.displayName}
-          </Typography>
+          {/* Left side: Rating */}
+          {item.rating && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+            }}>
+              <Typography
+                variant="caption"
+                color="textSecondary"
+                style={{ fontSize: 11 }}
+              >
+                ({item.totalReviews})
+              </Typography>
+              <Typography
+                variant="caption"
+                weight="medium"
+                style={{ fontSize: 13 }}
+              >
+                {item.rating}
+              </Typography>
+              <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
+            </View>
+          )}
         </View>
 
         {/* Meta Strip: Price + Time - right aligned */}
         <View style={{
           flexDirection: 'row-reverse',
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'flex-start',
           gap: spacing[2],
-          marginBottom: spacing[3],
+          marginBottom: spacing[2],
         }}>
           {/* Price Pill - neutral brand style */}
           <View style={{
@@ -346,8 +378,8 @@ export default function HomeScreen() {
           flexDirection: 'row-reverse',
           flexWrap: 'wrap',
           gap: spacing[2],
-          marginBottom: spacing[2],
-          justifyContent: 'flex-end',
+          marginBottom: spacing[1] + 2,
+          justifyContent: 'flex-start',
         }}>
           {item.subjects.slice(0, 3).map((subject, index) => (
             <View
@@ -388,32 +420,6 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-
-        {/* Rating (if exists) - right aligned */}
-        {item.rating && (
-          <View style={{
-            flexDirection: 'row-reverse',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 4,
-          }}>
-            <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
-            <Typography
-              variant="caption"
-              weight="medium"
-              style={{ fontSize: 13 }}
-            >
-              {item.rating}
-            </Typography>
-            <Typography
-              variant="caption"
-              color="textSecondary"
-              style={{ fontSize: 12, textAlign: 'right' }}
-            >
-              ({item.totalReviews} ביקורות)
-            </Typography>
-          </View>
-        )}
       </TouchableOpacity>
     </Card>
   );
@@ -422,6 +428,38 @@ export default function HomeScreen() {
     container: {
       flex: 1,
       backgroundColor: colors.gray[50],
+    },
+
+    headerSection: {
+      backgroundColor: colors.white,
+      paddingHorizontal: spacing[4],
+      paddingTop: spacing[3],
+      paddingBottom: spacing[4],
+    },
+
+    headerContent: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    greetingContainer: {
+      flex: 1,
+      alignItems: 'flex-end',
+    },
+
+    userAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.primary[600],
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: colors.primary[600],
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
     },
 
     avatar: {
@@ -442,6 +480,8 @@ export default function HomeScreen() {
     sectionTitle: {
       paddingHorizontal: spacing[4],
       marginBottom: spacing[3],
+      textAlign: 'right',
+      width: '100%',
     },
 
     subjectsScroll: {
@@ -566,31 +606,50 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.container, { direction }]}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Info Banner - replaces greeting and search */}
-      <InfoBanner
-        messages={bannerMessages}
-        autoRotateInterval={10000}
-      />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 0 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header with greeting */}
+        <View style={styles.headerSection}>
+          <View style={styles.headerContent}>
+            <View style={styles.greetingContainer}>
+              <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right', fontSize: 14 }}>
+                {new Date().getHours() < 12 ? 'בוקר טוב' : new Date().getHours() < 18 ? 'צהריים טובים' : 'ערב טוב'}
+              </Typography>
+              <Typography variant="h3" weight="bold" style={{ textAlign: 'right', color: colors.gray[900], marginTop: spacing[1] }}>
+                יוסי כהן
+              </Typography>
+            </View>
+            <View style={styles.userAvatar}>
+              <Typography variant="h5" color="white" weight="bold">
+                י
+              </Typography>
+            </View>
+          </View>
+        </View>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 0 }}
-          showsVerticalScrollIndicator={false}
-        >
+        {/* Info Banner */}
+        <InfoBanner
+          messages={bannerMessages}
+          autoRotateInterval={10000}
+        />
           {/* Subject Filters */}
           <View style={styles.subjectsSection}>
-            <Typography variant="h5" weight="semibold" align="right" style={styles.sectionTitle}>
+            <Typography variant="h5" weight="semibold" style={[styles.sectionTitle, { textAlign: 'right' }]}>
               {t('home.popularSubjects')}
             </Typography>
-            <ScrollView
+            <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.subjectsScroll}
-              contentContainerStyle={{ flexDirection: isRTL ? 'row-reverse' : 'row' }}
-            >
-              {popularSubjects.map((subject, index) => (
+              data={popularSubjects}
+              keyExtractor={(item) => item.key}
+              inverted={isRTL}
+              contentContainerStyle={{ paddingHorizontal: spacing[4] }}
+              renderItem={({ item: subject }) => (
                 <TouchableOpacity
-                  key={index}
                   onPress={() => setSelectedSubject(
                     selectedSubject === subject.key ? null : subject.key
                   )}
@@ -608,13 +667,13 @@ export default function HomeScreen() {
                     {subject.label}
                   </Typography>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              )}
+            />
           </View>
 
           {/* Featured Teachers */}
           <View style={styles.teachersSection}>
-            <Typography variant="h5" weight="semibold" align="right" style={styles.sectionTitle}>
+            <Typography variant="h5" weight="semibold" style={[styles.sectionTitle, { textAlign: 'right' }]}>
               {t('home.featuredTeachers')}
             </Typography>
 
@@ -624,9 +683,9 @@ export default function HomeScreen() {
               keyExtractor={(item) => item.id}
               horizontal
               showsHorizontalScrollIndicator={false}
+              inverted={isRTL}
               contentContainerStyle={{
-                paddingHorizontal: spacing[4],
-                flexDirection: isRTL ? 'row-reverse' : 'row'
+                paddingHorizontal: spacing[4]
               }}
               ListEmptyComponent={
                 <View style={styles.emptyState}>
@@ -640,10 +699,10 @@ export default function HomeScreen() {
 
           {/* Featured Categories */}
           <View style={styles.categoriesSection}>
-            <Typography variant="h5" weight="semibold" align="right" style={styles.sectionTitle}>
+            <Typography variant="h5" weight="semibold" style={[styles.sectionTitle, { textAlign: 'right' }]}>
               {t('home.featuredCategories')}
             </Typography>
-            <View style={styles.categoriesGrid}>
+            <View style={[styles.categoriesGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <TouchableOpacity 
                 style={[styles.categoryCard, { backgroundColor: colors.blue[50] }]}
                 onPress={() => router.push('/(tabs)/search?category=mathematics_sciences')}
@@ -729,22 +788,22 @@ export default function HomeScreen() {
           <View style={styles.offerSection}>
             <Card style={styles.offerCard}>
               <CardContent style={styles.offerContent}>
-                <View style={[styles.offerRow, { flexDirection: getFlexDirection() }]}>
-                  <Gift size={32} color={colors.primary[600]} />
+                <View style={[styles.offerRow, { flexDirection: 'row-reverse' }]}>
                   <View style={styles.offerText}>
-                    <Typography variant="h5" weight="bold" color="primary" align="right">
+                    <Typography variant="h5" weight="bold" color="primary" style={{ textAlign: 'right' }}>
                       {t('home.specialOffer')}
                     </Typography>
-                    <Typography variant="body1" style={{ marginTop: spacing[1] }} align="right">
+                    <Typography variant="body1" style={{ marginTop: spacing[1], textAlign: 'right' }}>
                       {t('home.firstLessonFree')}
                     </Typography>
-                    <Typography variant="body2" color="textSecondary" style={{ marginTop: spacing[1] }} align="right">
+                    <Typography variant="body2" color="textSecondary" style={{ marginTop: spacing[1], textAlign: 'right' }}>
                       {t('home.newStudentOffer')}
                     </Typography>
                   </View>
+                  <Gift size={32} color={colors.primary[600]} />
                 </View>
-                <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                  <TouchableOpacity style={styles.offerButton}>
+                <View style={{ width: '100%', marginTop: spacing[2] }}>
+                  <TouchableOpacity style={[styles.offerButton, { alignSelf: 'flex-end' }]}>
                     <Typography variant="body2" weight="semibold" color="primary">
                       {t('home.joinNow')}
                     </Typography>

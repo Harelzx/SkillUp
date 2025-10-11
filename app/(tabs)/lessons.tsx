@@ -393,21 +393,21 @@ export default function LessonsScreen() {
     return (
       <Card key={lesson.id} style={styles.lessonCard}>
         <CardContent>
-          <View style={[styles.lessonHeader, { flexDirection: getFlexDirection() }]}>
+          <View style={[styles.lessonHeader, { flexDirection: 'row-reverse' }]}>
             <View style={{ flex: 1 }}>
-              <Typography variant="h5" weight="semibold">
+              <Typography variant="h5" weight="semibold" style={{ textAlign: 'right' }}>
                 {lesson.teacherName}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right' }}>
                 {lesson.subject}
               </Typography>
             </View>
             <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
-              <View style={[styles.infoRow, { flexDirection: getFlexDirection() }]}>
-                <StatusIcon size={14} color={statusColor} />
+              <View style={[styles.infoRow, { flexDirection: 'row', gap: spacing[1] }]}>
                 <Typography variant="caption" style={{ color: statusColor }}>
                   {t(`lessons.status.${lesson.status}`)}
                 </Typography>
+                <StatusIcon size={14} color={statusColor} />
               </View>
             </View>
           </View>

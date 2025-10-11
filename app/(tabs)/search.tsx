@@ -398,15 +398,15 @@ export default function SearchScreen() {
 
             {/* Info */}
             <View style={styles.teacherInfo}>
-              <Typography variant="body1" weight="semibold" numberOfLines={1}>
+              <Typography variant="body1" weight="semibold" numberOfLines={1} style={{ textAlign: 'right' }}>
                 {item.displayName}
               </Typography>
-              <Typography variant="caption" color="textSecondary" numberOfLines={2}>
+              <Typography variant="caption" color="textSecondary" numberOfLines={2} style={{ textAlign: 'right' }}>
                 {item.bio}
               </Typography>
 
               {/* Subjects */}
-              <View style={[styles.subjectsRow, { flexDirection: getFlexDirection() }]}>
+              <View style={[styles.subjectsRow, { flexDirection: 'row-reverse', justifyContent: 'flex-start' }]}>
                 {item.subjects.slice(0, 2).map((subject, idx) => (
                   <View key={idx} style={styles.subjectBadge}>
                     <Typography variant="caption" color="primary" style={{ fontSize: 10 }}>
@@ -419,17 +419,20 @@ export default function SearchScreen() {
 
             {/* Price & Rating */}
             <View style={styles.teacherMeta}>
-              <View style={[styles.ratingRow, { flexDirection: getFlexDirection() }]}>
-                <Star size={12} color={colors.warning[500]} fill={colors.warning[500]} />
+              <View style={[styles.ratingRow, { flexDirection: 'row', justifyContent: 'flex-start' }]}>
+                <Typography variant="caption" style={{ marginLeft: 2 }}>
+                  ({item.totalReviews})
+                </Typography>
                 <Typography variant="caption" style={{ marginHorizontal: 2 }}>
                   {item.rating}
                 </Typography>
+                <Star size={12} color={colors.warning[500]} fill={colors.warning[500]} />
               </View>
-              <Typography variant="body2" weight="semibold" color="primary">
+              <Typography variant="body2" weight="semibold" color="primary" style={{ textAlign: 'right', marginTop: spacing[1] }}>
                 ₪{item.hourlyRate}/שעה
               </Typography>
               {item.nextAvailable && (
-                <Typography variant="caption" color="success" style={{ marginTop: 2 }}>
+                <Typography variant="caption" color="success" style={{ marginTop: 2, textAlign: 'right' }}>
                   {item.nextAvailable}
                 </Typography>
               )}
@@ -550,7 +553,7 @@ export default function SearchScreen() {
       paddingVertical: 2,
     },
     teacherMeta: {
-      alignItems: isRTL ? 'flex-start' : 'flex-end',
+      alignItems: 'flex-end',
     },
     ratingRow: {
       alignItems: 'center',
@@ -756,7 +759,7 @@ export default function SearchScreen() {
           {/* Recent Searches */}
           {recentSearches.length > 0 && (
             <View style={styles.recentSearches}>
-              <Typography variant="h6" weight="semibold" style={{ marginBottom: spacing[2] }} align={isRTL ? 'left' : 'right'}>
+              <Typography variant="h6" weight="semibold" style={{ marginBottom: spacing[2], textAlign: 'right' }}>
                 חיפושים אחרונים
               </Typography>
               <View style={[{ flexDirection: getFlexDirection(), flexWrap: 'wrap' }]}>
@@ -777,9 +780,9 @@ export default function SearchScreen() {
 
           {/* Trending */}
           <View style={styles.trendingSection}>
-            <View style={[{ flexDirection: getFlexDirection(), alignItems: 'center', marginBottom: spacing[3] }]}>
+            <View style={[{ flexDirection: 'row-reverse', alignItems: 'center', marginBottom: spacing[3] }]}>
               <TrendingUp size={20} color={colors.primary[600]} />
-              <Typography variant="h6" weight="semibold" style={{ marginHorizontal: spacing[2] }} align={isRTL ? 'right' : 'left'}>
+              <Typography variant="h6" weight="semibold" style={{ marginHorizontal: spacing[2], textAlign: 'right' }}>
                 מורים פופולריים השבוע
               </Typography>
             </View>
@@ -793,8 +796,8 @@ export default function SearchScreen() {
           {/* Show all teachers only when "הכל" category is selected */}
           {selectedCategory === 'all' && (
             <View style={styles.trendingSection}>
-              <View style={[{ flexDirection: getFlexDirection(), alignItems: 'center', marginBottom: spacing[3] }]}>
-                <Typography variant="h6" weight="semibold" style={{ marginHorizontal: spacing[2] }} align={isRTL ? 'right' : 'left'}>
+              <View style={[{ flexDirection: 'row-reverse', alignItems: 'center', marginBottom: spacing[3] }]}>
+                <Typography variant="h6" weight="semibold" style={{ marginHorizontal: spacing[2], textAlign: 'right' }}>
                   כל המורים הזמינים
                 </Typography>
               </View>
@@ -812,7 +815,7 @@ export default function SearchScreen() {
           {/* Results header */}
           {!isSearching && (
             <View style={styles.resultHeader}>
-              <Typography variant="body2" color="textSecondary" align={isRTL ? 'right' : 'left'}>
+              <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right' }}>
                 {filteredTeachers.length > 0
                   ? `נמצאו ${filteredTeachers.length} מורים`
                   : 'לא נמצאו תוצאות'}
