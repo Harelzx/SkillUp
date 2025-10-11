@@ -431,13 +431,18 @@ CREATE OR REPLACE VIEW teacher_profiles_with_stats AS
 SELECT
   p.*,
   get_teacher_avg_rating(p.id) as avg_rating,
-  get_teacher_review_count(p.id) as total_reviews,
+  get_teacher_review_count(p.id) as review_count,
   (
-    SELECT json_agg(s.name)
+    SELECT COALESCE(array_agg(ts.subject_id), ARRAY[]::uuid[])
+    FROM teacher_subjects ts
+    WHERE ts.teacher_id = p.id
+  ) as subject_ids,
+  (
+    SELECT COALESCE(array_agg(s.name_he), ARRAY[]::text[])
     FROM teacher_subjects ts
     JOIN subjects s ON s.id = ts.subject_id
     WHERE ts.teacher_id = p.id
-  ) as subjects
+  ) as subject_names
 FROM profiles p
 WHERE p.role = 'teacher' AND p.is_active = true;
 
