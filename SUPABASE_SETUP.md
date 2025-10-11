@@ -92,12 +92,29 @@ Complete guide for setting up and configuring Supabase backend for the SkillUp T
 4. Paste into the SQL editor
 5. Click "Run"
 6. This will create:
-   - 12 subjects
-   - 8 sample teacher profiles
-   - 1 sample student profile
-   - Sample bookings, reviews, and transactions
+   - **9 auth.users** (8 teachers + 1 student) with email/password
+   - **12 subjects** (Math, English, Physics, etc.)
+   - **8 sample teacher profiles** with Hebrew names and bios
+   - **1 sample student profile**
+   - **Sample bookings, reviews, and transactions**
 
-**Note**: The seed data uses predefined UUIDs. In production, you'll need to create actual auth.users entries first.
+**Important Notes**:
+- The seed data creates users directly in `auth.users` table for testing
+- All test users have password: `teacher123` or `student123`
+- Test user emails: `sarah.cohen@skillup.co.il`, `david.levy@skillup.co.il`, etc.
+- Uses `ON CONFLICT DO NOTHING` so safe to run multiple times
+- In production, use Supabase Auth API instead of direct SQL inserts
+
+**Login Credentials for Testing**:
+```
+Teachers:
+- sarah.cohen@skillup.co.il / teacher123
+- david.levy@skillup.co.il / teacher123
+(+ 6 more teachers)
+
+Students:
+- yael.barak@student.co.il / student123
+```
 
 ---
 

@@ -22,9 +22,169 @@ INSERT INTO subjects (id, name, name_he, category, icon) VALUES
   ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Literature', 'ספרות', 'Humanities', '📖');
 
 -- ============================================
+-- CREATE AUTH USERS FIRST
+-- ============================================
+-- IMPORTANT: These users need to be created in auth.users before profiles
+-- In Supabase dashboard, you can create these users via Authentication > Users
+-- Or use the Supabase Admin API
+
+-- For development/testing purposes, we'll insert directly into auth.users
+-- WARNING: In production, use Supabase Auth API to create users properly
+
+INSERT INTO auth.users (
+  id,
+  instance_id,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  created_at,
+  updated_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  is_super_admin,
+  role,
+  aud
+) VALUES
+  -- Teacher 1: Sarah Cohen
+  (
+    '10000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000000',
+    'sarah.cohen@skillup.co.il',
+    crypt('teacher123', gen_salt('bf')),
+    NOW(),
+    NOW(),
+    NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"teacher"}',
+    false,
+    'authenticated',
+    'authenticated'
+  ),
+  -- Teacher 2: David Levy
+  (
+    '10000000-0000-0000-0000-000000000002',
+    '00000000-0000-0000-0000-000000000000',
+    'david.levy@skillup.co.il',
+    crypt('teacher123', gen_salt('bf')),
+    NOW(),
+    NOW(),
+    NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"teacher"}',
+    false,
+    'authenticated',
+    'authenticated'
+  ),
+  -- Teacher 3: Rachel Ben-Ami
+  (
+    '10000000-0000-0000-0000-000000000003',
+    '00000000-0000-0000-0000-000000000000',
+    'rachel.benami@skillup.co.il',
+    crypt('teacher123', gen_salt('bf')),
+    NOW(),
+    NOW(),
+    NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"teacher"}',
+    false,
+    'authenticated',
+    'authenticated'
+  ),
+  -- Teacher 4: Michael Shalom
+  (
+    '10000000-0000-0000-0000-000000000004',
+    '00000000-0000-0000-0000-000000000000',
+    'michael.shalom@skillup.co.il',
+    crypt('teacher123', gen_salt('bf')),
+    NOW(),
+    NOW(),
+    NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"teacher"}',
+    false,
+    'authenticated',
+    'authenticated'
+  ),
+  -- Teacher 5: Miriam Rosenberg
+  (
+    '10000000-0000-0000-0000-000000000005',
+    '00000000-0000-0000-0000-000000000000',
+    'miriam.rosenberg@skillup.co.il',
+    crypt('teacher123', gen_salt('bf')),
+    NOW(),
+    NOW(),
+    NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"teacher"}',
+    false,
+    'authenticated',
+    'authenticated'
+  ),
+  -- Teacher 6: Yossi Mizrahi
+  (
+    '10000000-0000-0000-0000-000000000006',
+    '00000000-0000-0000-0000-000000000000',
+    'yossi.mizrahi@skillup.co.il',
+    crypt('teacher123', gen_salt('bf')),
+    NOW(),
+    NOW(),
+    NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"teacher"}',
+    false,
+    'authenticated',
+    'authenticated'
+  ),
+  -- Teacher 7: Tamar Goldstein
+  (
+    '10000000-0000-0000-0000-000000000007',
+    '00000000-0000-0000-0000-000000000000',
+    'tamar.goldstein@skillup.co.il',
+    crypt('teacher123', gen_salt('bf')),
+    NOW(),
+    NOW(),
+    NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"teacher"}',
+    false,
+    'authenticated',
+    'authenticated'
+  ),
+  -- Teacher 8: Daniel Alon
+  (
+    '10000000-0000-0000-0000-000000000008',
+    '00000000-0000-0000-0000-000000000000',
+    'daniel.alon@skillup.co.il',
+    crypt('teacher123', gen_salt('bf')),
+    NOW(),
+    NOW(),
+    NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"teacher"}',
+    false,
+    'authenticated',
+    'authenticated'
+  ),
+  -- Student: Yael Barak
+  (
+    '20000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000000',
+    'yael.barak@student.co.il',
+    crypt('student123', gen_salt('bf')),
+    NOW(),
+    NOW(),
+    NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"student"}',
+    false,
+    'authenticated',
+    'authenticated'
+  )
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================
 -- SAMPLE TEACHER PROFILES
--- Note: In production, these would be created via auth.users
--- This is just for the profiles table assuming auth users exist
+-- Now we can safely insert profiles since auth.users exist
 -- ============================================
 
 -- Teacher 1: Sarah Cohen - Math Expert
