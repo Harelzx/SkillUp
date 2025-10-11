@@ -223,8 +223,13 @@ export default function LoginScreen() {
 
   // Handler for DEV user quick selection
   const handleDevUserSelect = (email: string, password: string) => {
-    updateFormData('email', email);
-    updateFormData('password', password);
+    setFormData(prev => ({
+      ...prev,
+      email,
+      password,
+    }));
+    // Clear any errors
+    setErrors({});
   };
 
   const handleBiometricAuth = async () => {

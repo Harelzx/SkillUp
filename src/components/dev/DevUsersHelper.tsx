@@ -37,14 +37,14 @@ export const DevUsersHelper: React.FC<DevUsersHelperProps> = ({ onSelectUser }) 
         <TouchableOpacity
           onPress={() => setIsExpanded(!isExpanded)}
           style={{
-            flexDirection: 'row',
+            flexDirection: 'row-reverse',
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: spacing[3],
           }}
           activeOpacity={0.7}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+          <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: spacing[2] }}>
             <View
               style={{
                 width: 32,
@@ -58,15 +58,15 @@ export const DevUsersHelper: React.FC<DevUsersHelperProps> = ({ onSelectUser }) 
               <Typography style={{ fontSize: 16 }}>🔧</Typography>
             </View>
             <View>
-              <Typography variant="body2" weight="semibold" color="warning">
+              <Typography variant="body2" weight="semibold" color="warning" style={{ textAlign: 'right' }}>
                 DEV Mode
               </Typography>
-              <Typography variant="caption" color="textSecondary">
+              <Typography variant="caption" color="textSecondary" style={{ textAlign: 'right' }}>
                 משתמשי דמה לבדיקות
               </Typography>
             </View>
           </View>
-          
+
           {isExpanded ? (
             <ChevronUp size={20} color={colors.orange[600]} />
           ) : (
@@ -108,7 +108,7 @@ export const DevUsersHelper: React.FC<DevUsersHelperProps> = ({ onSelectUser }) 
                 >
                   <View
                     style={{
-                      flexDirection: 'row',
+                      flexDirection: 'row-reverse',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       marginBottom: spacing[1],
@@ -116,7 +116,7 @@ export const DevUsersHelper: React.FC<DevUsersHelperProps> = ({ onSelectUser }) 
                   >
                     <View
                       style={{
-                        flexDirection: 'row',
+                        flexDirection: 'row-reverse',
                         alignItems: 'center',
                         gap: spacing[2],
                       }}
@@ -143,7 +143,7 @@ export const DevUsersHelper: React.FC<DevUsersHelperProps> = ({ onSelectUser }) 
                           }
                         />
                       </View>
-                      <Typography variant="body2" weight="semibold">
+                      <Typography variant="body2" weight="semibold" style={{ textAlign: 'right' }}>
                         {user.profile.displayName}
                       </Typography>
                     </View>
@@ -167,6 +167,7 @@ export const DevUsersHelper: React.FC<DevUsersHelperProps> = ({ onSelectUser }) 
                               ? colors.blue[700]
                               : colors.green[700],
                           fontWeight: '600',
+                          textAlign: 'right',
                         }}
                       >
                         {user.profile.role === 'teacher' ? 'מורה' : 'תלמיד'}
@@ -177,7 +178,7 @@ export const DevUsersHelper: React.FC<DevUsersHelperProps> = ({ onSelectUser }) 
                   <View style={{ gap: 4 }}>
                     <View
                       style={{
-                        flexDirection: 'row',
+                        flexDirection: 'row-reverse',
                         alignItems: 'center',
                         gap: spacing[1],
                       }}
@@ -189,7 +190,7 @@ export const DevUsersHelper: React.FC<DevUsersHelperProps> = ({ onSelectUser }) 
                         variant="caption"
                         color="textSecondary"
                         numberOfLines={1}
-                        style={{ flex: 1 }}
+                        style={{ flex: 1, textAlign: 'right' }}
                       >
                         {user.email}
                       </Typography>
@@ -197,7 +198,7 @@ export const DevUsersHelper: React.FC<DevUsersHelperProps> = ({ onSelectUser }) 
 
                     <View
                       style={{
-                        flexDirection: 'row',
+                        flexDirection: 'row-reverse',
                         alignItems: 'center',
                         gap: spacing[1],
                       }}
@@ -205,7 +206,7 @@ export const DevUsersHelper: React.FC<DevUsersHelperProps> = ({ onSelectUser }) 
                       <Typography variant="caption" color="textSecondary">
                         🔑
                       </Typography>
-                      <Typography variant="caption" color="textSecondary">
+                      <Typography variant="caption" color="textSecondary" style={{ textAlign: 'right' }}>
                         {user.password}
                       </Typography>
                     </View>
