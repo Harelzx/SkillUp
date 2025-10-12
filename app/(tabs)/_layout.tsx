@@ -37,7 +37,6 @@ export default function TabLayout() {
             <User size={size} color={color} />
           ),
           tabBarAccessibilityLabel: t('tabs.profile'),
-          tabBarTestID: 'profile-tab',
         }}
       />
       <Tabs.Screen
@@ -48,7 +47,6 @@ export default function TabLayout() {
             <BookOpen size={size} color={color} />
           ),
           tabBarAccessibilityLabel: t('tabs.lessons'),
-          tabBarTestID: 'lessons-tab',
         }}
       />
       <Tabs.Screen
@@ -59,7 +57,6 @@ export default function TabLayout() {
             <Search size={size} color={color} />
           ),
           tabBarAccessibilityLabel: t('tabs.search'),
-          tabBarTestID: 'search-tab',
         }}
       />
       <Tabs.Screen
@@ -70,7 +67,6 @@ export default function TabLayout() {
             <Home size={size} color={color} />
           ),
           tabBarAccessibilityLabel: t('tabs.home'),
-          tabBarTestID: 'home-tab',
         }}
       />
       <Tabs.Screen

@@ -408,16 +408,14 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
               width: '100%',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: spacing[1],
             }}>
               <View style={{
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 8,
                 flexWrap: 'wrap',
               }}>
-                <Typography style={{ fontSize: 18, lineHeight: 24 }}>
+                <Typography style={{ fontSize: 18, lineHeight: 24, marginRight: 8 }}>
                   {emoji}
                 </Typography>
                 <Typography
@@ -449,6 +447,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
                     textAlign: 'center',
                     width: '100%',
                     color: colors.gray[600],
+                    marginTop: spacing[1],
                   }}
                 >
                   {truncateText(currentMessage.subtitle, 80)}
@@ -467,7 +466,6 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
             justifyContent: 'center',
             alignItems: 'center',
             marginTop: spacing[2] + 4,
-            gap: spacing[2],
           }}
         >
           {messages.map((_, index) => (
@@ -480,6 +478,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
                 backgroundColor:
                   index === state.dotIndex ? colors.primary[600] : colors.gray[300],
                 opacity: index === state.dotIndex ? 1 : 0.5,
+                marginHorizontal: spacing[1],
               }}
               accessible={false}
             />

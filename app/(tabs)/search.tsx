@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getTeachers, getSubjects } from '@/services/api';
@@ -115,7 +116,7 @@ export default function SearchScreen() {
       // Add subject filter
       if (selectedCategory && selectedCategory !== 'all') {
         // Find subject ID from name
-        const subject = subjects.find(s => s.name_en === selectedCategory);
+        const subject = subjects.find(s => s.name_he === selectedCategory);
         if (subject) {
           params.subjectId = subject.id;
         }
@@ -136,19 +137,25 @@ export default function SearchScreen() {
       }
 
       const result = await getTeachers(params);
-      return result.teachers.map((t: any) => ({
-        id: t.id,
-        displayName: t.display_name,
-        bio: t.bio || '',
-        avatarUrl: t.avatar_url,
-        hourlyRate: t.hourly_rate || 0,
-        subjects: t.subject_names || [],
-        rating: t.avg_rating || 0,
-        totalReviews: t.review_count || 0,
-        location: t.location,
-        experienceYears: t.experience_years,
-        totalStudents: t.total_students,
-      }));
+      return result.teachers.map((t: any) => {
+        const subjects = Array.isArray(t.subject_names)
+          ? t.subject_names.filter((s: any) => typeof s === 'string' && s.trim())
+          : [];
+
+        return {
+          id: t.id,
+          displayName: t.display_name || 'לא ידוע',
+          bio: t.bio || '',
+          avatarUrl: t.avatar_url,
+          hourlyRate: t.hourly_rate || 0,
+          subjects: subjects,
+          rating: t.avg_rating || 0,
+          totalReviews: t.review_count || 0,
+          location: t.location || '',
+          experienceYears: t.experience_years || 0,
+          totalStudents: t.total_students || 0,
+        };
+      });
     },
   });
 
@@ -191,25 +198,26 @@ export default function SearchScreen() {
     if (incomingCategory && categorySubjectsMap[incomingCategory]) {
       const allowedSubjects = categorySubjectsMap[incomingCategory];
       results = results.filter(teacher =>
-        teacher.subjects.some(subject => allowedSubjects.includes(subject))
+        Array.isArray(teacher.subjects) && teacher.subjects.some(subject => allowedSubjects.includes(String(subject)))
       );
     }
 
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      results = results.filter(teacher =>
-        teacher.displayName.toLowerCase().includes(query) ||
-        teacher.bio.toLowerCase().includes(query) ||
-        teacher.subjects.some(s => s.toLowerCase().includes(query)) ||
-        teacher.location?.toLowerCase().includes(query)
-      );
+      results = results.filter(teacher => {
+        const nameMatch = (teacher.displayName || '').toLowerCase().includes(query);
+        const bioMatch = (teacher.bio || '').toLowerCase().includes(query);
+        const subjectMatch = Array.isArray(teacher.subjects) && teacher.subjects.some(s => String(s).toLowerCase().includes(query));
+        const locationMatch = teacher.location && teacher.location.toLowerCase().includes(query);
+        return nameMatch || bioMatch || subjectMatch || locationMatch;
+      });
     }
 
     // Filter by category (from local selection)
     if (selectedCategory && selectedCategory !== 'all') {
       results = results.filter(teacher =>
-        teacher.subjects.includes(selectedCategory)
+        Array.isArray(teacher.subjects) && teacher.subjects.some(s => String(s) === String(selectedCategory))
       );
     }
 
@@ -287,9 +295,18 @@ export default function SearchScreen() {
     setSelectedCategory(categoryId);
   };
 
-  const renderTeacherCard = ({ item }: { item: Teacher }) => (
+  const renderTeacherCard = ({ item }: { item: Teacher }) => {
+    // Safety check
+    if (!item || !item.id || !item.displayName) {
+      return null;
+    }
+
+    // Ensure subjects is always an array - keep original values from API
+    const safeSubjects = Array.isArray(item.subjects) ? item.subjects : [];
+
+    return (
     <TouchableOpacity
-      onPress={() => router.push(`/(tabs)/teacher/${item.id}`)}
+      onPress={() => router.push(`/(tabs)/teacher/${String(item.id)}`)}
       activeOpacity={0.8}
     >
       <Card style={styles.teacherCard}>
@@ -297,49 +314,63 @@ export default function SearchScreen() {
           <View style={[styles.teacherRow, { flexDirection: getFlexDirection() }]}>
             {/* Avatar */}
             <View style={styles.teacherAvatar}>
-              <Typography variant="h5" color="white" weight="bold">
-                {item.displayName.charAt(0)}
-              </Typography>
+              {item.avatarUrl ? (
+                <Image
+                  source={{ uri: item.avatarUrl }}
+                  style={{ width: 48, height: 48, borderRadius: 24 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Typography variant="h5" color="white" weight="bold">
+                  {String(item.displayName ? item.displayName.charAt(0) : '?')}
+                </Typography>
+              )}
             </View>
 
             {/* Info */}
             <View style={styles.teacherInfo}>
               <Typography variant="body1" weight="semibold" numberOfLines={1} style={{ textAlign: 'right' }}>
-                {item.displayName}
+                {String(item.displayName || 'לא ידוע')}
               </Typography>
               <Typography variant="caption" color="textSecondary" numberOfLines={2} style={{ textAlign: 'right' }}>
-                {item.bio}
+                {String(item.bio || '')}
               </Typography>
 
               {/* Subjects */}
-              <View style={[styles.subjectsRow, { flexDirection: 'row-reverse', justifyContent: 'flex-start' }]}>
-                {item.subjects.slice(0, 2).map((subject, idx) => (
-                  <View key={idx} style={styles.subjectBadge}>
-                    <Typography variant="caption" color="primary" style={{ fontSize: 10 }}>
-                      {subject}
-                    </Typography>
-                  </View>
-                ))}
-              </View>
+              {safeSubjects.length > 0 && (
+                <View style={[styles.subjectsRow, { flexDirection: 'row-reverse', justifyContent: 'flex-start' }]}>
+                  {safeSubjects.slice(0, 2).map((subject, idx) => (
+                    <View key={idx} style={styles.subjectBadge}>
+                      <Typography variant="caption" color="primary" style={{ fontSize: 10 }}>
+                        {subject ? String(subject) : ''}
+                      </Typography>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Price & Rating */}
             <View style={styles.teacherMeta}>
-              <View style={[styles.ratingRow, { flexDirection: 'row', justifyContent: 'flex-start' }]}>
-                <Typography variant="caption" style={{ marginLeft: 2 }}>
-                  ({item.totalReviews})
-                </Typography>
-                <Typography variant="caption" style={{ marginHorizontal: 2 }}>
-                  {item.rating}
-                </Typography>
-                <Star size={12} color={colors.warning[500]} fill={colors.warning[500]} />
-              </View>
+              {item.rating && item.rating > 0 && (
+                <View style={[styles.ratingRow, { flexDirection: 'row', justifyContent: 'flex-start' }]}>
+                  <Typography variant="caption" style={{ marginLeft: 2 }}>
+                    ({String(item.totalReviews || 0)})
+                  </Typography>
+                  <Typography variant="caption" style={{ marginHorizontal: 2 }}>
+                    {String(item.rating.toFixed(1))}
+                  </Typography>
+                  <View style={{ marginRight: 2 }}>
+                    <Star size={12} color={colors.warning[500]} fill={colors.warning[500]} />
+                  </View>
+                </View>
+              )}
               <Typography variant="body2" weight="semibold" color="primary" style={{ textAlign: 'right', marginTop: spacing[1] }}>
-                ₪{item.hourlyRate}/שעה
+                ₪{String(item.hourlyRate || 0)}/שעה
               </Typography>
               {item.nextAvailable && (
                 <Typography variant="caption" color="success" style={{ marginTop: 2, textAlign: 'right' }}>
-                  {item.nextAvailable}
+                  {String(item.nextAvailable)}
                 </Typography>
               )}
             </View>
@@ -347,7 +378,8 @@ export default function SearchScreen() {
         </CardContent>
       </Card>
     </TouchableOpacity>
-  );
+    );
+  };
 
   const styles = createStyle({
     container: {
@@ -450,13 +482,13 @@ export default function SearchScreen() {
     },
     subjectsRow: {
       marginTop: spacing[1],
-      gap: spacing[1],
     },
     subjectBadge: {
       backgroundColor: colors.primary[50],
       borderRadius: 12,
       paddingHorizontal: spacing[2],
       paddingVertical: 2,
+      marginLeft: spacing[1],
     },
     teacherMeta: {
       alignItems: 'flex-end',
@@ -630,7 +662,7 @@ export default function SearchScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             data={popularSubjects}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => String(item.id)}
             inverted={isRTL}
             renderItem={({ item }) => (
               <TouchableOpacity
@@ -723,7 +755,7 @@ export default function SearchScreen() {
             <View style={styles.resultHeader}>
               <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right' }}>
                 {filteredTeachers.length > 0
-                  ? `נמצאו ${filteredTeachers.length} מורים`
+                  ? `נמצאו ${String(filteredTeachers.length)} מורים`
                   : 'לא נמצאו תוצאות'}
               </Typography>
             </View>
@@ -741,7 +773,7 @@ export default function SearchScreen() {
             /* Results list */
             <FlatList
               data={filteredTeachers}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => String(item.id)}
               renderItem={renderTeacherCard}
               showsVerticalScrollIndicator={false}
             />
@@ -920,7 +952,7 @@ export default function SearchScreen() {
           <View style={styles.bottomSheetActions}>
             <TouchableOpacity style={styles.applyFiltersButton}>
               <Typography variant="body2" color="white" weight="semibold">
-                החל פילטרים ({filteredTeachers.length} מורים)
+                החל פילטרים ({String(filteredTeachers.length)} מורים)
               </Typography>
             </TouchableOpacity>
           </View>
@@ -1035,7 +1067,6 @@ const styles = createStyle({
   },
   priceRangeContainer: {
     flexDirection: 'row',
-    gap: spacing[2],
     marginTop: spacing[2],
   },
   priceButton: {
@@ -1043,6 +1074,7 @@ const styles = createStyle({
     paddingVertical: spacing[2],
     backgroundColor: colors.gray[100],
     borderRadius: 20,
+    marginRight: spacing[2],
   },
   priceButtonActive: {
     backgroundColor: colors.primary[600],

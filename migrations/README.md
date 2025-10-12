@@ -33,6 +33,16 @@ node scripts/run-migration.js migrations/001_add_education_column.sql
 ## Migration Files
 
 - `001_add_education_column.sql` - Adds education field to teacher profiles
+- `002_add_bookings_for_harel.sql` - Additional booking enhancements
+- `003_add_email_to_profiles.sql` - Adds email column to profiles
+- `004_fix_rls_policies.sql` - Fixes RLS policies
+- `005_enhance_booking_schema.sql` - **NEW!** Complete booking flow support:
+  - Adds `booking_mode` enum (online/student_location/teacher_location)
+  - Enhances `bookings` table: mode, duration_minutes, credits_applied, coupon_code, timezone, source
+  - Creates `refunds` table with RLS
+  - Creates `audit_log` table for tracking
+  - Adds refund processing function
+  - Performance indexes for booking queries
 
 ## Creating New Migrations
 

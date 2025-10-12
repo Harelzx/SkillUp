@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   ScrollView,
@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Star, Clock, CreditCard, Gift } from 'lucide-react-native';
+import { Star, Clock, Gift } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Typography } from '@/ui/Typography';
 import { Card, CardContent } from '@/ui/Card';
@@ -19,7 +19,7 @@ import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { InfoBanner } from '@/components/ui/infobanner';
 import { getBannerMessages } from '@/data/banner-messages';
-import { getFeaturedTeachers, getSubjects } from '@/services/api';
+import { getFeaturedTeachers } from '@/services/api';
 import { useAuth } from '@/features/auth/auth-context';
 
 interface Teacher {
@@ -51,7 +51,7 @@ const getPopularSubjects = (t: any) => [
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { isRTL, direction, getFlexDirection } = useRTL();
+  const { isRTL, direction } = useRTL();
   const { profile } = useAuth();
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
@@ -102,15 +102,26 @@ export default function HomeScreen() {
   const filteredTeachers = teachers.filter(teacher => {
     if (selectedSubject) {
       const hebrewSubject = subjectKeyToHebrew[selectedSubject];
-      return teacher.subjects.includes(hebrewSubject);
+      if (!hebrewSubject || !teacher.subjects || !Array.isArray(teacher.subjects)) {
+        return false;
+      }
+      return teacher.subjects.some(s => String(s) === String(hebrewSubject));
     }
     return true;
   });
 
-  const renderTeacherCard = ({ item }: { item: Teacher }) => (
+  const renderTeacherCard = ({ item }: { item: Teacher }) => {
+    // Safety check - ensure all required fields exist
+    if (!item || !item.id || !item.displayName) {
+      return null;
+    }
+
+    // Ensure subjects is always an array - keep original values from API
+    const safeSubjects = Array.isArray(item.subjects) ? item.subjects : [];
+
+    return (
     <Card
       variant="elevated"
-      padding="none"
       style={{
         marginBottom: spacing[2],
         marginRight: isRTL ? 0 : spacing[2],
@@ -121,12 +132,12 @@ export default function HomeScreen() {
         borderWidth: 1,
         borderColor: 'rgba(0, 0, 0, 0.08)',
         overflow: 'hidden',
+        padding: spacing[3],
       }}
     >
       <TouchableOpacity
-        onPress={() => router.push(`/(tabs)/teacher/${item.id}`)}
+        onPress={() => router.push(`/(tabs)/teacher/${String(item.id)}`)}
         activeOpacity={0.98}
-        style={{ padding: spacing[3] }}
       >
         {/* Header: Avatar + Name + Rating */}
         <View style={{
@@ -139,7 +150,6 @@ export default function HomeScreen() {
           <View style={{
             flexDirection: 'row-reverse',
             alignItems: 'center',
-            gap: spacing[2],
             flex: 1,
           }}>
             {/* Avatar */}
@@ -162,7 +172,7 @@ export default function HomeScreen() {
                 />
               ) : (
                 <Typography variant="body2" color="white" weight="bold">
-                  {item.displayName.charAt(0)}
+                  {String(item.displayName ? item.displayName.charAt(0) : '?')}
                 </Typography>
               )}
             </View>
@@ -172,34 +182,35 @@ export default function HomeScreen() {
               variant="body1"
               weight="semibold"
               numberOfLines={1}
-              style={{ flex: 1, fontSize: 16, textAlign: 'right' }}
+              style={{ flex: 1, fontSize: 16, textAlign: 'right', marginRight: spacing[2] }}
             >
-              {item.displayName}
+              {String(item.displayName || 'לא ידוע')}
             </Typography>
           </View>
 
           {/* Left side: Rating */}
-          {item.rating > 0 && (
+          {item.rating && item.rating > 0 && (
             <View style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 4,
             }}>
               <Typography
                 variant="caption"
                 color="textSecondary"
-                style={{ fontSize: 11 }}
+                style={{ fontSize: 11, marginLeft: 2 }}
               >
-                ({item.totalReviews})
+                ({String(item.totalReviews || 0)})
               </Typography>
               <Typography
                 variant="caption"
                 weight="medium"
-                style={{ fontSize: 13 }}
+                style={{ fontSize: 13, marginHorizontal: 3 }}
               >
-                {item.rating}
+                {String(item.rating.toFixed(1))}
               </Typography>
-              <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
+              <View style={{ marginRight: 2 }}>
+                <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
+              </View>
             </View>
           )}
         </View>
@@ -209,7 +220,6 @@ export default function HomeScreen() {
           flexDirection: 'row-reverse',
           alignItems: 'center',
           justifyContent: 'flex-start',
-          gap: spacing[2],
           marginBottom: spacing[2],
         }}>
           {/* Price Pill - neutral brand style */}
@@ -222,20 +232,14 @@ export default function HomeScreen() {
             borderColor: colors.gray[200],
             flexDirection: 'row-reverse',
             alignItems: 'center',
-            gap: 4,
+            marginRight: spacing[2],
           }}>
             <Typography
               variant="body2"
               weight="semibold"
               style={{ fontSize: 14, color: colors.gray[900] }}
             >
-              ₪{item.hourlyRate}
-            </Typography>
-            <Typography
-              variant="caption"
-              style={{ fontSize: 11, color: colors.gray[600] }}
-            >
-              /שעה
+              ₪{String(item.hourlyRate || 0)}/שעה
             </Typography>
           </View>
 
@@ -252,16 +256,17 @@ export default function HomeScreen() {
             <View style={{
               flexDirection: 'row-reverse',
               alignItems: 'center',
-              gap: 4,
             }}>
-              <Clock size={13} color={colors.success[600]} />
+              <View style={{ marginRight: 4 }}>
+                <Clock size={13} color={colors.success[600]} />
+              </View>
               <Typography
                 variant="caption"
                 color="success"
                 weight="medium"
                 style={{ fontSize: 13 }}
               >
-                {item.nextAvailable}
+                {String(item.nextAvailable || '')}
               </Typography>
             </View>
           ) : (
@@ -276,55 +281,58 @@ export default function HomeScreen() {
         </View>
 
         {/* Subjects Chips - right aligned */}
-        <View style={{
-          flexDirection: 'row-reverse',
-          flexWrap: 'wrap',
-          gap: spacing[2],
-          marginBottom: spacing[1] + 2,
-          justifyContent: 'flex-start',
-        }}>
-          {item.subjects.slice(0, 3).map((subject, index) => (
-            <View
-              key={index}
-              style={{
-                backgroundColor: colors.gray[100],
-                paddingHorizontal: spacing[2] + 2,
-                paddingVertical: spacing[1] + 2,
-                borderRadius: 9999,
-                borderWidth: 1,
-                borderColor: colors.gray[200],
-              }}
-            >
-              <Typography
-                variant="caption"
+        {safeSubjects.length > 0 && (
+          <View style={{
+            flexDirection: 'row-reverse',
+            flexWrap: 'wrap',
+            marginBottom: spacing[1] + 2,
+            justifyContent: 'flex-start',
+          }}>
+            {safeSubjects.slice(0, 3).map((subject, index) => (
+              <View
+                key={index}
                 style={{
-                  fontSize: 12,
-                  color: colors.gray[700],
-                  textAlign: 'right',
+                  backgroundColor: colors.gray[100],
+                  paddingHorizontal: spacing[2] + 2,
+                  paddingVertical: spacing[1] + 2,
+                  borderRadius: 9999,
+                  borderWidth: 1,
+                  borderColor: colors.gray[200],
+                  marginLeft: spacing[2],
                 }}
               >
-                {subject || ''}
-              </Typography>
-            </View>
-          ))}
-          {item.subjects.length > 3 && (
-            <View style={{
-              paddingHorizontal: spacing[2],
-              paddingVertical: spacing[1] + 2,
-            }}>
-              <Typography
-                variant="caption"
-                color="textSecondary"
-                style={{ fontSize: 11, textAlign: 'right' }}
-              >
-                +{item.subjects.length - 3} עוד
-              </Typography>
-            </View>
-          )}
-        </View>
+                <Typography
+                  variant="caption"
+                  style={{
+                    fontSize: 12,
+                    color: colors.gray[700],
+                    textAlign: 'right',
+                  }}
+                >
+                  {subject ? String(subject) : ''}
+                </Typography>
+              </View>
+            ))}
+            {safeSubjects.length > 3 && (
+              <View style={{
+                paddingHorizontal: spacing[2],
+                paddingVertical: spacing[1] + 2,
+              }}>
+                <Typography
+                  variant="caption"
+                  color="textSecondary"
+                  style={{ fontSize: 11, textAlign: 'right' }}
+                >
+                  +{String(safeSubjects.length - 3)} עוד
+                </Typography>
+              </View>
+            )}
+          </View>
+        )}
       </TouchableOpacity>
     </Card>
-  );
+    );
+  };
 
   const styles = createStyle({
     container: {
@@ -522,19 +530,19 @@ export default function HomeScreen() {
                 {new Date().getHours() < 12 ? 'בוקר טוב' : new Date().getHours() < 18 ? 'צהריים טובים' : 'ערב טוב'}
               </Typography>
               <Typography variant="h3" weight="bold" style={{ textAlign: 'right', color: colors.gray[900], marginTop: spacing[1] }}>
-                {profile?.display_name || 'אורח'}
+                {profile?.displayName || 'אורח'}
               </Typography>
             </View>
             <View style={styles.userAvatar}>
-              {profile?.avatar_url ? (
+              {profile?.avatarUrl ? (
                 <Image
-                  source={{ uri: profile.avatar_url }}
+                  source={{ uri: profile.avatarUrl }}
                   style={{ width: 48, height: 48 }}
                   resizeMode="cover"
                 />
               ) : (
                 <Typography variant="h5" color="white" weight="bold">
-                  {profile?.display_name?.charAt(0) || 'א'}
+                  {profile?.displayName?.charAt(0) || 'א'}
                 </Typography>
               )}
             </View>
@@ -604,7 +612,7 @@ export default function HomeScreen() {
               <FlatList
                 data={filteredTeachers}
                 renderItem={renderTeacherCard}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => String(item.id)}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 inverted={isRTL}

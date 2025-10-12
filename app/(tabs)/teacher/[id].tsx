@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,7 +10,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Star,
-  Clock,
   MapPin,
   Globe,
   CheckCircle,
@@ -26,8 +24,6 @@ import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { getTeacherById, getTeacherReviews } from '@/services/api';
-
-const { width } = Dimensions.get('window');
 
 export default function TeacherProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -67,23 +63,23 @@ export default function TeacherProfileScreen() {
     displayName: teacherData.display_name || 'לא ידוע',
     bio: teacherData.bio || '',
     avatarUrl: teacherData.avatar_url,
-    videoUrl: teacherData.video_url,
+    videoUrl: (teacherData as any).video_url,
     hourlyRate: teacherData.hourly_rate || 0,
     subjects: Array.isArray(teacherData.subject_names)
       ? teacherData.subject_names.filter((s: any) => typeof s === 'string' && s.trim())
       : [],
-    languages: Array.isArray(teacherData.languages)
-      ? teacherData.languages.filter((l: any) => typeof l === 'string' && l.trim())
+    languages: Array.isArray((teacherData as any).languages)
+      ? (teacherData as any).languages.filter((l: any) => typeof l === 'string' && l.trim())
       : ['עברית'],
     location: teacherData.location || '',
     rating: teacherData.avg_rating || 0,
     totalReviews: teacherData.review_count || 0,
     totalStudents: teacherData.total_students || 0,
     experience: teacherData.experience_years ? `${teacherData.experience_years} שנים` : '',
-    education: Array.isArray(teacherData.education)
-      ? teacherData.education.filter((e: any) => typeof e === 'string' && e.trim())
+    education: Array.isArray((teacherData as any).education)
+      ? (teacherData as any).education.filter((e: any) => typeof e === 'string' && e.trim())
       : [],
-    availability: teacherData.availability || {},
+    availability: (teacherData as any).availability || {},
     reviews: reviewsData.map((r: any) => ({
       id: r.id,
       studentName: r.student?.display_name || 'תלמיד',
@@ -133,7 +129,7 @@ export default function TeacherProfileScreen() {
 
   const handleBooking = () => {
     router.push({
-      pathname: '/(booking)/calendar',
+      pathname: '/(booking)/book-lesson' as any,
       params: { teacherId: teacher.id },
     });
   };
@@ -246,14 +242,16 @@ export default function TeacherProfileScreen() {
     },
     subjectsContainer: {
       flexWrap: 'wrap',
-      gap: spacing[2],
       marginTop: spacing[2],
+      flexDirection: 'row-reverse',
     },
     subjectBadge: {
       paddingHorizontal: spacing[3],
       paddingVertical: spacing[1],
       backgroundColor: colors.secondary[100],
       borderRadius: 16,
+      marginLeft: spacing[2],
+      marginBottom: spacing[2],
     },
     educationItem: {
       alignItems: 'flex-start',
@@ -312,24 +310,24 @@ export default function TeacherProfileScreen() {
                 />
               ) : (
                 <Typography variant="h4" color="white" align="center">
-                  {teacher.displayName.charAt(0)}
+                  {String(teacher.displayName.charAt(0))}
                 </Typography>
               )}
             </View>
             <View style={[styles.profileInfo, isRTL ? styles.profileInfoRTL : styles.profileInfoLTR]}>
               <Typography variant="h2" weight="bold">
-                {teacher.displayName}
+                {String(teacher.displayName)}
               </Typography>
               <View style={[styles.locationRow, { flexDirection: getFlexDirection() }]}>
                 <MapPin size={14} color={colors.gray[600]} />
                 <Typography variant="body2" color="textSecondary" style={{ marginHorizontal: spacing[1] }}>
-                  {teacher.location}
+                  {String(teacher.location || '')}
                 </Typography>
               </View>
               <View style={[styles.languageRow, { flexDirection: getFlexDirection() }]}>
                 <Globe size={14} color={colors.gray[600]} />
                 <Typography variant="body2" color="textSecondary" style={{ marginHorizontal: spacing[1] }}>
-                  {teacher.languages.join(', ')}
+                  {String(teacher.languages.join(', '))}
                 </Typography>
               </View>
             </View>
@@ -342,18 +340,18 @@ export default function TeacherProfileScreen() {
                 {renderStars(teacher.rating)}
               </View>
               <Typography variant="caption" color="textSecondary" style={{ marginTop: spacing[1] }}>
-                {teacher.rating} ({teacher.totalReviews} {t('teacher.totalReviews')})
+                {String(teacher.rating)} ({String(teacher.totalReviews)} {t('teacher.totalReviews')})
               </Typography>
             </View>
             <View style={styles.statsItem}>
               <Typography variant="h5" weight="bold">
-                {teacher.totalStudents}
+                {String(teacher.totalStudents || 0)}
               </Typography>
               <Typography variant="caption" color="textSecondary">{t('teacher.students')}</Typography>
             </View>
             <View style={styles.statsItem}>
               <Typography variant="h5" weight="bold">
-                {teacher.hourlyRate}
+                ₪{String(teacher.hourlyRate)}
               </Typography>
               <Typography variant="caption" color="textSecondary">{t('teacher.perHour')}</Typography>
             </View>
@@ -406,7 +404,7 @@ export default function TeacherProfileScreen() {
                       color="text"
                       style={{ flex: 1 }}
                     >
-                      {teacher.bio}
+                      {String(teacher.bio || '')}
                     </Typography>
                   </View>
                 </CardContent>
@@ -421,7 +419,7 @@ export default function TeacherProfileScreen() {
                     {teacher.subjects.map((subject, index) => (
                       <View key={index} style={styles.subjectBadge}>
                         <Typography variant="body2" color="secondary">
-                          {subject}
+                          {String(subject)}
                         </Typography>
                       </View>
                     ))}
@@ -434,11 +432,11 @@ export default function TeacherProfileScreen() {
                   <Typography variant="h5" weight="semibold" style={{ marginBottom: spacing[2] }}>
                     {t('teacher.education')}
                   </Typography>
-                  {teacher.education.map((edu, index) => (
+                  {teacher.education.map((edu: string, index: number) => (
                     <View key={index} style={[styles.educationItem, { flexDirection: getFlexDirection() }]}>
                       <CheckCircle size={16} color={colors.success[600]} />
                       <Typography variant="body1" color="text" style={{ marginHorizontal: spacing[2], flex: 1 }}>
-                        {edu}
+                        {String(edu)}
                       </Typography>
                     </View>
                   ))}
@@ -451,7 +449,7 @@ export default function TeacherProfileScreen() {
                     {t('teacher.experience')}
                   </Typography>
                   <Typography variant="body1" color="text">
-                    {teacher.experience}
+                    {String(teacher.experience || '')}
                   </Typography>
                 </CardContent>
               </Card>
@@ -467,13 +465,13 @@ export default function TeacherProfileScreen() {
                 {Object.entries(teacher.availability).map(([day, times]) => (
                   <View key={day} style={{ marginBottom: spacing[3] }}>
                     <Typography variant="body1" weight="medium" style={{ marginBottom: spacing[2] }}>
-                      {day}
+                      {String(day)}
                     </Typography>
                     <View style={[styles.subjectsContainer, { flexDirection: getFlexDirection() }]}>
-                      {times.map((time, index) => (
+                      {Array.isArray(times) && (times as string[]).map((time: string, index: number) => (
                         <View key={index} style={[styles.subjectBadge, { backgroundColor: colors.gray[100], borderWidth: 1, borderColor: colors.gray[300] }]}>
                           <Typography variant="body2" color="text">
-                            {time}
+                            {String(time)}
                           </Typography>
                         </View>
                       ))}
@@ -491,17 +489,17 @@ export default function TeacherProfileScreen() {
                   <CardContent>
                     <View style={[styles.reviewHeader, { flexDirection: getFlexDirection() }]}>
                       <Typography variant="body1" weight="semibold">
-                        {review.studentName}
+                        {String(review.studentName)}
                       </Typography>
                       <View style={{ flexDirection: getFlexDirection() }}>
                         {renderStars(review.rating)}
                       </View>
                     </View>
                     <Typography variant="body1" color="text" style={{ marginBottom: spacing[1] }}>
-                      {review.text}
+                      {String(review.text)}
                     </Typography>
                     <Typography variant="caption" color="textSecondary">
-                      {review.date}
+                      {String(review.date)}
                     </Typography>
                   </CardContent>
                 </Card>

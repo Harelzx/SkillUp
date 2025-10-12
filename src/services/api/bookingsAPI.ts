@@ -108,55 +108,75 @@ export async function getBookingById(bookingId: string) {
 // ============================================
 
 /**
- * Create a new booking (student creates booking)
+ * Create a new booking using atomic RPC function
  */
 export async function createBooking(params: {
   teacherId: string;
-  subjectId: string;
+  subject: string;
+  mode: 'online' | 'student_location' | 'teacher_location';
+  durationMinutes: 45 | 60 | 90;
   startAt: string; // ISO datetime
-  endAt: string;   // ISO datetime
-  isOnline: boolean;
-  location?: string;
+  timezone?: string;
   notes?: string;
+  location?: string;
+  studentLevel?: string;
+  creditsToApply?: number;
+  couponCode?: string;
+  source?: string;
+  paymentMethod?: 'apple_pay' | 'google_pay' | 'card' | 'credits' | 'bit';
 }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Get teacher's hourly rate
-  const { data: teacher, error: teacherError } = await supabase
-    .from('profiles')
-    .select('hourly_rate')
-    .eq('id', params.teacherId)
-    .single();
+  // Generate idempotency key
+  const idempotencyKey = `booking_${user.id}_${params.teacherId}_${params.startAt}_${Date.now()}`;
 
-  if (teacherError) throw teacherError;
-  if (!teacher.hourly_rate) throw new Error('Teacher hourly rate not set');
+  const { data, error} = await supabase.rpc('create_booking', {
+    p_idempotency_key: idempotencyKey,
+    p_teacher_id: params.teacherId,
+    p_student_id: user.id,
+    p_subject: params.subject,
+    p_mode: params.mode,
+    p_duration_minutes: params.durationMinutes,
+    p_start_at: params.startAt,
+    p_timezone: params.timezone || 'Asia/Jerusalem',
+    p_notes: params.notes || null,
+    p_location: params.location || null,
+    p_student_level: params.studentLevel || null,
+    p_credits_to_apply: params.creditsToApply || 0,
+    p_coupon_code: params.couponCode || null,
+    p_source: params.source || 'mobile',
+    p_selected_payment_method: params.paymentMethod || 'card',
+  });
 
-  // Calculate duration in hours
-  const startTime = new Date(params.startAt);
-  const endTime = new Date(params.endAt);
-  const durationHours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-  const price = teacher.hourly_rate * durationHours;
+  if (error) {
+    console.error('[BookingAPI] Create booking error:', error);
+    
+    // Handle specific error codes
+    if (error.code === '23505') {
+      throw new Error('השעה הזו כבר תפוסה. אנא בחר שעה אחרת.');
+    } else if (error.code === '53000') {
+      throw new Error('התשלום נכשל. אנא נסה שוב.');
+    } else if (error.message.includes('Insufficient credits')) {
+      throw new Error('אין מספיק קרדיטים. אנא הוסף קרדיטים או בחר באמצעי תשלום אחר.');
+    } else if (error.message.includes('already booked')) {
+      throw new Error('השעה הזו כבר תפוסה. אנא בחר שעה אחרת.');
+    }
+    
+    throw error;
+  }
 
-  const { data, error } = await supabase
-    .from('bookings')
-    .insert({
-      teacher_id: params.teacherId,
-      student_id: user.id,
-      subject_id: params.subjectId,
-      start_at: params.startAt,
-      end_at: params.endAt,
-      price,
-      is_online: params.isOnline,
-      location: params.location,
-      notes: params.notes,
-      status: 'pending',
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Booking;
+  return data as {
+    booking_id: string;
+    status: string;
+    start_at: string;
+    end_at: string;
+    teacher_id: string;
+    total_price: number;
+    credits_applied: number;
+    amount_charged: number;
+    currency: string;
+  };
 }
 
 /**
@@ -178,71 +198,81 @@ export async function updateBookingStatus(
 }
 
 /**
- * Cancel booking (with refund logic if needed)
+ * Cancel booking using atomic RPC function (with refund logic)
  */
-export async function cancelBooking(bookingId: string, reason?: string) {
+export async function cancelBooking(
+  bookingId: string, 
+  reason?: string,
+  refundMethod?: 'credits' | 'card_sim'
+) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Get booking details
-  const booking = await getBookingById(bookingId);
+  const { data, error } = await supabase.rpc('cancel_booking', {
+    p_booking_id: bookingId,
+    p_actor_user_id: user.id,
+    p_reason: reason || 'Cancelled by user',
+    p_refund_method: refundMethod || 'credits',
+  });
 
-  // Check if user is authorized to cancel
-  if (booking.student_id !== user.id && booking.teacher_id !== user.id) {
-    throw new Error('Not authorized to cancel this booking');
+  if (error) {
+    console.error('[BookingAPI] Cancel booking error:', error);
+    
+    if (error.code === '42501') {
+      throw new Error('אין לך הרשאה לבטל הזמנה זו');
+    } else if (error.message.includes('already cancelled')) {
+      throw new Error('ההזמנה כבר בוטלה');
+    }
+    
+    throw error;
   }
 
-  // Update booking status
-  const { data, error } = await supabase
-    .from('bookings')
-    .update({
-      status: 'cancelled',
-      cancellation_reason: reason,
-    })
-    .eq('id', bookingId)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  // If student cancels and booking was confirmed, issue refund
-  if (booking.student_id === user.id && booking.status === 'confirmed') {
-    const { error: refundError } = await supabase
-      .from('credit_transactions')
-      .insert({
-        student_id: user.id,
-        amount: booking.price,
-        type: 'refund',
-        booking_id: bookingId,
-        description: `החזר עבור שיעור שבוטל: ${booking.subject?.name_he}`,
-      });
-
-    if (refundError) throw refundError;
-  }
-
-  return data as Booking;
+  return data as {
+    booking_id: string;
+    status: string;
+    refund: {
+      method: string;
+      amount: number;
+    };
+  };
 }
 
 /**
- * Reschedule booking
+ * Reschedule booking using atomic RPC function
  */
 export async function rescheduleBooking(
   bookingId: string,
-  newStartAt: string,
-  newEndAt: string
+  newStartAt: string
 ) {
-  const { data, error } = await supabase
-    .from('bookings')
-    .update({
-      start_at: newStartAt,
-      end_at: newEndAt,
-    })
-    .eq('id', bookingId)
-    .select()
-    .single();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
 
-  if (error) throw error;
-  return data as Booking;
+  const { data, error } = await supabase.rpc('reschedule_booking', {
+    p_booking_id: bookingId,
+    p_actor_user_id: user.id,
+    p_new_start_at: newStartAt,
+  });
+
+  if (error) {
+    console.error('[BookingAPI] Reschedule booking error:', error);
+    
+    if (error.code === '42501') {
+      throw new Error('אין לך הרשאה לשנות הזמנה זו');
+    } else if (error.code === '23505') {
+      throw new Error('השעה החדשה כבר תפוסה. אנא בחר שעה אחרת.');
+    } else if (error.message.includes('Cannot reschedule')) {
+      throw new Error('לא ניתן לשנות הזמנה זו. אנא בטל ויצור הזמנה חדשה.');
+    }
+    
+    throw error;
+  }
+
+  return data as {
+    booking_id: string;
+    old_start_at: string;
+    new_start_at: string;
+    status: string;
+  };
 }
 
 // ============================================
