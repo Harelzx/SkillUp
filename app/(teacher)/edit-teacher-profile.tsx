@@ -30,7 +30,7 @@ import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { useAuth } from '@/features/auth/auth-context';
-import { getTeacherProfile, updateTeacherProfile } from '@/services/api';
+import { getTeacherProfile, updateTeacherProfile, getSubjects, getTeacherSubjects, updateTeacherSubjects } from '@/services/api';
 
 const CITIES = [
   'תל אביב',
@@ -77,6 +77,10 @@ export default function EditTeacherProfileScreen() {
   // Regions
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
 
+  // Subjects
+  const [availableSubjects, setAvailableSubjects] = useState<Array<{ id: string; name_he: string }>>([]);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+
   // Errors
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -91,6 +95,11 @@ export default function EditTeacherProfileScreen() {
 
     setLoading(true);
     try {
+      // Load all subjects
+      const allSubjects = await getSubjects();
+      setAvailableSubjects(allSubjects);
+
+      // Load teacher profile
       const teacherProfile = await getTeacherProfile(profile.id);
       if (teacherProfile) {
         setDisplayName(teacherProfile.displayName || '');
@@ -103,6 +112,10 @@ export default function EditTeacherProfileScreen() {
         setDurationOptions(teacherProfile.durationOptions || [45, 60, 90]);
         setSelectedRegions(teacherProfile.regions || []);
       }
+
+      // Load teacher subjects
+      const teacherSubjects = await getTeacherSubjects(profile.id);
+      setSelectedSubjects(teacherSubjects.map(s => s.id));
     } catch (error: any) {
       console.error('Error loading profile:', error);
       Alert.alert('שגיאה', 'לא הצלחנו לטעון את הפרופיל');
@@ -129,6 +142,10 @@ export default function EditTeacherProfileScreen() {
 
     if (durationOptions.length === 0) {
       newErrors.durationOptions = 'יש לבחור לפחות משך שיעור אחד';
+    }
+
+    if (selectedSubjects.length === 0) {
+      newErrors.subjects = 'יש לבחור לפחות נושא הוראה אחד';
     }
 
     if (bio && bio.length > 500) {
@@ -176,6 +193,9 @@ export default function EditTeacherProfileScreen() {
         location: location || undefined,
         teachingStyle: teachingStyle || undefined,
       });
+
+      console.log('🔵 [edit-teacher-profile] Calling updateTeacherSubjects...');
+      await updateTeacherSubjects(profile.id, selectedSubjects);
 
       console.log('✅ [edit-teacher-profile] Save completed successfully');
       Alert.alert('הצלחה', 'הפרופיל עודכן בהצלחה', [
@@ -225,6 +245,19 @@ export default function EditTeacherProfileScreen() {
       setSelectedRegions(selectedRegions.filter((r) => r !== region));
     } else {
       setSelectedRegions([...selectedRegions, region]);
+    }
+  };
+
+  const toggleSubject = (subjectId: string) => {
+    if (selectedSubjects.includes(subjectId)) {
+      // Don't allow removing the last subject
+      if (selectedSubjects.length === 1) {
+        Alert.alert('שגיאה', 'חייב להישאר לפחות נושא הוראה אחד');
+        return;
+      }
+      setSelectedSubjects(selectedSubjects.filter((s) => s !== subjectId));
+    } else {
+      setSelectedSubjects([...selectedSubjects, subjectId]);
     }
   };
 
@@ -510,6 +543,48 @@ export default function EditTeacherProfileScreen() {
             </View>
             {errors.hourlyRate && <Typography style={styles.errorText}>{errors.hourlyRate}</Typography>}
           </View>
+        </View>
+
+        {/* Subjects Section */}
+        <View style={styles.section}>
+          <Typography variant="h6" weight="bold" style={styles.sectionTitle}>
+            נושאי הוראה <Typography style={{ color: colors.red[500] }}>*</Typography>
+          </Typography>
+          <Typography variant="caption" color="textSecondary" style={{ textAlign: 'right', marginBottom: spacing[3] }}>
+            בחר את הנושאים שאתה מלמד. תלמידים יוכלו לבחור מבין הנושאים שתבחר.
+          </Typography>
+
+          <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing[2] }}>
+            {availableSubjects.map((subject) => (
+              <TouchableOpacity
+                key={subject.id}
+                onPress={() => {
+                  toggleSubject(subject.id);
+                  if (errors.subjects) setErrors({ ...errors, subjects: '' });
+                }}
+                style={{
+                  paddingHorizontal: spacing[3],
+                  paddingVertical: spacing[2],
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: selectedSubjects.includes(subject.id) ? colors.primary[600] : colors.gray[300],
+                  backgroundColor: selectedSubjects.includes(subject.id) ? colors.primary[50] : colors.white,
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  weight={selectedSubjects.includes(subject.id) ? 'semibold' : 'normal'}
+                  color={selectedSubjects.includes(subject.id) ? 'primary' : 'textPrimary'}
+                >
+                  {subject.name_he}
+                </Typography>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {errors.subjects && (
+            <Typography style={styles.errorText}>{errors.subjects}</Typography>
+          )}
         </View>
 
         {/* Lesson Modes Section */}
