@@ -243,7 +243,7 @@ export default function HomeScreen() {
               weight="semibold"
               style={{ fontSize: 14, color: colors.gray[900] }}
             >
-              ₪{String(item.hourlyRate || 0)}/שעה
+              {`₪${item.hourlyRate || 0}/שעה`}
             </Typography>
           </View>
 
