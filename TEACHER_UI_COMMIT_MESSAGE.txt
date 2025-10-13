@@ -1,0 +1,38 @@
+style(teacher-ui): hide edit-teacher-profile from bottom nav; add settings/notifications/help/privacy pages; replace payment methods with reviews; add logout button on teacher profile (UI-only)
+
+Changes:
+- Hide "edit-teacher-profile" from bottom Nav Bar (href: null in layout)
+- Keep "Edit Profile" button visible in teacher profile menu list
+- Add logout button in top-left corner of teacher profile screen
+- Create new UI-only pages for teachers:
+  * Settings: language, dark mode, notifications, calendar view preferences
+  * Notifications: list of system/booking/reminder/message notifications
+  * Help & Support: help center, contact form, FAQ accordion
+  * Privacy & Security: password change, 2FA, connected devices, privacy settings
+- Replace "Payment Methods" with "Reviews" page:
+  * Display review cards with rating, text, tags
+  * Report button per review opens modal with report reasons
+- Update all navigation routes to teacher-specific paths
+- Add all new pages to teacher layout with href: null (hidden from tabs)
+
+UI Features:
+- Full RTL support using useRTL hook
+- AA+ contrast compliance
+- Minimum 44x44px tap targets
+- Consistent card design with 14px radius, subtle borders
+- Empty states for all lists
+- Visual-only stubs, no backend/DB integration
+
+Files Created:
+- app/(teacher)/settings.tsx
+- app/(teacher)/notifications.tsx
+- app/(teacher)/help.tsx
+- app/(teacher)/privacy.tsx
+- app/(teacher)/reviews.tsx
+
+Files Modified:
+- app/(teacher)/profile.tsx
+- app/(teacher)/_layout.tsx
+
+No linter errors. All changes are visual-only and isolated.
+
