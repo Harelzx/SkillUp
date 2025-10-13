@@ -116,8 +116,10 @@ export default function HomeScreen() {
       return null;
     }
 
-    // Ensure subjects is always an array - keep original values from API
-    const safeSubjects = Array.isArray(item.subjects) ? item.subjects : [];
+    // Ensure subjects is always an array - keep original values from API, filter out empty strings
+    const safeSubjects = Array.isArray(item.subjects)
+      ? item.subjects.filter((s: any) => s && String(s).trim() !== '')
+      : [];
 
     return (
     <Card
@@ -266,7 +268,7 @@ export default function HomeScreen() {
                 weight="medium"
                 style={{ fontSize: 13 }}
               >
-                {String(item.nextAvailable || '')}
+                {String(item.nextAvailable)}
               </Typography>
             </View>
           ) : (
@@ -309,7 +311,7 @@ export default function HomeScreen() {
                     textAlign: 'right',
                   }}
                 >
-                  {subject ? String(subject) : ''}
+                  {String(subject || '')}
                 </Typography>
               </View>
             ))}
