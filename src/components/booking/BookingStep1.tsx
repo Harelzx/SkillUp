@@ -3,10 +3,13 @@ import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { BookingData, LessonType, StudentLevel } from '@/types/booking';
 import { Wifi, Home, School } from 'lucide-react-native';
+import type { BookingMode } from '@/hooks/useTeacherBookingData';
 
 interface BookingStep1Props {
   data: BookingData;
   availableSubjects: string[];
+  availableModes?: BookingMode[];
+  availableDurations?: number[];
   onChange: (data: Partial<BookingData>) => void;
   errors: Record<string, string>;
 }
@@ -27,7 +30,14 @@ const STUDENT_LEVELS: { value: StudentLevel; label: string }[] = [
   { value: 'other', label: 'אחר' },
 ];
 
-export function BookingStep1({ data, availableSubjects, onChange, errors }: BookingStep1Props) {
+export function BookingStep1({ data, availableSubjects, availableModes, availableDurations, onChange, errors }: BookingStep1Props) {
+  // Filter lesson types based on available modes
+  const lessonTypes = LESSON_TYPES.filter(type => 
+    !availableModes || availableModes.includes(type.value as BookingMode)
+  );
+  
+  // Use available durations or default
+  const durations = availableDurations || DURATIONS;
   return (
     <ScrollView 
       style={{ flex: 1 }}
@@ -88,7 +98,7 @@ export function BookingStep1({ data, availableSubjects, onChange, errors }: Book
           סוג שיעור <Typography color="error">*</Typography>
         </Typography>
         <View>
-          {LESSON_TYPES.map((type) => {
+          {lessonTypes.map((type) => {
             const Icon = type.icon;
             const isSelected = data.lessonType === type.value;
             return (
@@ -132,10 +142,10 @@ export function BookingStep1({ data, availableSubjects, onChange, errors }: Book
           משך השיעור <Typography color="error">*</Typography>
         </Typography>
         <View style={{ flexDirection: 'row-reverse' }}>
-          {DURATIONS.map((duration) => (
+          {durations.map((duration) => (
             <TouchableOpacity
               key={duration}
-              onPress={() => onChange({ duration })}
+              onPress={() => onChange({ duration: duration as 45 | 60 | 90 })}
               style={{
                 flex: 1,
                 paddingVertical: spacing[3],

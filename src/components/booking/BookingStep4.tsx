@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { View, TouchableOpacity, ScrollView } from 'react-native';
+import { View, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { BookingData } from '@/types/booking';
 import { Calendar, Clock, MapPin, BookOpen, User, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react-native';
+import type { TeacherBookingProfile } from '@/hooks/useTeacherBookingData';
 
 interface BookingStep4Props {
   data: BookingData;
-  teacherName: string;
+  teacher: TeacherBookingProfile;
   onChange: (data: Partial<BookingData>) => void;
   errors: Record<string, string>;
 }
@@ -18,7 +19,7 @@ const LESSON_TYPE_LABELS = {
   teacher_location: 'בבית המורה',
 };
 
-export function BookingStep4({ data, teacherName, onChange, errors }: BookingStep4Props) {
+export function BookingStep4({ data, teacher, onChange, errors }: BookingStep4Props) {
   const [showImportantInfo, setShowImportantInfo] = useState(false);
 
   return (
@@ -48,14 +49,36 @@ export function BookingStep4({ data, teacherName, onChange, errors }: BookingSte
       }}>
         {/* Teacher */}
         <View style={{ flexDirection: 'row-reverse', alignItems: 'center', marginBottom: spacing[3] }}>
-          <User size={20} color={colors.gray[600]} style={{ marginLeft: spacing[2] }} />
+          {teacher.avatar_url ? (
+            <Image 
+              source={{ uri: teacher.avatar_url }} 
+              style={{ width: 48, height: 48, borderRadius: 24, marginLeft: spacing[2] }} 
+            />
+          ) : (
+            <View style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: colors.primary[100],
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginLeft: spacing[2],
+            }}>
+              <User size={24} color={colors.primary[600]} />
+            </View>
+          )}
           <View style={{ flex: 1, alignItems: 'flex-end' }}>
             <Typography variant="caption" color="textSecondary">
               מורה
             </Typography>
             <Typography variant="body1" weight="semibold">
-              {teacherName}
+              {teacher.display_name}
             </Typography>
+            {teacher.avg_rating > 0 && (
+              <Typography variant="caption" color="textSecondary">
+                ⭐ {teacher.avg_rating.toFixed(1)} ({teacher.review_count} ביקורות)
+              </Typography>
+            )}
           </View>
         </View>
 

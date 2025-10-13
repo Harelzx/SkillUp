@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -13,22 +13,18 @@ import { BookingStep3 } from '@/components/booking/BookingStep3';
 import { BookingStep4 } from '@/components/booking/BookingStep4';
 import { BookingStep5, type PaymentMethod } from '@/components/booking/BookingStep5';
 import { useQueryClient } from '@tanstack/react-query';
-
-// Mock teacher data - בשלב הבא יגיע מהשרת
-// TODO: Fetch teacher data based on teacherId from route params
-const MOCK_TEACHER = {
-  id: '1',
-  name: 'דוד לוי',
-  hourlyRate: 150,
-  subjects: ['מתמטיקה', 'פיזיקה', 'כימיה'],
-};
+import { useTeacherBookingData } from '@/hooks/useTeacherBookingData';
+import { useTeacherAvailability } from '@/hooks/useTeacherAvailability';
 
 const MOCK_AVAILABLE_CREDITS = 50;
 
 export default function BookLessonScreen() {
   const router = useRouter();
-  const { teacherId } = useLocalSearchParams();
+  const { teacherId: rawTeacherId } = useLocalSearchParams();
   const queryClient = useQueryClient();
+  
+  // Convert teacherId from array to string if needed
+  const teacherId = Array.isArray(rawTeacherId) ? rawTeacherId[0] : rawTeacherId;
   
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,6 +33,9 @@ export default function BookLessonScreen() {
   // Idempotency: prevent double-booking on multiple clicks
   const idempotencyKeyRef = useRef<string | null>(null);
   const bookingAttemptedRef = useRef(false);
+  
+  // Track previous teacherId to detect changes
+  const previousTeacherIdRef = useRef<string | undefined>(undefined);
 
   const [bookingData, setBookingData] = useState<BookingData>({
     subject: '',
@@ -53,8 +52,48 @@ export default function BookLessonScreen() {
     agreedToTerms: false,
   });
 
-  // Payment method selection (Step 6)
+  // Payment method selection (Step 5)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
+
+  // Fetch teacher data
+  const {
+    data: teacher,
+    isLoading: isLoadingTeacher,
+    error: teacherError,
+  } = useTeacherBookingData(teacherId);
+
+  // Fetch availability data
+  const {
+    data: availability,
+    isLoading: isLoadingAvailability,
+  } = useTeacherAvailability(teacherId);
+
+  // Reset booking state when teacher changes
+  useEffect(() => {
+    if (teacherId && teacherId !== previousTeacherIdRef.current) {
+      // Teacher changed - reset all booking data
+      setBookingData({
+        subject: '',
+        lessonType: 'online',
+        duration: 60,
+        studentLevel: undefined,
+        notes: '',
+        date: undefined,
+        timeSlot: undefined,
+        address: undefined,
+        savedAddressId: undefined,
+        useCredits: false,
+        couponCode: '',
+        agreedToTerms: false,
+      });
+      setCurrentStep(1);
+      setErrors({});
+      setSelectedPaymentMethod(null);
+      idempotencyKeyRef.current = null;
+      bookingAttemptedRef.current = false;
+      previousTeacherIdRef.current = teacherId;
+    }
+  }, [teacherId]);
 
   // Define steps (5 steps total)
   const steps: BookingStep[] = [
@@ -78,9 +117,33 @@ export default function BookLessonScreen() {
 
     switch (step) {
       case 1:
-        if (!bookingData.subject) newErrors.subject = 'נא לבחור נושא';
-        if (!bookingData.lessonType) newErrors.lessonType = 'נא לבחור סוג שיעור';
-        if (!bookingData.duration) newErrors.duration = 'נא לבחור משך שיעור';
+        if (!bookingData.subject) {
+          newErrors.subject = 'נא לבחור נושא';
+        } else if (teacher) {
+          // Validate subject is in teacher's subjects
+          const teacherSubjects = teacher.subjects.map(s => s.name_he);
+          if (!teacherSubjects.includes(bookingData.subject)) {
+            newErrors.subject = 'הנושא שנבחר אינו מוגדר למורה זה';
+          }
+        }
+        
+        if (!bookingData.lessonType) {
+          newErrors.lessonType = 'נא לבחור סוג שיעור';
+        } else if (teacher) {
+          // Validate lesson type is supported
+          if (!teacher.lesson_modes.includes(bookingData.lessonType as any)) {
+            newErrors.lessonType = 'סוג השיעור שנבחר אינו נתמך על ידי המורה';
+          }
+        }
+        
+        if (!bookingData.duration) {
+          newErrors.duration = 'נא לבחור משך שיעור';
+        } else if (teacher?.duration_options) {
+          // Validate duration is allowed
+          if (!teacher.duration_options.includes(bookingData.duration)) {
+            newErrors.duration = 'משך השיעור שנבחר אינו זמין';
+          }
+        }
         break;
 
       case 2:
@@ -105,7 +168,8 @@ export default function BookLessonScreen() {
 
       case 5:
         // Payment - validate payment method if needed
-        const totalPrice = MOCK_TEACHER.hourlyRate * (bookingData.duration / 60);
+        const hourlyRate = teacher?.hourly_rate || 150;
+        const totalPrice = hourlyRate * (bookingData.duration / 60);
         const creditsToApply = bookingData.useCredits ? Math.min(MOCK_AVAILABLE_CREDITS, totalPrice) : 0;
         const amountToPay = totalPrice - creditsToApply;
         
@@ -205,7 +269,8 @@ export default function BookLessonScreen() {
       console.debug('[Booking] Sending request with idempotency key:', idempotencyKeyRef.current);
 
       // Calculate amounts
-      const totalPrice = MOCK_TEACHER.hourlyRate * (bookingData.duration / 60);
+      const hourlyRate = teacher?.hourly_rate || 150;
+      const totalPrice = hourlyRate * (bookingData.duration / 60);
       const creditsToApply = bookingData.useCredits ? Math.min(MOCK_AVAILABLE_CREDITS, totalPrice) : 0;
       const amountToPay = totalPrice - creditsToApply;
 
@@ -320,12 +385,16 @@ export default function BookLessonScreen() {
   };
 
   const renderStep = () => {
+    if (!teacher) return null;
+
     switch (currentStep) {
       case 1:
         return (
           <BookingStep1
             data={bookingData}
-            availableSubjects={MOCK_TEACHER.subjects}
+            availableSubjects={teacher.subjects.map(s => s.name_he)}
+            availableModes={teacher.lesson_modes}
+            availableDurations={teacher.duration_options || [45, 60, 90]}
             onChange={updateBookingData}
             errors={errors}
           />
@@ -334,6 +403,8 @@ export default function BookLessonScreen() {
         return (
           <BookingStep2
             data={bookingData}
+            teacherId={teacherId!}
+            availability={availability}
             onChange={updateBookingData}
             errors={errors}
           />
@@ -342,6 +413,8 @@ export default function BookLessonScreen() {
         return (
           <BookingStep3
             data={bookingData}
+            teacherLocation={teacher.location}
+            teacherAreas={teacher.areas}
             onChange={updateBookingData}
             errors={errors}
           />
@@ -350,7 +423,7 @@ export default function BookLessonScreen() {
         return (
           <BookingStep4
             data={bookingData}
-            teacherName={MOCK_TEACHER.name}
+            teacher={teacher}
             onChange={updateBookingData}
             errors={errors}
           />
@@ -359,8 +432,7 @@ export default function BookLessonScreen() {
         return (
           <BookingStep5
             data={bookingData}
-            teacherName={MOCK_TEACHER.name}
-            hourlyRate={MOCK_TEACHER.hourlyRate}
+            teacher={teacher}
             availableCredits={MOCK_AVAILABLE_CREDITS}
             onChange={updateBookingData}
             selectedPaymentMethod={selectedPaymentMethod}
@@ -377,14 +449,108 @@ export default function BookLessonScreen() {
     if (currentStep === 4) return 'המשך לתשלום';
     if (currentStep === 5) {
       // Calculate if fully covered by credits
-      const totalPrice = MOCK_TEACHER.hourlyRate * (bookingData.duration / 60);
+      const hourlyRate = teacher?.hourly_rate || 150;
+      const totalPrice = hourlyRate * (bookingData.duration / 60);
       const creditsToApply = bookingData.useCredits ? Math.min(MOCK_AVAILABLE_CREDITS, totalPrice) : 0;
       const amountToPay = totalPrice - creditsToApply;
       
       return amountToPay === 0 ? 'סיים הזמנה' : 'אשר ושלם';
     }
     return 'המשך';
-  }, [currentStep, bookingData.duration, bookingData.useCredits]);
+  }, [currentStep, bookingData.duration, bookingData.useCredits, teacher]);
+
+  // Loading state
+  if (isLoadingTeacher || isLoadingAvailability) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50], justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <Typography variant="body2" color="textSecondary" style={{ marginTop: spacing[4] }}>
+          טוען נתוני מורה...
+        </Typography>
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (teacherError || !teacher) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50], justifyContent: 'center', alignItems: 'center', padding: spacing[4] }}>
+        <Typography variant="h5" weight="bold" style={{ textAlign: 'center', marginBottom: spacing[2] }}>
+          שגיאה בטעינת נתונים
+        </Typography>
+        <Typography variant="body2" color="textSecondary" style={{ textAlign: 'center', marginBottom: spacing[4] }}>
+          {teacherError?.message || 'לא ניתן לטעון את נתוני המורה'}
+        </Typography>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{
+            backgroundColor: colors.primary[600],
+            paddingHorizontal: spacing[6],
+            paddingVertical: spacing[3],
+            borderRadius: 12,
+          }}
+        >
+          <Typography variant="body1" weight="bold" color="white">
+            חזור
+          </Typography>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  // Check if teacher is active
+  if (!teacher.is_active) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50], justifyContent: 'center', alignItems: 'center', padding: spacing[4] }}>
+        <Typography variant="h5" weight="bold" style={{ textAlign: 'center', marginBottom: spacing[2] }}>
+          המורה אינו פעיל כעת
+        </Typography>
+        <Typography variant="body2" color="textSecondary" style={{ textAlign: 'center', marginBottom: spacing[4] }}>
+          לא ניתן להזמין שיעור עם מורה זה כרגע
+        </Typography>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{
+            backgroundColor: colors.primary[600],
+            paddingHorizontal: spacing[6],
+            paddingVertical: spacing[3],
+            borderRadius: 12,
+          }}
+        >
+          <Typography variant="body1" weight="bold" color="white">
+            חזור
+          </Typography>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  // Check if teacher has subjects
+  if (!teacher.subjects || teacher.subjects.length === 0) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50], justifyContent: 'center', alignItems: 'center', padding: spacing[4] }}>
+        <Typography variant="h5" weight="bold" style={{ textAlign: 'center', marginBottom: spacing[2] }}>
+          המורה לא הגדיר נושאי הוראה
+        </Typography>
+        <Typography variant="body2" color="textSecondary" style={{ textAlign: 'center', marginBottom: spacing[4] }}>
+          לא ניתן להזמין שיעור כרגע
+        </Typography>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{
+            backgroundColor: colors.primary[600],
+            paddingHorizontal: spacing[6],
+            paddingVertical: spacing[3],
+            borderRadius: 12,
+          }}
+        >
+          <Typography variant="body1" weight="bold" color="white">
+            חזור
+          </Typography>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50] }}>

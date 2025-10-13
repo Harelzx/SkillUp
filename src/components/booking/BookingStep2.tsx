@@ -1,24 +1,24 @@
 import { useState, useMemo } from 'react';
-import { View, TouchableOpacity, ScrollView } from 'react-native';
+import { View, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { BookingData } from '@/types/booking';
 import { Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { format, parseISO } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 
 interface BookingStep2Props {
   data: BookingData;
+  teacherId: string;
+  availability?: {
+    slots: any[];
+    byDate: Map<string, any[]>;
+    days: any[];
+    totalSlots: number;
+  };
   onChange: (data: Partial<BookingData>) => void;
   errors: Record<string, string>;
 }
-
-// Mock data - בשלב הבא יגיע מהשרת
-const MOCK_AVAILABLE_SLOTS: { [key: string]: string[] } = {
-  '2025-10-15': ['09:00', '10:30', '14:00', '16:00'],
-  '2025-10-16': ['10:00', '11:30', '15:00', '17:00'],
-  '2025-10-17': ['09:30', '13:00', '16:30'],
-  '2025-10-20': ['09:00', '10:00', '14:00', '15:30', '18:00'],
-  '2025-10-21': ['10:30', '14:30', '16:00'],
-};
 
 function getDaysInMonth(year: number, month: number): Date[] {
   const date = new Date(year, month, 1);
@@ -34,21 +34,29 @@ function getDateKey(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
-export function BookingStep2({ data, onChange, errors }: BookingStep2Props) {
+export function BookingStep2({ data, teacherId, availability, onChange, errors }: BookingStep2Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(data.date || null);
+  const timezone = 'Asia/Jerusalem';
 
   const daysInMonth = useMemo(() => getDaysInMonth(currentMonth.getFullYear(), currentMonth.getMonth()), [currentMonth]);
   
   const availableSlots = useMemo(() => {
-    if (!selectedDate) return [];
+    if (!selectedDate || !availability) return [];
     const dateKey = getDateKey(selectedDate);
-    return MOCK_AVAILABLE_SLOTS[dateKey] || [];
-  }, [selectedDate]);
+    const daySlots = availability.byDate.get(dateKey) || [];
+    
+    // Convert slots to time strings in user's timezone
+    return daySlots.map(slot => {
+      const slotTime = toZonedTime(parseISO(slot.start_at), timezone);
+      return format(slotTime, 'HH:mm');
+    });
+  }, [selectedDate, availability]);
 
   const hasAvailability = (date: Date) => {
+    if (!availability) return false;
     const dateKey = getDateKey(date);
-    return MOCK_AVAILABLE_SLOTS[dateKey]?.length > 0;
+    return availability.byDate.has(dateKey) && (availability.byDate.get(dateKey)?.length || 0) > 0;
   };
 
   const isPastDate = (date: Date) => {
@@ -62,8 +70,22 @@ export function BookingStep2({ data, onChange, errors }: BookingStep2Props) {
     onChange({ date, timeSlot: undefined }); // Reset time slot when changing date
   };
 
-  const handleTimeSelect = (timeSlot: string) => {
-    onChange({ timeSlot });
+  const handleTimeSelect = (timeString: string) => {
+    if (!selectedDate || !availability) return;
+    
+    const dateKey = getDateKey(selectedDate);
+    const daySlots = availability.byDate.get(dateKey) || [];
+    
+    // Find the actual slot that matches this time
+    const matchingSlot = daySlots.find(slot => {
+      const slotTime = toZonedTime(parseISO(slot.start_at), timezone);
+      return format(slotTime, 'HH:mm') === timeString;
+    });
+    
+    if (matchingSlot) {
+      // Save the full ISO start_at as timeSlot
+      onChange({ timeSlot: matchingSlot.start_at });
+    }
   };
 
   const goToPreviousMonth = () => {
@@ -79,6 +101,33 @@ export function BookingStep2({ data, onChange, errors }: BookingStep2Props) {
   // Get first day of month for calendar grid
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
   const emptyDays = Array(firstDayOfMonth).fill(null);
+
+  // Loading state
+  if (!availability) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[4] }}>
+        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <Typography variant="body2" color="textSecondary" style={{ marginTop: spacing[4], textAlign: 'center' }}>
+          טוען זמינות...
+        </Typography>
+      </View>
+    );
+  }
+
+  // No availability state
+  if (availability.totalSlots === 0) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing[4] }}>
+        <Calendar size={48} color={colors.gray[400]} />
+        <Typography variant="h6" weight="bold" style={{ textAlign: 'center', marginTop: spacing[4] }}>
+          אין זמינות
+        </Typography>
+        <Typography variant="body2" color="textSecondary" style={{ textAlign: 'center', marginTop: spacing[2] }}>
+          המורה לא הגדיר משבצות זמינות ב-30 הימים הקרובים
+        </Typography>
+      </View>
+    );
+  }
 
   return (
     <ScrollView 

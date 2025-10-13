@@ -7,6 +7,8 @@ import { MapPin, Plus, Check, Mail } from 'lucide-react-native';
 
 interface BookingStep3Props {
   data: BookingData;
+  teacherLocation?: string | null;
+  teacherAreas?: string[];
   onChange: (data: Partial<BookingData>) => void;
   errors: Record<string, string>;
 }
@@ -17,12 +19,14 @@ const MOCK_SAVED_ADDRESSES: SavedAddress[] = [
   { id: '2', label: 'עבודה', address: 'דרך מנחם בגין 125, תל אביב', city: 'תל אביב', default: false },
 ];
 
-export function BookingStep3({ data, onChange, errors }: BookingStep3Props) {
+export function BookingStep3({ data, teacherLocation, teacherAreas, onChange, errors }: BookingStep3Props) {
   const [showNewAddress, setShowNewAddress] = useState(!data.savedAddressId && !data.address);
   const [newAddress, setNewAddress] = useState(data.address || '');
 
   const isOnline = data.lessonType === 'online';
+  const isAtTeacher = data.lessonType === 'teacher_location';
 
+  // Online lesson - no location needed
   if (isOnline) {
     return (
       <View style={{ flex: 1, padding: spacing[4], justifyContent: 'center', alignItems: 'center' }}>
@@ -51,6 +55,70 @@ export function BookingStep3({ data, onChange, errors }: BookingStep3Props) {
           }}>
             <Typography variant="caption" color="textSecondary" style={{ textAlign: 'center' }}>
               💡 הקפד להיות זמין 5 דקות לפני תחילת השיעור
+            </Typography>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // At teacher location - show teacher's address/region
+  if (isAtTeacher) {
+    return (
+      <View style={{ flex: 1, padding: spacing[4], justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{
+          padding: spacing[6],
+          backgroundColor: colors.green[50],
+          borderRadius: 16,
+          alignItems: 'center',
+          maxWidth: 400,
+          width: '100%',
+        }}>
+          <MapPin size={48} color={colors.green[600]} />
+          <Typography variant="h5" weight="bold" style={{ marginTop: spacing[3], textAlign: 'center' }}>
+            שיעור אצל המורה
+          </Typography>
+          <Typography variant="body2" color="textSecondary" style={{ marginTop: spacing[2], textAlign: 'center', lineHeight: 22 }}>
+            השיעור יתקיים בכתובת המורה
+          </Typography>
+          
+          {teacherLocation && (
+            <View style={{
+              marginTop: spacing[4],
+              padding: spacing[4],
+              backgroundColor: colors.white,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colors.green[200],
+              width: '100%',
+            }}>
+              <View style={{ flexDirection: 'row-reverse', alignItems: 'flex-start' }}>
+                <MapPin size={20} color={colors.green[600]} style={{ marginLeft: spacing[2] }} />
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <Typography variant="body2" weight="semibold" style={{ textAlign: 'right' }}>
+                    {teacherLocation}
+                  </Typography>
+                  {teacherAreas && teacherAreas.length > 1 && (
+                    <Typography variant="caption" color="textSecondary" style={{ marginTop: spacing[1], textAlign: 'right' }}>
+                      {teacherAreas.slice(1).join(', ')}
+                    </Typography>
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
+          
+          <View style={{
+            marginTop: spacing[4],
+            padding: spacing[3],
+            backgroundColor: colors.white,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: colors.green[200],
+            width: '100%',
+          }}>
+            <Typography variant="caption" color="textSecondary" style={{ textAlign: 'center' }}>
+              💡 הכתובת המדויקת תישלח אליך לאחר אישור ההזמנה
             </Typography>
           </View>
         </View>

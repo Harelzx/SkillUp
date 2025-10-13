@@ -4,13 +4,13 @@ import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { BookingData, BookingPricing } from '@/types/booking';
 import { Tag, Info, ChevronDown, ChevronUp, CreditCard, Smartphone, Wallet, CheckCircle2 } from 'lucide-react-native';
+import type { TeacherBookingProfile } from '@/hooks/useTeacherBookingData';
 
 export type PaymentMethod = 'apple_pay' | 'google_pay' | 'card' | 'credits' | 'bit';
 
 interface BookingStep5Props {
   data: BookingData;
-  teacherName: string;
-  hourlyRate: number;
+  teacher: TeacherBookingProfile;
   availableCredits: number;
   onChange: (data: Partial<BookingData>) => void;
   selectedPaymentMethod: PaymentMethod | null;
@@ -20,8 +20,7 @@ interface BookingStep5Props {
 
 export function BookingStep5({ 
   data, 
-  teacherName, 
-  hourlyRate, 
+  teacher, 
   availableCredits, 
   onChange,
   selectedPaymentMethod,
@@ -31,8 +30,9 @@ export function BookingStep5({
   const [couponCode, setCouponCode] = useState(data.couponCode || '');
   const [showCancellationPolicy, setShowCancellationPolicy] = useState(false);
 
-  // Calculate pricing
+  // Calculate pricing with teacher's actual hourly rate
   const pricing: BookingPricing = useMemo(() => {
+    const hourlyRate = teacher.hourly_rate || 150;
     const durationHours = data.duration / 60;
     const subtotal = hourlyRate * durationHours;
     
@@ -54,7 +54,7 @@ export function BookingStep5({
       discount,
       total,
     };
-  }, [data.duration, data.useCredits, hourlyRate, availableCredits, couponCode]);
+  }, [data.duration, data.useCredits, teacher.hourly_rate, availableCredits, couponCode]);
 
   const paymentMethods = [
     {
@@ -115,7 +115,7 @@ export function BookingStep5({
         marginBottom: spacing[4],
       }}>
         <Typography variant="caption" color="textSecondary" style={{ textAlign: 'right', marginBottom: spacing[1] }}>
-          שיעור עם {teacherName}
+          שיעור עם {teacher.display_name}
         </Typography>
         <Typography variant="body2" style={{ textAlign: 'right' }}>
           {data.subject} • {data.duration} דקות
@@ -228,7 +228,7 @@ export function BookingStep5({
 
         <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', marginBottom: spacing[2] }}>
           <Typography variant="body2" color="textSecondary">
-            ₪{hourlyRate} × {data.duration} דקות
+            ₪{pricing.hourlyRate} × {data.duration} דקות
           </Typography>
           <Typography variant="body2">
             ₪{pricing.subtotal.toFixed(2)}
