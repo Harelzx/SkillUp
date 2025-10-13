@@ -355,4 +355,469 @@ The app uses Supabase Auth for user authentication:
 
 ---
 
+## 🔧 Environment Setup
+
+### Required Environment Variables
+Create `.env` file in project root:
+
+```env
+# Supabase Configuration
+EXPO_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+# Stripe Configuration (future)
+EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+
+# App Configuration
+EXPO_PUBLIC_APP_ENV=development
+```
+
+**How to get Supabase keys:**
+1. Go to https://supabase.com/dashboard
+2. Select your project
+3. Settings → API
+4. Copy **Project URL** and **anon public key**
+5. For migrations, copy **service_role key** (keep secret!)
+
+**Security:**
+- ⚠️ Never commit `.env` to git
+- ✅ `.env` is already in `.gitignore`
+- ✅ Only use `anon` key in mobile app
+- ✅ Use `service_role` key only for backend/migrations
+
+---
+
+## 📁 API Structure
+
+### Two Similar Files - Different Purposes
+
+#### `teachersAPI.ts` (plural) - For Students
+**Purpose:** Read-only API for students searching/viewing teachers
+
+**Functions:**
+- `getTeacherById(teacherId)` - View teacher profile
+- `getTeachers({ filters })` - Search with filters
+- `getFeaturedTeachers(limit)` - Homepage recommendations
+- `getTeacherSubjects(teacherId)` - Teacher's subjects
+- `getTeacherReviews(teacherId)` - Teacher reviews
+- `getTeacherRatingStats(teacherId)` - Rating statistics
+
+**Used by:**
+- `app/(tabs)/search.tsx` - Teacher search
+- `app/(tabs)/index.tsx` - Featured teachers
+- `app/(tabs)/teacher/[id].tsx` - Teacher profile page
+
+#### `teacherAPI.ts` (singular) - For Teachers
+**Purpose:** Read-write API for teachers managing their profiles
+
+**Functions:**
+- `updateTeacherProfile(teacherId, updates)` - Update profile (via RPC)
+- `getTeacherProfile(teacherId)` - Get profile for editing
+- `getTeacherAvailabilitySlots(...)` - Manage availability
+- `upsertAvailabilitySlots(...)` - Add/update slots
+- `closeDay(teacherId, date)` - Close specific day
+- `openDay(teacherId, date, options)` - Open day with schedule
+- `deleteAvailabilitySlot(slotId)` - Remove slot
+- `subscribeToTeacherAvailability(...)` - Realtime updates
+- `subscribeToTeacherProfile(...)` - Profile updates
+
+**Used by:**
+- `app/(teacher)/edit-teacher-profile.tsx` - Profile editing
+- `app/(teacher)/calendar.tsx` - Schedule management
+- `app/(teacher)/profile.tsx` - Teacher profile
+
+**Key Differences:**
+
+| Aspect | teachersAPI.ts | teacherAPI.ts |
+|--------|----------------|---------------|
+| **User** | Students | Teachers |
+| **Access** | READ-ONLY | READ-WRITE |
+| **Main Table** | `teacher_profiles_with_stats` (VIEW) | `profiles` (TABLE) |
+| **Updates** | ❌ No | ✅ Yes (via RPC) |
+| **Availability** | Read only | Full management |
+| **Security** | View-only RLS | Teacher can only update own profile |
+
+---
+
+## 🎯 Booking System
+
+### Complete End-to-End Booking Flow
+
+#### UI Flow (5 Steps)
+
+**Files:**
+- `app/(booking)/book-lesson.tsx` - Main booking screen
+- `src/components/booking/BookingStepper.tsx` - Progress indicator
+- `src/components/booking/BookingStep1.tsx` - Lesson details
+- `src/components/booking/BookingStep2.tsx` - Date/time selection
+- `src/components/booking/BookingStep3.tsx` - Location (dynamic)
+- `src/components/booking/BookingStep4.tsx` - Pricing + credits
+- `src/components/booking/BookingStep5.tsx` - Confirmation
+
+**Step 1: Lesson Details**
+- Subject selection
+- Lesson type (online/at teacher/at student)
+- Duration (45/60/90 minutes)
+- Student level
+- Notes
+
+**Step 2: Date & Time**
+- Calendar view
+- Available time slots from teacher's schedule
+- Realtime availability updates
+
+**Step 3: Location**
+- Shown only for in-person lessons
+- Address input with validation
+- Google Maps integration (future)
+
+**Step 4: Pricing**
+- Price calculation based on hourly rate
+- Apply credits (partial or full)
+- Coupon codes
+- Final price display
+
+**Step 5: Confirmation**
+- Review all details
+- Accept terms
+- Confirm and pay
+
+#### Backend Flow (Atomic Transaction)
+
+**Database Changes:**
+
+```
+bookings table:
++ mode (online|student_location|teacher_location)
++ duration_minutes (45|60|90)
++ price_per_hour, total_price
++ credits_applied, coupon_code, discount_amount
++ timezone, source, student_level
++ currency
+
+New tables:
+- availability_slots (teacher schedule)
+- payments (payment records)
+- refunds (refund tracking)
+- idempotency_requests (prevent duplicates)
+- audit_log (action tracking)
+```
+
+**RPC Functions:**
+
+1. **`create_booking()`** - Atomic booking creation
+   - Validates duration (45/60/90)
+   - Checks teacher/student active
+   - Prevents double-booking
+   - Verifies credit balance
+   - Locks availability slot
+   - Deducts credits
+   - Simulates payment (80% success)
+   - Creates notifications
+   - Logs to audit trail
+   - Broadcasts realtime updates
+
+2. **`cancel_booking(reason, refund_method)`** - Cancel with refunds
+   - **24+ hours**: 100% refund + credits back
+   - **12-24 hours**: 50% refund + credits back
+   - **<12 hours**: No refund + credits back
+   - Releases availability slot
+   - Creates refund record
+
+3. **`reschedule_booking(booking_id, new_start_at)`** - Change date/time
+   - Releases old slot
+   - Locks new slot
+   - Updates booking
+   - Notifies teacher
+
+**Realtime Updates:**
+
+```typescript
+// Teacher calendar updates
+useTeacherBookingRealtime(teacherId, (event) => {
+  // event.type: 'slot_booked' | 'slot_released' | 'booking_rescheduled'
+  refetchCalendar();
+});
+
+// Student search updates
+useAvailabilityRealtime((event) => {
+  // event.type: 'slot_unavailable' | 'slot_available'
+  refetchAvailableSlots();
+});
+```
+
+#### Security Features
+
+**RLS Policies:**
+- Students see only their bookings
+- Teachers see only their bookings
+- No direct access to payments/refunds
+- All critical operations via RPC only
+
+**Overlap Prevention:**
+```sql
+-- Trigger prevents double-booking at DB level
+CREATE TRIGGER prevent_booking_overlap_trigger
+  BEFORE INSERT OR UPDATE ON bookings
+  FOR EACH ROW
+  EXECUTE FUNCTION prevent_booking_overlap();
+```
+
+**Idempotency:**
+```typescript
+// Same request twice = same result
+const key = `booking_${userId}_${teacherId}_${startAt}`;
+// Second request returns original result without creating duplicate
+```
+
+### Migration Order
+
+Run these in Supabase SQL Editor (Dashboard → SQL Editor → New Query):
+
+1. **`migrations/005_enhance_booking_schema_safe.sql`**
+   - Creates enums (booking_mode, payment_method, refund_method)
+   - Adds booking table columns
+   - Creates refunds + audit_log tables
+
+2. **`migrations/006_safe.sql`**
+   - Creates idempotency_requests table
+   - Creates availability_slots table
+   - Creates payments table
+   - Creates RPC functions (create_booking, cancel_booking, reschedule_booking)
+
+3. **`migrations/007_safe.sql`**
+   - Creates RLS policies for all tables
+   - Creates overlap prevention trigger
+   - Creates helper functions (is_admin, can_access_booking)
+
+4. **`migrations/008_safe.sql`**
+   - Adds awaiting_payment status
+   - Adds hold_expires_at + payment_method_selected
+   - Updates create_booking for payment UI
+   - Creates release_expired_holds() function
+
+**Verify migrations:**
+```sql
+-- Check all components exist
+SELECT typname FROM pg_type WHERE typname IN ('booking_mode', 'payment_method');
+SELECT table_name FROM information_schema.tables WHERE table_name IN ('payments', 'refunds', 'availability_slots');
+SELECT routine_name FROM information_schema.routines WHERE routine_name IN ('create_booking', 'cancel_booking');
+```
+
+---
+
+## 🗄️ Database Schema
+
+### Core Tables
+
+**profiles** - User information
+```
+id, role (teacher|student), display_name, phone_number,
+email, bio, avatar_url, location, hourly_rate (teachers),
+is_verified, is_active, total_students, created_at
+```
+
+**subjects** - Teaching subjects
+```
+id, name (Hebrew), name_en, category, icon, is_active
+```
+
+**teacher_subjects** - Teacher ↔ Subject mapping
+```
+id, teacher_id, subject_id
+```
+
+**bookings** - Lesson appointments
+```
+id, teacher_id, student_id, subject_id,
+start_at, end_at, status, is_online, notes,
+mode, duration_minutes, total_price, credits_applied,
+coupon_code, location, student_level, timezone
+```
+
+**reviews** - Student feedback
+```
+id, booking_id, teacher_id, student_id,
+rating (1-5), text, created_at
+```
+
+**availability_slots** - Teacher schedule
+```
+id, teacher_id, start_at, end_at, is_booked, booking_id
+```
+
+**student_credits** - Credit balances
+```
+id, student_id, balance, last_updated
+```
+
+**credit_transactions** - Credit history
+```
+id, student_id, booking_id, amount, type,
+balance_after, reason, created_at
+```
+
+**payments** - Payment records
+```
+id, booking_id, student_id, method, amount,
+currency, status, stripe_payment_intent_id
+```
+
+**refunds** - Refund records
+```
+id, booking_id, student_id, method, amount,
+reason, processed_at
+```
+
+**notifications** - In-app notifications
+```
+id, user_id, type, title, message, is_read, created_at
+```
+
+**audit_log** - Action tracking
+```
+id, actor_user_id, action, entity, entity_id,
+meta (JSONB), created_at
+```
+
+**idempotency_requests** - Duplicate prevention
+```
+id, idempotency_key, request_hash, booking_id,
+response_data, expires_at
+```
+
+### Key Views
+
+**teacher_profiles_with_stats** - Pre-joined teacher data
+```sql
+SELECT
+  p.*,
+  COUNT(DISTINCT ts.subject_id) as subject_count,
+  AVG(r.rating) as avg_rating,
+  COUNT(DISTINCT r.id) as review_count
+FROM profiles p
+LEFT JOIN teacher_subjects ts ON p.id = ts.teacher_id
+LEFT JOIN reviews r ON p.id = r.teacher_id
+WHERE p.role = 'teacher'
+GROUP BY p.id;
+```
+
+---
+
+## 📊 Supabase Setup
+
+### Initial Setup Steps
+
+1. **Create Project**
+   - Go to https://supabase.com/dashboard
+   - New Project → Choose name, password, region (eu-central-1 for Israel)
+   - Wait 2-3 minutes for initialization
+
+2. **Enable Extensions**
+   - Database → Extensions
+   - Enable: `uuid-ossp`, `pg_trgm`
+
+3. **Run Schema**
+   - SQL Editor → New Query
+   - Copy/paste `supabase/schema.sql`
+   - Run (creates all tables, RLS policies, functions)
+
+4. **Run Migrations**
+   - Run migrations 005-008 in order (see Migration Order above)
+
+5. **Seed Data (Optional)**
+   - SQL Editor → New Query
+   - Copy/paste `supabase/seed.sql`
+   - Creates 8 test teachers + 1 student
+   - Login: `sarah.cohen@skillup.co.il` / `teacher123`
+
+6. **Configure Auth**
+   - Authentication → Settings
+   - Site URL: `skillup://`
+   - Redirect URLs: `skillup://`, `skillup://auth/callback`, `exp://localhost:8081`
+   - Email confirmation: Disabled (for dev)
+
+7. **Create Storage Buckets**
+   - Storage → New Bucket
+   - `avatars` (public, 2MB limit, images only)
+   - `documents` (private, 10MB limit, PDFs + images)
+
+### Testing Connection
+
+```typescript
+import { supabase } from './src/lib/supabase';
+
+const { data, error } = await supabase.from('subjects').select('*').limit(5);
+console.log('✅ Connected:', data);
+```
+
+---
+
+## 🔄 Realtime Features
+
+### Teacher Calendar Updates
+
+```typescript
+import { useTeacherBookingRealtime } from '@/hooks/useTeacherBookingRealtime';
+
+useTeacherBookingRealtime(teacherId, (event) => {
+  if (event.type === 'slot_booked') {
+    // Refresh calendar when new booking arrives
+    queryClient.invalidateQueries(['teacher-bookings']);
+  }
+});
+```
+
+### Availability Updates for Search
+
+```typescript
+import { useAvailabilityRealtime } from '@/hooks/useAvailabilityRealtime';
+
+useAvailabilityRealtime((event) => {
+  if (event.type === 'slot_unavailable') {
+    // Hide slot that was just booked
+    refetchAvailableSlots();
+  }
+});
+```
+
+### Profile Updates
+
+```typescript
+import { subscribeToTeacherProfile } from '@/services/api/teacherAPI';
+
+subscribeToTeacherProfile(teacherId, (updatedProfile) => {
+  // Update UI when teacher changes profile
+  setProfile(updatedProfile);
+});
+```
+
+---
+
+## 🧪 Testing Scenarios
+
+### Booking Tests
+
+- [ ] Create booking without credits → full payment
+- [ ] Create booking with partial credits → reduced payment
+- [ ] Create booking fully covered by credits → no payment
+- [ ] Payment failure (20% simulated) → rollback all changes
+- [ ] Try to book already-taken slot → error "השעה כבר תפוסה"
+- [ ] Cancel booking 24+ hours ahead → 100% refund
+- [ ] Cancel booking <12 hours → no refund, credits returned
+- [ ] Reschedule booking → old slot released, new slot locked
+- [ ] Duplicate request (same idempotency key) → same response, no duplicate
+- [ ] Realtime: Teacher sees new booking instantly in calendar
+
+### RLS Tests
+
+- [ ] Student can't view other student's bookings → returns empty
+- [ ] Teacher can't view other teacher's bookings → returns empty
+- [ ] Student can't directly insert payment record → blocked
+- [ ] Only RPC functions can create bookings → direct INSERT blocked
+
+---
+
 *This comprehensive documentation consolidates all implementation details, testing procedures, and troubleshooting guides for the SkillUp Teachers application. Keep this file updated as the project evolves.*
