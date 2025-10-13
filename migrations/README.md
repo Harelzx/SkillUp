@@ -32,6 +32,11 @@ node scripts/run-migration.js migrations/001_add_education_column.sql
 
 ## Migration Files
 
+- `000_enable_extensions.sql` - **MUST RUN FIRST!** Enables required PostgreSQL extensions:
+  - `uuid-ossp` - UUID generation (required for all tables)
+  - `pg_trgm` - Text search capabilities
+  - ⚠️ **If you see "uuid_generate_v4() does not exist" error, run this migration!**
+  - See [SUPABASE_UUID_FIX.md](../SUPABASE_UUID_FIX.md) for detailed instructions
 - `001_add_education_column.sql` - Adds education field to teacher profiles
 - `002_add_bookings_for_harel.sql` - Additional booking enhancements
 - `003_add_email_to_profiles.sql` - Adds email column to profiles
