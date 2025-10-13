@@ -12,13 +12,12 @@ A modern React Native/Expo application for connecting students with teachers in 
 4. [Core Technologies](#core-technologies)
 5. [Teacher Interface](#teacher-interface)
 6. [Student Interface](#student-interface)
-7. [DEV Users System](#dev-users-system)
-8. [RTL Support](#rtl-support)
-9. [Authentication Flow](#authentication-flow)
-10. [Common Issues & Solutions](#common-issues--solutions)
-11. [Development Guidelines](#development-guidelines)
-12. [Testing Guide](#testing-guide)
-13. [Deployment](#deployment)
+7. [RTL Support](#rtl-support)
+8. [Authentication Flow](#authentication-flow)
+9. [Common Issues & Solutions](#common-issues--solutions)
+10. [Development Guidelines](#development-guidelines)
+11. [Testing Guide](#testing-guide)
+12. [Deployment](#deployment)
 
 ---
 
@@ -239,26 +238,20 @@ npx expo install --fix
 - **Shadow/Elevation**: Platform-specific depth effects
 - **Min Height**: 64px for AA accessibility
 
-### DEV Users - Complete System
+### Authentication
 
-The DEV users system provides a complete authentication bypass for local development:
+The app uses Supabase Auth for user authentication:
 
-**Security Measures**:
-- Environment check: `IS_DEV_MODE = process.env.NODE_ENV === 'development' || __DEV__`
-- Console warnings if imported in production
-- Guard functions in every DEV-related method
-- Error throwing on production session creation attempts
+**Login/Signup Flow**:
+- Email/password authentication via Supabase
+- Social logins: Apple (iOS), Google (cross-platform)
+- Biometric authentication (Face ID / Touch ID) support
+- Profile creation on signup with role selection (teacher/student)
 
-**Files Involved**:
-1. `src/data/dev-users.ts` - User definitions + validation (167 lines)
-2. `src/components/dev/DevUsersHelper.tsx` - UI helper component (196 lines)
-3. `src/features/auth/auth-context.tsx` - Authentication integration (+50 lines)
-4. `app/(auth)/login.tsx` - Login screen integration (+70 lines)
-
-**Mock Data**:
-- Teacher: 45 students, 487 lessons, ₪18,500 monthly income
-- Student: Basic profile with search capabilities
-- Stub data in `src/data/teacher-data.ts`
+**Role-based Access**:
+- `role='teacher'` → Teacher interface (dashboard, calendar, profile)
+- `role='student'` → Student interface (home, search, lessons, profile)
+- Automatic routing based on user role after login
 
 ### RTL Implementation Details
 
