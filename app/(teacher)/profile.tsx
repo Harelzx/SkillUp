@@ -12,7 +12,7 @@ import {
   User,
   Settings,
   Bell,
-  CreditCard,
+  Star,
   HelpCircle,
   Shield,
   LogOut,
@@ -141,11 +141,35 @@ export default function TeacherProfileScreen() {
     <SafeAreaView style={[styles.container, { direction }]}>
       <StatusBar barStyle="dark-content" />
       
-      {/* Header */}
+      {/* Header with Logout Button */}
       <View style={styles.header}>
-        <Typography variant="h3" weight="bold" align={isRTL ? 'right' : 'left'}>
-          פרופיל
-        </Typography>
+        <View style={{
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <Typography variant="h3" weight="bold" align={isRTL ? 'right' : 'left'}>
+            פרופיל
+          </Typography>
+          
+          {/* Logout Button - Top Left (RTL: Top Right) */}
+          <TouchableOpacity
+            onPress={handleSignOut}
+            data-testid="teacher-logout"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              backgroundColor: colors.error[50],
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            accessibilityLabel="התנתק"
+            accessibilityRole="button"
+          >
+            <LogOut size={20} color={colors.error[600]} />
+          </TouchableOpacity>
+        </View>
       </View>
       
       <ScrollView
@@ -197,26 +221,26 @@ export default function TeacherProfileScreen() {
           <MenuItem
             icon={<User size={20} color={colors.gray[700]} />}
             label="עריכת פרופיל"
-            onPress={() => router.push('/(profile)/edit-profile')}
+            onPress={() => router.push('/(teacher)/edit-teacher-profile')}
           />
           <MenuItem
             icon={<Settings size={20} color={colors.gray[700]} />}
             label="הגדרות"
-            onPress={() => router.push('/(profile)/settings')}
+            onPress={() => router.push('/(teacher)/settings')}
           />
           <MenuItem
             icon={<Bell size={20} color={colors.gray[700]} />}
             label="התראות"
-            onPress={() => router.push('/(profile)/notifications')}
+            onPress={() => router.push('/(teacher)/notifications')}
           />
         </View>
         
-        {/* Payment & Billing */}
+        {/* Reviews */}
         <View style={styles.menuSection}>
           <MenuItem
-            icon={<CreditCard size={20} color={colors.gray[700]} />}
-            label="אמצעי תשלום"
-            onPress={() => router.push('/(profile)/payment-methods')}
+            icon={<Star size={20} color={colors.gray[700]} />}
+            label="ביקורות"
+            onPress={() => router.push('/(teacher)/reviews')}
           />
         </View>
         
@@ -225,22 +249,12 @@ export default function TeacherProfileScreen() {
           <MenuItem
             icon={<HelpCircle size={20} color={colors.gray[700]} />}
             label="עזרה ותמיכה"
-            onPress={() => router.push('/(profile)/help')}
+            onPress={() => router.push('/(teacher)/help')}
           />
           <MenuItem
             icon={<Shield size={20} color={colors.gray[700]} />}
             label="פרטיות ואבטחה"
-            onPress={() => router.push('/(profile)/privacy')}
-          />
-        </View>
-        
-        {/* Sign Out */}
-        <View style={styles.menuSection}>
-          <MenuItem
-            icon={<LogOut size={20} color={colors.error[600]} />}
-            label="התנתק"
-            onPress={handleSignOut}
-            showChevron={false}
+            onPress={() => router.push('/(teacher)/privacy')}
           />
         </View>
         
