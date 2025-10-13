@@ -68,17 +68,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Transform snake_case to camelCase for consistency with TypeScript conventions
+      const row = data as any;
       const transformedProfile: Profile = {
-        id: data.id,
-        role: data.role,
-        displayName: data.display_name,
-        bio: data.bio,
-        avatarUrl: data.avatar_url,
-        videoUrl: data.video_url,
-        hourlyRate: data.hourly_rate,
-        subjects: data.subjects,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
+        id: row.id,
+        role: row.role,
+        displayName: row.display_name,
+        bio: row.bio,
+        avatarUrl: row.avatar_url,
+        videoUrl: row.video_url,
+        hourlyRate: row.hourly_rate,
+        subjects: row.subjects,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
       };
 
       console.log('✅ Profile loaded from Supabase:', transformedProfile.displayName, `(${transformedProfile.role})`);
@@ -109,17 +110,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single();
         
         // Transform to camelCase
-        const transformedProfile: Profile = profileData ? {
-          id: profileData.id,
-          role: profileData.role,
-          displayName: profileData.display_name,
-          bio: profileData.bio,
-          avatarUrl: profileData.avatar_url,
-          videoUrl: profileData.video_url,
-          hourlyRate: profileData.hourly_rate,
-          subjects: profileData.subjects,
-          createdAt: profileData.created_at,
-          updatedAt: profileData.updated_at,
+        const profileRow = profileData as any;
+        const transformedProfile: Profile | null = profileRow ? {
+          id: profileRow.id,
+          role: profileRow.role,
+          displayName: profileRow.display_name,
+          bio: profileRow.bio,
+          avatarUrl: profileRow.avatar_url,
+          videoUrl: profileRow.video_url,
+          hourlyRate: profileRow.hourly_rate,
+          subjects: profileRow.subjects,
+          createdAt: profileRow.created_at,
+          updatedAt: profileRow.updated_at,
         } : null;
         
         return { error: null, profile: transformedProfile };
@@ -222,7 +224,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       if (!session?.user) throw new Error('No user logged in');
 
-      const { error } = await supabase
+      // Cast to any to bypass TypeScript issues with Supabase types
+      const supabaseAny = supabase as any;
+      const { error } = await supabaseAny
         .from('profiles')
         .update(updates)
         .eq('id', session.user.id);
