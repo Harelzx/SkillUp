@@ -284,8 +284,8 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Subjects Chips - right aligned */}
-        {safeSubjects.length > 0 && (
+        {/* Subjects Chips - right aligned - TEMPORARILY DISABLED FOR DEBUGGING */}
+        {false && safeSubjects.length > 0 && (
           <View style={{
             flexDirection: 'row-reverse',
             flexWrap: 'wrap',
@@ -313,7 +313,7 @@ export default function HomeScreen() {
                     textAlign: 'right',
                   }}
                 >
-                  {String(subject || '')}
+                  {subject || ''}
                 </Typography>
               </View>
             ))}
