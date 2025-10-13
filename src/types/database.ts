@@ -22,6 +22,8 @@ export interface Database {
           display_name: string
           bio: string | null
           avatar_url: string | null
+          video_url: string | null
+          phone_number: string | null
           phone: string | null
           email: string | null
           location: string | null
@@ -39,6 +41,8 @@ export interface Database {
           display_name: string
           bio?: string | null
           avatar_url?: string | null
+          video_url?: string | null
+          phone_number?: string | null
           phone?: string | null
           email?: string | null
           location?: string | null
@@ -56,6 +60,8 @@ export interface Database {
           display_name?: string
           bio?: string | null
           avatar_url?: string | null
+          video_url?: string | null
+          phone_number?: string | null
           phone?: string | null
           email?: string | null
           location?: string | null
@@ -130,6 +136,7 @@ export interface Database {
           is_online: boolean
           location: string | null
           notes: string | null
+          cancelled_at: string | null
           cancellation_reason: string | null
           created_at: string
           updated_at: string
@@ -146,6 +153,7 @@ export interface Database {
           is_online?: boolean
           location?: string | null
           notes?: string | null
+          cancelled_at?: string | null
           cancellation_reason?: string | null
           created_at?: string
           updated_at?: string
@@ -162,6 +170,7 @@ export interface Database {
           is_online?: boolean
           location?: string | null
           notes?: string | null
+          cancelled_at?: string | null
           cancellation_reason?: string | null
           created_at?: string
           updated_at?: string
