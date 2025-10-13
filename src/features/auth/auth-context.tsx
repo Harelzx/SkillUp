@@ -1,13 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, Profile } from '@/lib/supabase';
-import { 
-  IS_DEV_MODE, 
-  validateDevUser, 
-  getDevUserProfile,
-  createDevSession,
-  isDevUser 
-} from '@/data/dev-users';
 
 interface AuthContextType {
   session: Session | null;
@@ -54,8 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string, retries = 3) => {
     try {
-      // Fetch profile from Supabase (real users only)
-      // DEV users are handled separately during sign in
+      // Fetch profile from Supabase
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -98,26 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // DEV Mode: Check for dev users first
-      if (IS_DEV_MODE && isDevUser(email)) {
-        console.log('🔧 DEV Mode: Attempting login with dev user:', email);
-        const devUser = validateDevUser(email, password);
-        
-        if (devUser) {
-          // Create mock session
-          const mockSession = createDevSession(devUser) as any;
-          setSession(mockSession);
-          setProfile(devUser.profile);
-          
-          console.log('✅ DEV Login successful! Role:', devUser.profile.role);
-          return { error: null, profile: devUser.profile };
-        } else {
-          console.log('❌ DEV Login failed: Invalid credentials');
-          throw new Error('Invalid email or password');
-        }
-      }
-
-      // Production: Use Supabase
+      // Sign in with Supabase
       const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -241,14 +214,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    // Clear state for both DEV and production
-    if (IS_DEV_MODE && session?.access_token?.startsWith('dev-token-')) {
-      console.log('🔧 DEV Mode: Signing out dev user');
-      setSession(null);
-      setProfile(null);
-      return;
-    }
-
     await supabase.auth.signOut();
     setProfile(null);
   };

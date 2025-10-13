@@ -280,7 +280,6 @@ The app uses Supabase Auth for user authentication:
 **Login Process**:
 1. User submits credentials
 2. Double-tap prevention: `if (isLoading) return`
-3. DEV check: `if (IS_DEV_MODE && isDevUser(email))`
 4. Mock auth or Supabase auth
 5. Profile fetch with role
 6. `redirectPostLogin(profile)` function

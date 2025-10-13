@@ -27,8 +27,6 @@ import {
 } from 'lucide-react-native';
 import { useRTL } from '@/context/RTLContext';
 import Svg, { Path } from 'react-native-svg';
-// DEV mode removed - users must signup/login normally
-// import { DevUsersHelper } from '@/components/dev/DevUsersHelper';
 import { useAuth } from '@/features/auth/auth-context';
 import { Profile } from '@/lib/supabase';
 
@@ -530,8 +528,6 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
           </View>
-
-          {/* DEV mode removed - users must signup/login normally */}
 
           {/* Sign Up Link */}
           <View style={[styles.signupContainer, { flexDirection: getFlexDirection() }]}>
