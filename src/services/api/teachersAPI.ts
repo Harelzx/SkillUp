@@ -40,7 +40,7 @@ export async function getTeachers(params?: {
     .from('teacher_profiles_with_stats')
     .select('*', { count: 'exact' })
     .eq('is_active', true)
-    .order('avg_rating', { ascending: false, nullsFirst: false });
+    .order('avg_rating', { ascending: false, nullsFirst: true });
 
   // Filter by subject
   if (params?.subjectId) {
