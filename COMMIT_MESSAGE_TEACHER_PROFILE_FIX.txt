@@ -1,0 +1,116 @@
+fix(teacher-profile): resolve PGRST204 error and improve profile save flow
+
+## Problem
+ShגיאהPGRST204: "Could not find the 'displayName' column of 'profiles'" 
+when saving teacher profile in app/(teacher)/edit-teacher-profile.tsx
+
+## Root Causes Identified
+1. Potential double form submission
+2. Unclear logging made debugging difficult
+3. Duplicate updateTeacherProfile functions causing conflicts
+
+## Changes
+
+### Core Fixes
+
+**app/(teacher)/edit-teacher-profile.tsx:**
+- Add preventDefault/stopPropagation to handleSave to prevent double submission
+- Add detailed [edit-teacher-profile] logging for debugging
+- Clean unused imports (React, Clock, MapPin, Book)
+- Remove unused state (POPULAR_SUBJECTS, selectedSubjects)
+- Fix Image style type error with type assertion
+
+**src/services/api/teacherAPI.ts:**
+- Add comprehensive [teacherAPI] logging with emojis for visibility
+- Log mapped snake_case payload before RPC call
+- Log RPC function name explicitly
+- Improve error logging with code, message, and full object
+- Maintain correct camelCase → snake_case mapping
+
+**src/services/api/teachersAPI.ts:**
+- Remove duplicate updateTeacherProfile function
+- Add comment explaining function moved to teacherAPI.ts
+- Resolve export conflicts
+
+### Supporting Files
+
+**New Documentation:**
+- TEACHER_PROFILE_FIX_QA.md: Comprehensive QA guide with expected logs
+- TEACHER_PROFILE_FIX_SUMMARY.md: Complete fix summary and commit instructions
+- CHECK_RPC_EXISTS.sql: SQL script to verify RPC existence
+
+**New Dev Tools (optional, not activated):**
+- src/lib/supabase-instrumented.ts: DB write logger for future debugging
+
+## How It Works Now
+
+```
+[User clicks "שמור שינויים"]
+         ↓
+[handleSave with preventDefault/stopPropagation]
+         ↓
+[updateTeacherProfile called with camelCase]
+         ↓
+[teacherAPI maps to snake_case]
+         ↓
+[RPC update_teacher_profile_simple with JSONB]
+         ↓
+[RPC updates profiles with correct column names]
+         ↓
+[SUCCESS! 🎉]
+```
+
+## Expected Logs (DEV)
+
+```
+🔵 [edit-teacher-profile] Save button pressed
+🔵 [edit-teacher-profile] handleSave called
+🔵 [edit-teacher-profile] Profile ID: <uuid>
+🔵 [edit-teacher-profile] Updates: { displayName: "...", hourlyRate: 180, ... }
+🔵 [edit-teacher-profile] Calling updateTeacherProfile...
+🔵 [teacherAPI] updateTeacherProfile called with: { teacherId: "...", updates: {...} }
+🔵 [teacherAPI] Mapped to snake_case for RPC: { display_name: "...", hourly_rate: 180, ... }
+🔵 [teacherAPI] Calling RPC: update_teacher_profile_simple
+✅ [teacherAPI] Profile update successful, result: { success: true, ... }
+✅ [edit-teacher-profile] Save completed successfully
+```
+
+## Testing
+
+1. Verify RPC exists: `psql -f CHECK_RPC_EXISTS.sql`
+2. Run app in DEV: `npm run start`
+3. Navigate to teacher profile edit and save
+4. Check logs match expected output above
+5. Verify no PGRST204 errors
+6. Verify changes saved in DB
+
+## Migration Required
+
+Ensure migration 015 is applied:
+```bash
+psql -h YOUR_HOST -U postgres -d YOUR_DB -f migrations/015_simple_teacher_update.sql
+```
+
+## Breaking Changes
+
+None - backward compatible
+
+## Related Issues
+
+- Fixes teacher profile save flow
+- Improves debugging with detailed logs
+- Resolves export conflicts
+
+## Files Changed
+
+Modified:
+- app/(teacher)/edit-teacher-profile.tsx (added logging, prevented double submit, cleanup)
+- src/services/api/teacherAPI.ts (enhanced logging)
+- src/services/api/teachersAPI.ts (removed duplicate)
+
+New:
+- TEACHER_PROFILE_FIX_QA.md (QA guide)
+- TEACHER_PROFILE_FIX_SUMMARY.md (complete summary)
+- CHECK_RPC_EXISTS.sql (verification script)
+- src/lib/supabase-instrumented.ts (optional debug tool)
+

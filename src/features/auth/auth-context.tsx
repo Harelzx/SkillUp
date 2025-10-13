@@ -47,14 +47,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string, retries = 3) => {
     try {
-      // Fetch profile from Supabase
+      // Fetch profile from Supabase - explicit columns to avoid cache issues
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, role, display_name, bio, avatar_url, video_url, phone_number, email, location, hourly_rate, experience_years, total_students, is_verified, is_active, created_at, updated_at, lesson_modes, duration_options, regions, timezone, teaching_style')
         .eq('id', userId)
         .single();
 
       if (error) {
+        // If cache issue (PGRST204), try with minimal columns
+        if (error.code === 'PGRST204') {
+          console.log('⚠️ Schema cache issue in fetchProfile, using fallback...');
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('profiles')
+            .select('id, role, display_name, bio, avatar_url, hourly_rate, location, created_at, updated_at')
+            .eq('id', userId)
+            .single();
+          
+          if (!fallbackError && fallbackData) {
+            const row = fallbackData as any;
+            const transformedProfile: Profile = {
+              id: row.id,
+              role: row.role,
+              displayName: row.display_name,
+              bio: row.bio,
+              avatarUrl: row.avatar_url,
+              videoUrl: undefined,
+              hourlyRate: row.hourly_rate,
+              subjects: [],
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+            };
+            console.log('✅ Profile loaded from Supabase (fallback):', transformedProfile.displayName, `(${transformedProfile.role})`);
+            setProfile(transformedProfile);
+            return;
+          }
+        }
+        
         // If profile not found (PGRST116) and we have retries left, wait and retry
         if (error.code === 'PGRST116' && retries > 0) {
           // Silent retry - no console spam
@@ -105,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Return the profile (it's now in state, but also return it directly)
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, role, display_name, bio, avatar_url, video_url, phone_number, email, location, hourly_rate, experience_years, total_students, is_verified, is_active, created_at, updated_at, lesson_modes, duration_options, regions, timezone, teaching_style')
           .eq('id', data.user.id)
           .single();
         
@@ -224,15 +253,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       if (!session?.user) throw new Error('No user logged in');
 
-      // Cast to any to bypass TypeScript issues with Supabase types
-      const supabaseAny = supabase as any;
-      const { error } = await supabaseAny
+      // Convert camelCase updates to snake_case for database
+      const dbUpdates: any = {};
+      if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
+      if (updates.bio !== undefined) dbUpdates.bio = updates.bio;
+      if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
+      if (updates.videoUrl !== undefined) dbUpdates.video_url = updates.videoUrl;
+      if (updates.hourlyRate !== undefined) dbUpdates.hourly_rate = updates.hourlyRate;
+
+      console.log('🔵 Updating profile in auth-context:', dbUpdates);
+
+      const { error } = await (supabase as any)
         .from('profiles')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', session.user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error in updateProfile:', error);
+        throw error;
+      }
 
+      console.log('✅ Profile updated in auth-context');
       await fetchProfile(session.user.id);
       return { error: null };
     } catch (error) {

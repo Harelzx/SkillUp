@@ -15,6 +15,7 @@ import { BookingStep5, type PaymentMethod } from '@/components/booking/BookingSt
 import { useQueryClient } from '@tanstack/react-query';
 import { useTeacherBookingData } from '@/hooks/useTeacherBookingData';
 import { useTeacherAvailability } from '@/hooks/useTeacherAvailability';
+import { useTeacherBookingRealtime } from '@/hooks/useTeacherBookingRealtime';
 
 const MOCK_AVAILABLE_CREDITS = 50;
 
@@ -67,6 +68,12 @@ export default function BookLessonScreen() {
     data: availability,
     isLoading: isLoadingAvailability,
   } = useTeacherAvailability(teacherId);
+
+  // Set up realtime subscriptions for availability and profile updates
+  useTeacherBookingRealtime({
+    teacherId,
+    enabled: !!teacherId,
+  });
 
   // Reset booking state when teacher changes
   useEffect(() => {

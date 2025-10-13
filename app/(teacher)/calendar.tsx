@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -21,6 +21,9 @@ import { Card } from '@/ui/Card';
 import { colors, spacing, shadows } from '@/theme/tokens';
 import { useRTL } from '@/context/RTLContext';
 import { getLessonsForDate, TeacherLesson } from '@/data/teacher-data';
+import { DayAvailabilityModal } from '@/components/teacher/DayAvailabilityModal';
+import { useAuth } from '@/features/auth/auth-context';
+import { subscribeToTeacherAvailability } from '@/services/api';
 
 interface CalendarDay {
   date: Date;
@@ -28,6 +31,7 @@ interface CalendarDay {
   isCurrentMonth: boolean;
   isToday: boolean;
   hasLessons: boolean;
+  hasSlots: boolean;
   lessons: TeacherLesson[];
 }
 
@@ -61,6 +65,7 @@ const getDaysInMonth = (year: number, month: number): CalendarDay[] => {
       isCurrentMonth: false,
       isToday: false,
       hasLessons: lessons.length > 0,
+      hasSlots: false, // We don't load slots for other months
       lessons,
     });
   }
@@ -78,6 +83,7 @@ const getDaysInMonth = (year: number, month: number): CalendarDay[] => {
       isCurrentMonth: true,
       isToday,
       hasLessons: lessons.length > 0,
+      hasSlots: false, // TODO: Load from availability_slots
       lessons,
     });
   }
@@ -95,6 +101,7 @@ const getDaysInMonth = (year: number, month: number): CalendarDay[] => {
       isCurrentMonth: false,
       isToday: false,
       hasLessons: lessons.length > 0,
+      hasSlots: false, // We don't load slots for other months
       lessons,
     });
   }
@@ -269,10 +276,13 @@ const DayModal: React.FC<DayModalProps> = ({ visible, day, onClose }) => {
 export default function TeacherCalendarScreen() {
   const { isRTL, direction } = useRTL();
   const { width: windowWidth } = useWindowDimensions();
+  const { profile } = useAuth();
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
@@ -288,7 +298,7 @@ export default function TeacherCalendarScreen() {
   
   const days = useMemo(
     () => getDaysInMonth(currentYear, currentMonth),
-    [currentYear, currentMonth]
+    [currentYear, currentMonth, refreshKey] // Add refreshKey to force recalculation
   );
   
   const goToPreviousMonth = () => {
@@ -304,9 +314,39 @@ export default function TeacherCalendarScreen() {
   };
   
   const handleDayPress = (day: CalendarDay) => {
-    setSelectedDay(day);
-    setModalVisible(true);
+    // If clicking on current or future date, open availability modal
+    // If clicking on past date with lessons, show lessons
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (day.date >= today) {
+      setSelectedDay(day);
+      setAvailabilityModalVisible(true);
+    } else if (day.hasLessons) {
+      setSelectedDay(day);
+      setModalVisible(true);
+    }
   };
+
+  const handleSlotsUpdated = () => {
+    // Refresh the calendar data
+    setRefreshKey(prev => prev + 1);
+  };
+
+  // Subscribe to realtime availability updates
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const unsubscribe = subscribeToTeacherAvailability(profile.id, (payload) => {
+      console.log('📡 Realtime availability update:', payload);
+      // Refresh calendar when availability changes
+      setRefreshKey(prev => prev + 1);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [profile?.id]);
   
   // Dynamic cell size based on available space
   const finalCellSize = Math.max(cellWidth, 42);
@@ -554,7 +594,7 @@ export default function TeacherCalendarScreen() {
           </View>
         </View>
         
-        {/* Legend */}
+        {/* Legend & Instructions */}
         <View
           style={{
             paddingHorizontal: spacing[4],
@@ -569,6 +609,9 @@ export default function TeacherCalendarScreen() {
               padding: spacing[3],
             }}
           >
+            <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[2] }}>
+              מקרא
+            </Typography>
             <View style={{ gap: spacing[2] }}>
               <View
                 style={{
@@ -623,16 +666,40 @@ export default function TeacherCalendarScreen() {
                 </Typography>
               </View>
             </View>
+            
+            <View
+              style={{
+                marginTop: spacing[3],
+                paddingTop: spacing[3],
+                borderTopWidth: 1,
+                borderTopColor: colors.gray[200],
+              }}
+            >
+              <Typography variant="caption" color="textSecondary">
+                💡 לחץ על תאריך כדי לנהל זמינות ומשבצות זמן
+              </Typography>
+            </View>
           </Card>
         </View>
       </ScrollView>
       
-      {/* Day Modal */}
+      {/* Day Lessons Modal (for past dates) */}
       <DayModal
         visible={modalVisible}
         day={selectedDay}
         onClose={() => setModalVisible(false)}
       />
+
+      {/* Day Availability Modal (for current/future dates) */}
+      {profile && selectedDay && (
+        <DayAvailabilityModal
+          visible={availabilityModalVisible}
+          date={selectedDay.date}
+          teacherId={profile.id}
+          onClose={() => setAvailabilityModalVisible(false)}
+          onSlotsUpdated={handleSlotsUpdated}
+        />
+      )}
     </SafeAreaView>
   );
 }

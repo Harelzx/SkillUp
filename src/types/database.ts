@@ -32,6 +32,11 @@ export interface Database {
           total_students: number
           is_verified: boolean
           is_active: boolean
+          lesson_modes: string[] | null
+          duration_options: number[] | null
+          regions: string[] | null
+          timezone: string | null
+          teaching_style: string | null
           created_at: string
           updated_at: string
         }
@@ -51,6 +56,11 @@ export interface Database {
           total_students?: number
           is_verified?: boolean
           is_active?: boolean
+          lesson_modes?: string[] | null
+          duration_options?: number[] | null
+          regions?: string[] | null
+          timezone?: string | null
+          teaching_style?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -70,6 +80,11 @@ export interface Database {
           total_students?: number
           is_verified?: boolean
           is_active?: boolean
+          lesson_modes?: string[] | null
+          duration_options?: number[] | null
+          regions?: string[] | null
+          timezone?: string | null
+          teaching_style?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -55,33 +55,37 @@ export function useTeacherBookingData(
         throw new Error('המורה לא הגדיר נושאי הוראה');
       }
 
-      // 3. Get teacher settings (if exists)
-      const { data: settings } = await supabase
-        .from('teacher_settings')
-        .select('*')
-        .eq('teacher_id', teacherId)
-        .maybeSingle();
+      // 3. Get teacher settings from profiles (lesson_modes, duration_options, etc.)
+      const { data: teacherSettings } = await supabase
+        .from('profiles')
+        .select('lesson_modes, duration_options, regions, timezone')
+        .eq('id', teacherId)
+        .single();
 
-      // 4. Determine supported lesson modes
-      // For now, we'll assume all modes are supported unless specified otherwise
-      // TODO: Add lesson_modes column to profiles or teacher_settings table
-      const lessonModes: BookingMode[] = ['online', 'student_location', 'teacher_location'];
+      // 4. Determine supported lesson modes from profile or default
+      const lessonModesRaw = teacherSettings?.lesson_modes || ['online', 'at_teacher', 'at_student'];
+      
+      // Map lesson modes to BookingMode format
+      const lessonModes: BookingMode[] = lessonModesRaw.map(mode => {
+        if (mode === 'at_teacher') return 'teacher_location';
+        if (mode === 'at_student') return 'student_location';
+        return 'online';
+      }) as BookingMode[];
 
-      // 5. Parse region/areas from location
-      // Format: "תל אביב" or "תל אביב, גוש דן" or structured data
+      // 5. Get regions from profile
+      const regions = teacherSettings?.regions || [];
       const location = profile.location || '';
-      const areas = location.split(',').map(a => a.trim()).filter(Boolean);
 
       // 6. Build the complete booking profile
       const bookingProfile: TeacherBookingProfile = {
         ...profile,
         subjects,
         lesson_modes: lessonModes,
-        region: areas[0] || location,
-        areas: areas.length > 1 ? areas : undefined,
-        duration_options: settings?.duration_options || [45, 60, 90],
-        max_students: settings?.max_students || 1,
-        notice_required_hours: settings?.notice_required_hours || 24,
+        region: regions[0] || location,
+        areas: regions.length > 1 ? regions : undefined,
+        duration_options: teacherSettings?.duration_options || [45, 60, 90],
+        max_students: 1,
+        notice_required_hours: 24,
       };
 
       return bookingProfile;

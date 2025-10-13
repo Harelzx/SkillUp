@@ -2,14 +2,44 @@
 // API Services - Central Export
 // ============================================
 
-// Teachers API
-export * from './teachersAPI';
+// Teachers API (for students - view teachers)
+export {
+  getTeacherById,
+  getTeachers,
+  getFeaturedTeachers,
+  getSubjects,
+  getSubjectsByCategory,
+  getTeacherSubjects,
+  getTeacherAvailability,
+  updateTeacherAvailability,
+  updateTeacherSubjects,
+} from './teachersAPI';
+
+// Teacher Management API (for teacher users - manage profile)
+export {
+  updateTeacherProfile,
+  getTeacherProfile,
+  getTeacherAvailabilitySlots,
+  upsertAvailabilitySlots,
+  closeDay,
+  openDay,
+  deleteAvailabilitySlot,
+  subscribeToTeacherAvailability,
+  subscribeToTeacherProfile,
+} from './teacherAPI';
 
 // Bookings API
 export * from './bookingsAPI';
 
-// Reviews API
-export * from './reviewsAPI';
+// Reviews API (avoiding duplicates from teachersAPI)
+export {
+  createReview,
+  updateReview,
+  deleteReview,
+  getReviewById,
+  getStudentReviews,
+  getReviewStats,
+} from './reviewsAPI';
 
 // Credits API
 export * from './creditsAPI';

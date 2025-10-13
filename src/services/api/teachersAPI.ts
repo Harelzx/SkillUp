@@ -143,7 +143,7 @@ export async function getTeacherSubjects(teacherId: string) {
     .eq('teacher_id', teacherId);
 
   if (error) throw error;
-  return data.map(item => item.subjects) as Subject[];
+  return data.map(item => (item as any).subjects) as Subject[];
 }
 
 // ============================================
@@ -189,7 +189,7 @@ export async function updateTeacherAvailability(
 
   const { data, error } = await supabase
     .from('teacher_availability')
-    .insert(availabilityData)
+    .insert(availabilityData as any)
     .select();
 
   if (error) throw error;
@@ -229,11 +229,11 @@ export async function getTeacherReviews(teacherId: string, limit?: number) {
 export async function getTeacherRatingStats(teacherId: string) {
   const { data: avgRating } = await supabase.rpc('get_teacher_avg_rating', {
     teacher_uuid: teacherId,
-  });
+  } as any);
 
   const { data: reviewCount } = await supabase.rpc('get_teacher_review_count', {
     teacher_uuid: teacherId,
-  });
+  } as any);
 
   return {
     avgRating: avgRating || 0,
@@ -245,31 +245,8 @@ export async function getTeacherRatingStats(teacherId: string) {
 // TEACHER PROFILE UPDATES (for teacher role)
 // ============================================
 
-/**
- * Update teacher profile
- */
-export async function updateTeacherProfile(
-  teacherId: string,
-  updates: Partial<{
-    display_name: string;
-    bio: string;
-    avatar_url: string;
-    hourly_rate: number;
-    experience_years: number;
-    location: string;
-  }>
-) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', teacherId)
-    .eq('role', 'teacher')
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
+// NOTE: updateTeacherProfile has been moved to teacherAPI.ts
+// It now uses RPC with JSONB to bypass PostgREST cache issues
 
 /**
  * Update teacher subjects
@@ -291,7 +268,7 @@ export async function updateTeacherSubjects(teacherId: string, subjectIds: strin
 
   const { data, error } = await supabase
     .from('teacher_subjects')
-    .insert(subjectData)
+    .insert(subjectData as any)
     .select();
 
   if (error) throw error;

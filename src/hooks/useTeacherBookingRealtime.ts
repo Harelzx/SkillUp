@@ -1,74 +1,61 @@
 /**
- * Hook for teacher calendar realtime updates
- * Subscribes to teacher-specific booking events
+ * Realtime updates for teacher booking data
+ * Subscribes to changes in teacher availability and profile
  */
 
-import { useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { subscribeToTeacherAvailability, subscribeToTeacherProfile } from '@/services/api';
 
-interface BookingRealtimeEvent {
-  type: 'slot_booked' | 'slot_released' | 'booking_rescheduled';
-  booking_id: string;
-  start_at: string;
-  end_at: string;
-  old_start_at?: string;
-  old_end_at?: string;
-  new_start_at?: string;
-  new_end_at?: string;
+interface UseTeacherBookingRealtimeOptions {
+  teacherId: string | null | undefined;
+  enabled?: boolean;
 }
 
-export function useTeacherBookingRealtime(
-  teacherId: string | null,
-  onBookingUpdate: (event: BookingRealtimeEvent) => void
-) {
-  const handleRealtimeEvent = useCallback((payload: any) => {
-    console.log('[Realtime] Teacher event:', payload);
-    
-    try {
-      const event = JSON.parse(payload.payload) as BookingRealtimeEvent;
-      onBookingUpdate(event);
-    } catch (error) {
-      console.error('[Realtime] Failed to parse event:', error);
-    }
-  }, [onBookingUpdate]);
+/**
+ * Hook to set up realtime subscriptions for teacher booking data
+ * Automatically invalidates queries when changes occur
+ * 
+ * @param options - Configuration options
+ */
+export function useTeacherBookingRealtime(options: UseTeacherBookingRealtimeOptions) {
+  const { teacherId, enabled = true } = options;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!teacherId) return;
+    if (!enabled || !teacherId) return;
 
-    let channel: RealtimeChannel | null = null;
+    console.log(`📡 Setting up realtime subscriptions for teacher: ${teacherId}`);
 
-    const setupSubscription = async () => {
-      // Subscribe to teacher-specific channel
-      channel = supabase.channel(`teacher:${teacherId}`)
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'bookings',
-          filter: `teacher_id=eq.${teacherId}`,
-        }, (payload) => {
-          console.log('[Realtime] Booking table change:', payload);
-          // Trigger a refresh when bookings table changes
-          onBookingUpdate({
-            type: 'slot_booked',
-            booking_id: payload.new?.id || payload.old?.id,
-            start_at: payload.new?.start_at || payload.old?.start_at,
-            end_at: payload.new?.end_at || payload.old?.end_at,
-          });
-        })
-        .subscribe((status) => {
-          console.log(`[Realtime] Teacher channel status: ${status}`);
-        });
-    };
+    // Subscribe to availability changes
+    const unsubscribeAvailability = subscribeToTeacherAvailability(teacherId, (payload) => {
+      console.log('📡 Realtime: Availability updated', payload);
+      
+      // Invalidate availability queries
+      queryClient.invalidateQueries({
+        queryKey: ['teacher-availability', teacherId],
+      });
+    });
 
-    setupSubscription();
+    // Subscribe to profile changes
+    const unsubscribeProfile = subscribeToTeacherProfile(teacherId, (payload) => {
+      console.log('📡 Realtime: Profile updated', payload);
+      
+      // Invalidate profile and booking data queries
+      queryClient.invalidateQueries({
+        queryKey: ['teacher-booking-data', teacherId],
+      });
+      
+      queryClient.invalidateQueries({
+        queryKey: ['teacher', teacherId],
+      });
+    });
 
+    // Cleanup on unmount
     return () => {
-      if (channel) {
-        console.log('[Realtime] Unsubscribing from teacher channel');
-        supabase.removeChannel(channel);
-      }
+      console.log(`📡 Cleaning up realtime subscriptions for teacher: ${teacherId}`);
+      unsubscribeAvailability();
+      unsubscribeProfile();
     };
-  }, [teacherId, handleRealtimeEvent, onBookingUpdate]);
+  }, [teacherId, enabled, queryClient]);
 }
-
