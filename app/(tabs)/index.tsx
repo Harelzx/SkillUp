@@ -117,8 +117,10 @@ export default function HomeScreen() {
     }
 
     // Ensure subjects is always an array - keep original values from API, filter out empty strings
-    const safeSubjects = Array.isArray(item.subjects)
-      ? item.subjects.filter((s: any) => s && String(s).trim() !== '')
+    // API returns either 'subjects' or 'subject_names'
+    const subjectData = (item as any).subject_names || item.subjects || [];
+    const safeSubjects = Array.isArray(subjectData)
+      ? subjectData.filter((s: any) => s && String(s).trim() !== '')
       : [];
 
     return (
