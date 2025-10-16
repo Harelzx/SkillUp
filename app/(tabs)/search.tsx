@@ -107,7 +107,7 @@ export default function SearchScreen() {
 
   // Fetch teachers from API with filters
   const { data: teachersData, isLoading: loadingTeachers } = useQuery({
-    queryKey: ['teachers', selectedCategory, selectedCity, priceRange, selectedRating, searchQuery],
+    queryKey: ['teachers', selectedCategory, selectedCity, priceRange, selectedRating],
     queryFn: async () => {
       const params: any = {
         limit: 100,
@@ -131,10 +131,8 @@ export default function SearchScreen() {
       params.minRate = priceRange[0];
       params.maxRate = priceRange[1];
 
-      // Add search query
-      if (searchQuery.trim()) {
-        params.searchQuery = searchQuery.trim();
-      }
+      // Don't send searchQuery to API - filter client-side instead
+      // This allows searching in subjects (which are arrays)
 
       const result = await getTeachers(params);
       return result.teachers.map((t: any) => {

@@ -60,8 +60,11 @@ export async function getTeachers(params?: {
     query = query.lte('hourly_rate', params.maxRate);
   }
 
-  // Search by name or bio
+  // Search by name, bio, or subjects
   if (params?.searchQuery) {
+    // Search in display_name, bio
+    // Note: PostgreSQL array to text search requires RPC or textSearch
+    // For now, we search name and bio, then filter subjects client-side
     query = query.or(
       `display_name.ilike.%${params.searchQuery}%,bio.ilike.%${params.searchQuery}%`
     );
