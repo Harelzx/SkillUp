@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Tabs, useRouter } from 'expo-router';
+import { useEffect, useState, useCallback } from 'react';
+import { Tabs, useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { View, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,12 +7,14 @@ import { Home, Calendar, User } from 'lucide-react-native';
 import { colors } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/auth-context';
 import { Typography } from '@/ui/Typography';
+import TeacherOnboardingModal from '@/components/teacher/TeacherOnboardingModal';
 
 export default function TeacherLayout() {
   const { t } = useTranslation();
   const { profile, isLoading } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Guard: Redirect if not a teacher
   useEffect(() => {
@@ -21,6 +23,25 @@ export default function TeacherLayout() {
       router.replace('/(tabs)');
     }
   }, [profile, isLoading, router]);
+
+  // Check if teacher needs to complete onboarding
+  useEffect(() => {
+    if (!isLoading && profile && profile.role === 'teacher') {
+      const needsOnboarding = !profile.profileCompleted;
+      console.log('🔍 [TeacherLayout] Checking onboarding status:', {
+        profileCompleted: profile.profileCompleted,
+        needsOnboarding,
+      });
+      setShowOnboarding(needsOnboarding);
+    }
+  }, [profile, isLoading]);
+
+  // Refetch profile when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 [TeacherLayout] Screen focused');
+    }, [])
+  );
 
   // Show loading state while checking auth
   if (isLoading) {
@@ -45,6 +66,19 @@ export default function TeacherLayout() {
           {t('teacher.accessDeniedMessage', 'ממשק זה מיועד למורים בלבד')}
         </Typography>
       </View>
+    );
+  }
+
+  // Show onboarding modal if profile not completed
+  if (showOnboarding) {
+    return (
+      <TeacherOnboardingModal
+        teacherId={profile.id}
+        onComplete={() => {
+          console.log('✅ [TeacherLayout] Onboarding completed');
+          setShowOnboarding(false);
+        }}
+      />
     );
   }
 
