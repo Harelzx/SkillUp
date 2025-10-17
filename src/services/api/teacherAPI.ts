@@ -236,6 +236,11 @@ export async function upsertAvailabilitySlots(
   date: string,  // YYYY-MM-DD
   slots: SlotInput[]
 ): Promise<{ success: boolean; slotsInserted: number }> {
+  console.log('🔵 [teacherAPI] upsertAvailabilitySlots called');
+  console.log('   Teacher ID:', teacherId);
+  console.log('   Date:', date);
+  console.log('   Slots:', JSON.stringify(slots, null, 2));
+
   const { data, error } = await supabase.rpc('upsert_availability_slots', {
     p_teacher_id: teacherId,
     p_date: date,
@@ -243,17 +248,26 @@ export async function upsertAvailabilitySlots(
   } as any);
 
   if (error) {
-    console.error('❌ Error upserting availability slots:', error);
-    
+    console.error('❌ [teacherAPI] Error upserting availability slots:', error);
+    console.error('   Error code:', error.code);
+    console.error('   Error message:', error.message);
+    console.error('   Error details:', error.details);
+    console.error('   Error hint:', error.hint);
+
     // Provide user-friendly error messages
     if (error.code === '23505') {
       throw new Error('חלק מהמשבצות חופפות להזמנות קיימות או משבצות אחרות');
     } else if (error.code === '22000') {
       throw new Error('ערכי זמן לא תקינים. אנא בדוק שהשעות נכונות');
+    } else if (error.code === '42883') {
+      throw new Error('הפונקציה upsert_availability_slots לא קיימת. הרץ migration 014');
     }
-    
+
     throw new Error(error.message);
   }
+
+  console.log('✅ [teacherAPI] upsert_availability_slots succeeded');
+  console.log('   Response:', data);
 
   const result = data as any;
   return {
@@ -303,6 +317,11 @@ export async function openDay(
     slotDuration?: number;      // minutes
   }
 ): Promise<{ success: boolean; slotsCreated: number }> {
+  console.log('🔵 [teacherAPI] openDay called');
+  console.log('   Teacher ID:', teacherId);
+  console.log('   Date:', date);
+  console.log('   Options:', options);
+
   const { data, error } = await supabase.rpc('open_day', {
     p_teacher_id: teacherId,
     p_date: date,
@@ -312,9 +331,20 @@ export async function openDay(
   } as any);
 
   if (error) {
-    console.error('❌ Error opening day:', error);
+    console.error('❌ [teacherAPI] Error opening day:', error);
+    console.error('   Error code:', error.code);
+    console.error('   Error message:', error.message);
+    console.error('   Error details:', error.details);
+
+    if (error.code === '42883') {
+      throw new Error('הפונקציה open_day לא קיימת. הרץ migration 014');
+    }
+
     throw new Error(error.message);
   }
+
+  console.log('✅ [teacherAPI] open_day succeeded');
+  console.log('   Response:', data);
 
   const result = data as any;
   return {

@@ -73,6 +73,8 @@ export interface Profile {
   id: string;
   role: 'teacher' | 'student';
   displayName: string;
+  email?: string;
+  phoneNumber?: string;
   bio?: string;
   avatarUrl?: string;
   videoUrl?: string;
@@ -80,6 +82,7 @@ export interface Profile {
   subjects?: string[];
   createdAt: string;
   updatedAt: string;
+  profileCompleted?: boolean; // Indicates if teacher has completed onboarding
 }
 
 /** @deprecated Use Subject from @/src/types/api */

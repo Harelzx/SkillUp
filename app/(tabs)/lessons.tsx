@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import {
   Calendar,
@@ -71,10 +71,12 @@ export default function LessonsScreen() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Fetch upcoming lessons from API
-  const { data: upcomingBookings = [], isLoading: loadingUpcoming } = useQuery({
+  const { data: upcomingBookings = [], isLoading: loadingUpcoming, refetch: refetchUpcoming } = useQuery({
     queryKey: ['myBookings', 'upcoming'],
     queryFn: async () => {
+      console.log('🔄 [Lessons] Fetching upcoming bookings...');
       const bookings = await getMyBookings({ upcoming: true });
+      console.log('✅ [Lessons] Fetched', bookings.length, 'upcoming bookings');
       return bookings.map((b: any) => ({
         id: b.id,
         teacherId: b.teacher_id,
@@ -90,10 +92,12 @@ export default function LessonsScreen() {
   });
 
   // Fetch past lessons from API
-  const { data: pastBookings = [], isLoading: loadingPast } = useQuery({
+  const { data: pastBookings = [], isLoading: loadingPast, refetch: refetchPast } = useQuery({
     queryKey: ['myBookings', 'past'],
     queryFn: async () => {
+      console.log('🔄 [Lessons] Fetching past bookings...');
       const bookings = await getMyBookings({ upcoming: false });
+      console.log('✅ [Lessons] Fetched', bookings.length, 'past bookings');
       return bookings.map((b: any) => ({
         id: b.id,
         teacherId: b.teacher_id,
@@ -107,6 +111,15 @@ export default function LessonsScreen() {
       }));
     },
   });
+
+  // Refetch bookings when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('🔍 [Lessons] Screen focused - refetching bookings');
+      refetchUpcoming();
+      refetchPast();
+    }, [refetchUpcoming, refetchPast])
+  );
 
   // Fetch teacher availability for rescheduling
   const { data: availability = [] } = useQuery({

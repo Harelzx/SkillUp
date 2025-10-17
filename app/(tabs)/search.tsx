@@ -7,17 +7,10 @@ import {
   FlatList,
   ActivityIndicator,
   Image,
+  Modal,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getTeachers, getSubjects } from '@/services/api';
-import {
-  BottomSheet,
-  BottomSheetPortal,
-  BottomSheetTrigger,
-  BottomSheetContent,
-  BottomSheetScrollView,
-  BottomSheetBackdrop,
-} from '../../components/ui/bottomsheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -88,6 +81,7 @@ export default function SearchScreen() {
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'rating' | 'price_low' | 'price_high' | 'reviews'>('rating');
   const [isSearching, setIsSearching] = useState(false);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
   
   // Get category from URL params
   const incomingCategory = params.category as string | undefined;
@@ -159,8 +153,6 @@ export default function SearchScreen() {
 
   const mockTeachers: Teacher[] = teachersData || [];
 
-  // Bottom Sheet
-  const snapPoints = useMemo(() => ['50%', '85%'], []);
   const [recentSearches, setRecentSearches] = useState<string[]>([
     'מתמטיקה לבגרות',
     'אנגלית מדוברת',
@@ -295,12 +287,21 @@ export default function SearchScreen() {
 
   const renderTeacherCard = ({ item }: { item: Teacher }) => {
     // Safety check
-    if (!item || !item.id || !item.displayName) {
+    if (!item || !item.id) {
       return null;
     }
 
-    // Ensure subjects is always an array - keep original values from API
-    const safeSubjects = Array.isArray(item.subjects) ? item.subjects : [];
+    // Ensure all fields are strings
+    const safeName = String(item.displayName || 'לא ידוע');
+    const safeBio = String(item.bio || '');
+    const safeRate = Number(item.hourlyRate) || 0;
+    const safeRating = Number(item.rating) || 0;
+    const safeReviews = Number(item.totalReviews) || 0;
+
+    // Ensure subjects is always an array - convert all to strings and filter empty
+    const safeSubjects = Array.isArray(item.subjects)
+      ? item.subjects.map((s: any) => String(s || '')).filter((s: string) => s.trim() !== '')
+      : [];
 
     return (
     <TouchableOpacity
@@ -320,7 +321,7 @@ export default function SearchScreen() {
                 />
               ) : (
                 <Typography variant="h5" color="white" weight="bold">
-                  {String(item.displayName ? item.displayName.charAt(0) : '?')}
+                  {safeName.charAt(0) || '?'}
                 </Typography>
               )}
             </View>
@@ -328,10 +329,10 @@ export default function SearchScreen() {
             {/* Info */}
             <View style={styles.teacherInfo}>
               <Typography variant="body1" weight="semibold" numberOfLines={1} style={{ textAlign: 'right' }}>
-                {String(item.displayName || 'לא ידוע')}
+                {safeName}
               </Typography>
               <Typography variant="caption" color="textSecondary" numberOfLines={2} style={{ textAlign: 'right' }}>
-                {String(item.bio || '')}
+                {safeBio}
               </Typography>
 
               {/* Subjects */}
@@ -340,7 +341,7 @@ export default function SearchScreen() {
                   {safeSubjects.slice(0, 2).map((subject, idx) => (
                     <View key={idx} style={styles.subjectBadge}>
                       <Typography variant="caption" color="primary" style={{ fontSize: 10 }}>
-                        {subject ? String(subject) : ''}
+                        {subject}
                       </Typography>
                     </View>
                   ))}
@@ -350,25 +351,31 @@ export default function SearchScreen() {
 
             {/* Price & Rating */}
             <View style={styles.teacherMeta}>
-              {item.rating && item.rating > 0 && (
-                <View style={[styles.ratingRow, { flexDirection: 'row', justifyContent: 'flex-start' }]}>
-                  <Typography variant="caption" style={{ marginLeft: 2 }}>
-                    ({String(item.totalReviews || 0)})
+              <View style={[styles.ratingRow, { flexDirection: 'row', justifyContent: 'flex-start' }]}>
+                {safeRating > 0 ? (
+                  <>
+                    <Typography variant="caption" style={{ marginLeft: 2 }}>
+                      {`(${safeReviews})`}
+                    </Typography>
+                    <Typography variant="caption" style={{ marginHorizontal: 2 }}>
+                      {safeRating.toFixed(1)}
+                    </Typography>
+                  </>
+                ) : (
+                  <Typography variant="caption" color="textSecondary" style={{ marginHorizontal: 2 }}>
+                    {'חדש'}
                   </Typography>
-                  <Typography variant="caption" style={{ marginHorizontal: 2 }}>
-                    {String(item.rating.toFixed(1))}
-                  </Typography>
-                  <View style={{ marginRight: 2 }}>
-                    <Star size={12} color={colors.warning[500]} fill={colors.warning[500]} />
-                  </View>
+                )}
+                <View style={{ marginRight: 2 }}>
+                  <Star size={12} color={colors.warning[500]} fill={colors.warning[500]} />
                 </View>
-              )}
+              </View>
               <Typography variant="body2" weight="semibold" color="primary" style={{ textAlign: 'right', marginTop: spacing[1] }}>
-                ₪{String(item.hourlyRate || 0)}/שעה
+                {`₪${safeRate}/שעה`}
               </Typography>
               {item.nextAvailable && (
                 <Typography variant="caption" color="success" style={{ marginTop: 2, textAlign: 'right' }}>
-                  {String(item.nextAvailable)}
+                  {String(item.nextAvailable || '')}
                 </Typography>
               )}
             </View>
@@ -564,55 +571,10 @@ export default function SearchScreen() {
       backgroundColor: 'rgba(0, 0, 0, 0.3)',
       justifyContent: 'flex-end',
     },
-    modalBackdrop: {
-      flex: 1,
-    },
-    bottomSheet: {
-      backgroundColor: colors.white,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      maxHeight: '80%',
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: -4,
-      },
-      shadowOpacity: 0.1,
-      shadowRadius: 12,
-      elevation: 8,
-    },
-    bottomSheetHeader: {
-      alignItems: 'center',
-      paddingTop: spacing[2],
-      borderBottomWidth: 1,
-      borderBottomColor: colors.gray[200],
-    },
-    bottomSheetHandle: {
-      width: 40,
-      height: 4,
-      backgroundColor: colors.gray[300],
-      borderRadius: 2,
-    },
-    bottomSheetContent: {
-      paddingHorizontal: spacing[4],
-      paddingVertical: spacing[3],
-    },
-    bottomSheetActions: {
-      padding: spacing[4],
-      borderTopWidth: 1,
-      borderTopColor: colors.gray[200],
-    },
-    applyFiltersButton: {
-      backgroundColor: colors.primary[600],
-      borderRadius: 12,
-      paddingVertical: spacing[3],
-      alignItems: 'center',
-    },
   });
 
   return (
-    <BottomSheet>
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         {/* Greeting or Category Title */}
@@ -620,15 +582,15 @@ export default function SearchScreen() {
           {incomingCategory && categoryNames[incomingCategory] ? (
             <>
               <Typography variant="h4" weight="bold" style={{ textAlign: 'right' }}>
-                {categoryNames[incomingCategory]}
+                {String(categoryNames[incomingCategory] || '')}
               </Typography>
               <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right', marginTop: spacing[1] }}>
-                מורים מומחים בתחום
+                {'מורים מומחים בתחום'}
               </Typography>
             </>
           ) : (
             <Typography variant="h4" weight="bold" style={{ textAlign: 'right' }}>
-              מה נלמד היום? 🎓
+              {'מה נלמד היום? 🎓'}
             </Typography>
           )}
         </View>
@@ -649,9 +611,9 @@ export default function SearchScreen() {
               <X size={18} color={colors.gray[600]} />
             </TouchableOpacity>
           )}
-          <BottomSheetTrigger style={styles.filterButton}>
+          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFiltersModal(true)}>
             <SlidersHorizontal size={20} color={colors.primary[600]} />
-          </BottomSheetTrigger>
+          </TouchableOpacity>
         </View>
 
         {/* Popular Subjects - Horizontal Scroll */}
@@ -672,14 +634,14 @@ export default function SearchScreen() {
               >
                 <View style={styles.categoryContent}>
                   <Typography style={{ fontSize: 16, marginHorizontal: spacing[1] }}>
-                    {item.icon}
+                    {String(item.icon || '')}
                   </Typography>
                   <Typography
                     variant="body2"
                     weight={selectedCategory === item.id ? 'semibold' : 'normal'}
                     color={selectedCategory === item.id ? 'primary' : 'text'}
                   >
-                    {item.name}
+                    {String(item.name || '')}
                   </Typography>
                 </View>
               </TouchableOpacity>
@@ -696,7 +658,7 @@ export default function SearchScreen() {
           {recentSearches.length > 0 && (
             <View style={styles.recentSearches}>
               <Typography variant="h6" weight="semibold" style={{ marginBottom: spacing[2], textAlign: 'right' }}>
-                חיפושים אחרונים
+                {'חיפושים אחרונים'}
               </Typography>
               <View style={[{ flexDirection: getFlexDirection(), flexWrap: 'wrap' }]}>
                 {recentSearches.map((search, idx) => (
@@ -706,7 +668,7 @@ export default function SearchScreen() {
                     onPress={() => handleRecentSearch(search)}
                   >
                     <Typography variant="body2" color="text">
-                      {search}
+                      {String(search || '')}
                     </Typography>
                   </TouchableOpacity>
                 ))}
@@ -719,7 +681,7 @@ export default function SearchScreen() {
             <View style={[{ flexDirection: 'row-reverse', alignItems: 'center', marginBottom: spacing[3] }]}>
               <TrendingUp size={20} color={colors.primary[600]} />
               <Typography variant="h6" weight="semibold" style={{ marginHorizontal: spacing[2], textAlign: 'right' }}>
-                מורים פופולריים השבוע
+                {'מורים פופולריים השבוע'}
               </Typography>
             </View>
             {mockTeachers.slice(0, 3).map((teacher) => (
@@ -801,7 +763,7 @@ export default function SearchScreen() {
                   }}
                 >
                   <Typography variant="body2" color="white" weight="semibold">
-                    חזור לכל הקטגוריות
+                    {'חזור לכל הקטגוריות'}
                   </Typography>
                 </TouchableOpacity>
               )}
@@ -810,19 +772,27 @@ export default function SearchScreen() {
         </View>
       )}
 
-      {/* Bottom Sheet for Filters */}
-      <BottomSheetPortal
-        snapPoints={snapPoints}
-        backdropComponent={BottomSheetBackdrop}
+      {/* Modal for Filters */}
+      <Modal
+        visible={showFiltersModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowFiltersModal(false)}
       >
-        <BottomSheetContent style={styles.bottomSheetContent}>
-          <View style={styles.bottomSheetHeader}>
-            <Typography variant="h6" weight="semibold" style={{ textAlign: 'center', marginVertical: spacing[3] }}>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Typography variant="h6" weight="semibold" style={{ textAlign: 'center', flex: 1 }}>
               סינון וחיפוש מתקדם
             </Typography>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowFiltersModal(false)}
+            >
+              <X size={24} color={colors.gray[600]} />
+            </TouchableOpacity>
           </View>
 
-          <BottomSheetScrollView style={styles.bottomSheetScrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
             {/* City Filter */}
             <View style={styles.filterRow}>
               <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[2] }}>
@@ -843,7 +813,7 @@ export default function SearchScreen() {
                         variant="caption"
                         color={selectedCity === city ? 'white' : 'text'}
                       >
-                        {city}
+                        {String(city)}
                       </Typography>
                     </TouchableOpacity>
                   ))}
@@ -854,7 +824,7 @@ export default function SearchScreen() {
             {/* Price Range */}
             <View style={styles.filterRow}>
               <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[2] }}>
-                טווח מחירים: ₪{priceRange[0]} - ₪{priceRange[1]} לשעה
+                {`טווח מחירים: ₪${priceRange[0]} - ₪${priceRange[1]} לשעה`}
               </Typography>
               <View style={styles.priceRangeContainer}>
                 <TouchableOpacity
@@ -868,7 +838,7 @@ export default function SearchScreen() {
                     variant="caption"
                     color={priceRange[0] === 50 && priceRange[1] === 150 ? 'white' : 'text'}
                   >
-                    ₪50-150
+                    {'₪50-150'}
                   </Typography>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -882,7 +852,7 @@ export default function SearchScreen() {
                     variant="caption"
                     color={priceRange[0] === 150 && priceRange[1] === 200 ? 'white' : 'text'}
                   >
-                    ₪150-200
+                    {'₪150-200'}
                   </Typography>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -896,7 +866,7 @@ export default function SearchScreen() {
                     variant="caption"
                     color={priceRange[0] === 200 && priceRange[1] === 300 ? 'white' : 'text'}
                   >
-                    ₪200+
+                    {'₪200+'}
                   </Typography>
                 </TouchableOpacity>
               </View>
@@ -905,7 +875,7 @@ export default function SearchScreen() {
             {/* Rating Filter */}
             <View style={styles.filterRow}>
               <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[2] }}>
-                דירוג מינימלי
+                {'דירוג מינימלי'}
               </Typography>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={[{ flexDirection: getFlexDirection() }]}>
@@ -928,7 +898,7 @@ export default function SearchScreen() {
                         color={selectedRating === rating ? 'white' : 'text'}
                         style={{ marginLeft: spacing[1] }}
                       >
-                        {rating}+
+                        {`${rating}+`}
                       </Typography>
                     </TouchableOpacity>
                   ))}
@@ -940,25 +910,27 @@ export default function SearchScreen() {
             {(selectedCity !== 'הכל' || priceRange[0] !== 50 || priceRange[1] !== 300 || selectedRating) && (
               <TouchableOpacity style={styles.clearFiltersButton} onPress={clearAllFilters}>
                 <Typography variant="caption" color="textSecondary" weight="medium">
-                  נקה פילטרים
+                  {'נקה פילטרים'}
                 </Typography>
               </TouchableOpacity>
             )}
-          </BottomSheetScrollView>
+          </ScrollView>
 
-          {/* Bottom Sheet Actions */}
-          <View style={styles.bottomSheetActions}>
-            <TouchableOpacity style={styles.applyFiltersButton}>
+          {/* Modal Actions */}
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={styles.applyFiltersButton}
+              onPress={() => setShowFiltersModal(false)}
+            >
               <Typography variant="body2" color="white" weight="semibold">
-                החל פילטרים ({String(filteredTeachers.length)} מורים)
+                {`החל פילטרים (${filteredTeachers.length} מורים)`}
               </Typography>
             </TouchableOpacity>
           </View>
-        </BottomSheetContent>
-      </BottomSheetPortal>
+        </SafeAreaView>
+      </Modal>
 
-      </SafeAreaView>
-    </BottomSheet>
+    </SafeAreaView>
   );
 }
 
@@ -1038,17 +1010,26 @@ const styles = createStyle({
     alignItems: 'center',
     paddingBottom: spacing[8],
   },
-  // Bottom Sheet Styles
-  bottomSheetContent: {
+  // Modal Styles
+  modalContainer: {
     flex: 1,
     backgroundColor: colors.white,
   },
-  bottomSheetScrollContent: {
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing[4],
-  },
-  bottomSheetHeader: {
+    paddingVertical: spacing[3],
     borderBottomWidth: 1,
     borderBottomColor: colors.gray[200],
+  },
+  modalCloseButton: {
+    padding: spacing[2],
+  },
+  modalScrollContent: {
+    flex: 1,
+    paddingHorizontal: spacing[4],
   },
   filterRow: {
     marginVertical: spacing[4],
@@ -1083,7 +1064,7 @@ const styles = createStyle({
     paddingHorizontal: spacing[4],
     marginTop: spacing[2],
   },
-  bottomSheetActions: {
+  modalActions: {
     padding: spacing[4],
     borderTopWidth: 1,
     borderTopColor: colors.gray[200],

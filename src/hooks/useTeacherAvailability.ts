@@ -53,6 +53,12 @@ export function useTeacherAvailability(
       const now = new Date();
       const futureDate = addDays(now, daysAhead);
 
+      console.log('🔍 [useTeacherAvailability] Fetching for teacher:', teacherId);
+      console.log('📅 [useTeacherAvailability] Date range:', {
+        from: now.toISOString(),
+        to: futureDate.toISOString(),
+      });
+
       // 1. Fetch availability slots
       const { data: slots, error: slotsError } = await supabase
         .from('availability_slots')
@@ -63,7 +69,16 @@ export function useTeacherAvailability(
         .lte('start_at', futureDate.toISOString())
         .order('start_at');
 
-      if (slotsError) throw slotsError;
+      console.log('📊 [useTeacherAvailability] Raw slots from DB:', slots?.length || 0);
+      if (slots && slots.length > 0) {
+        console.log('   First slot:', slots[0].start_at);
+        console.log('   Last slot:', slots[slots.length - 1].start_at);
+      }
+
+      if (slotsError) {
+        console.error('❌ [useTeacherAvailability] Error fetching slots:', slotsError);
+        throw slotsError;
+      }
 
       // 2. Fetch confirmed/awaiting_payment bookings to filter overlaps
       const { data: bookings, error: bookingsError } = await supabase
@@ -93,6 +108,8 @@ export function useTeacherAvailability(
         return !hasOverlap;
       });
 
+      console.log('📊 [useTeacherAvailability] After booking overlap filter:', availableSlots.length);
+
       // 4. Group slots by date
       const slotsByDate = new Map<string, AvailabilitySlot[]>();
 
@@ -111,6 +128,9 @@ export function useTeacherAvailability(
           booking_id: slot.booking_id,
         });
       });
+
+      console.log('🗺️ [useTeacherAvailability] Grouped into', slotsByDate.size, 'days');
+      console.log('📆 [useTeacherAvailability] Dates with availability:', Array.from(slotsByDate.keys()).slice(0, 5));
 
       // 5. Build day availability array
       const daysAvailability: DayAvailability[] = [];

@@ -112,15 +112,21 @@ export default function HomeScreen() {
 
   const renderTeacherCard = ({ item }: { item: Teacher }) => {
     // Safety check - ensure all required fields exist
-    if (!item || !item.id || !item.displayName) {
+    if (!item || !item.id) {
       return null;
     }
 
-    // Ensure subjects is always an array - keep original values from API, filter out empty strings
+    // Ensure all fields are strings/numbers
+    const safeName = String(item.displayName || 'לא ידוע');
+    const safeRate = Number(item.hourlyRate) || 0;
+    const safeRating = Number(item.rating) || 0;
+    const safeReviews = Number(item.totalReviews) || 0;
+
+    // Ensure subjects is always an array - convert all to strings and filter empty
     // API returns either 'subjects' or 'subject_names'
     const subjectData = (item as any).subject_names || item.subjects || [];
     const safeSubjects = Array.isArray(subjectData)
-      ? subjectData.filter((s: any) => s && String(s).trim() !== '')
+      ? subjectData.map((s: any) => String(s || '')).filter((s: string) => s.trim() !== '')
       : [];
 
     return (
@@ -176,7 +182,7 @@ export default function HomeScreen() {
                 />
               ) : (
                 <Typography variant="body2" color="white" weight="bold">
-                  {String(item.displayName ? item.displayName.charAt(0) : '?')}
+                  {safeName.charAt(0) || '?'}
                 </Typography>
               )}
             </View>
@@ -188,35 +194,45 @@ export default function HomeScreen() {
               numberOfLines={1}
               style={{ flex: 1, fontSize: 16, textAlign: 'right', marginRight: spacing[2] }}
             >
-              {String(item.displayName || 'לא ידוע')}
+              {safeName}
             </Typography>
           </View>
 
           {/* Left side: Rating */}
-          {item.rating && item.rating > 0 && (
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}>
+            {safeRating > 0 ? (
+              <>
+                <Typography
+                  variant="caption"
+                  color="textSecondary"
+                  style={{ fontSize: 11, marginLeft: 2 }}
+                >
+                  {`(${safeReviews})`}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  weight="medium"
+                  style={{ fontSize: 13, marginHorizontal: 3 }}
+                >
+                  {safeRating.toFixed(1)}
+                </Typography>
+              </>
+            ) : (
               <Typography
                 variant="caption"
                 color="textSecondary"
-                style={{ fontSize: 11, marginLeft: 2 }}
+                style={{ fontSize: 11, marginHorizontal: 3 }}
               >
-                ({String(item.totalReviews || 0)})
+                {'חדש'}
               </Typography>
-              <Typography
-                variant="caption"
-                weight="medium"
-                style={{ fontSize: 13, marginHorizontal: 3 }}
-              >
-                {String(item.rating.toFixed(1))}
-              </Typography>
-              <View style={{ marginRight: 2 }}>
-                <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
-              </View>
+            )}
+            <View style={{ marginRight: 2 }}>
+              <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
             </View>
-          )}
+          </View>
         </View>
 
         {/* Meta Strip: Price + Time - right aligned */}
@@ -243,7 +259,7 @@ export default function HomeScreen() {
               weight="semibold"
               style={{ fontSize: 14, color: colors.gray[900] }}
             >
-              {`₪${item.hourlyRate || 0}/שעה`}
+              {`₪${safeRate}/שעה`}
             </Typography>
           </View>
 
@@ -284,8 +300,8 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Subjects Chips - right aligned - TEMPORARILY DISABLED FOR DEBUGGING */}
-        {false && safeSubjects.length > 0 && (
+        {/* Subjects Chips - right aligned */}
+        {safeSubjects.length > 0 && (
           <View style={{
             flexDirection: 'row-reverse',
             flexWrap: 'wrap',
@@ -313,7 +329,7 @@ export default function HomeScreen() {
                     textAlign: 'right',
                   }}
                 >
-                  {subject || ''}
+                  {String(subject || '')}
                 </Typography>
               </View>
             ))}
@@ -327,7 +343,7 @@ export default function HomeScreen() {
                   color="textSecondary"
                   style={{ fontSize: 11, textAlign: 'right' }}
                 >
-                  +{String(safeSubjects.length - 3)} עוד
+                  {`+${safeSubjects.length - 3} עוד`}
                 </Typography>
               </View>
             )}

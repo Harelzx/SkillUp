@@ -71,20 +71,33 @@ export function BookingStep2({ data, teacherId, availability, onChange, errors }
   };
 
   const handleTimeSelect = (timeString: string) => {
-    if (!selectedDate || !availability) return;
-    
+    console.log('⏰ [BookingStep2] Time selected:', timeString);
+
+    if (!selectedDate || !availability) {
+      console.log('❌ [BookingStep2] Missing selectedDate or availability');
+      return;
+    }
+
     const dateKey = getDateKey(selectedDate);
     const daySlots = availability.byDate.get(dateKey) || [];
-    
+
+    console.log('📅 [BookingStep2] Looking for slot on', dateKey);
+    console.log('📊 [BookingStep2] Available slots for this day:', daySlots.length);
+
     // Find the actual slot that matches this time
     const matchingSlot = daySlots.find(slot => {
       const slotTime = toZonedTime(parseISO(slot.start_at), timezone);
-      return format(slotTime, 'HH:mm') === timeString;
+      const formattedTime = format(slotTime, 'HH:mm');
+      console.log('   Checking slot:', formattedTime, '===', timeString, '?', formattedTime === timeString);
+      return formattedTime === timeString;
     });
-    
+
     if (matchingSlot) {
+      console.log('✅ [BookingStep2] Found matching slot:', matchingSlot.start_at);
       // Save the full ISO start_at as timeSlot
       onChange({ timeSlot: matchingSlot.start_at });
+    } else {
+      console.log('❌ [BookingStep2] No matching slot found for time:', timeString);
     }
   };
 
@@ -292,7 +305,19 @@ export function BookingStep2({ data, teacherId, availability, onChange, errors }
           {availableSlots.length > 0 ? (
             <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap' }}>
               {availableSlots.map((time) => {
-                const isSelected = data.timeSlot === time;
+                // Check if this time slot is selected by comparing with the ISO timeSlot
+                // Convert data.timeSlot (ISO) back to time string for comparison
+                let isSelected = false;
+                if (data.timeSlot && selectedDate) {
+                  const dateKey = getDateKey(selectedDate);
+                  const daySlots = availability?.byDate.get(dateKey) || [];
+                  const matchingSlot = daySlots.find(slot => {
+                    const slotTime = toZonedTime(parseISO(slot.start_at), timezone);
+                    return format(slotTime, 'HH:mm') === time;
+                  });
+                  isSelected = matchingSlot?.start_at === data.timeSlot;
+                }
+
                 return (
                   <TouchableOpacity
                     key={time}

@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fetch profile from Supabase - explicit columns to avoid cache issues
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, role, display_name, bio, avatar_url, video_url, phone_number, email, location, hourly_rate, experience_years, total_students, is_verified, is_active, created_at, updated_at, lesson_modes, duration_options, regions, timezone, teaching_style')
+        .select('id, role, display_name, bio, avatar_url, video_url, phone_number, email, location, hourly_rate, experience_years, total_students, is_verified, is_active, created_at, updated_at, lesson_modes, duration_options, regions, timezone, teaching_style, profile_completed')
         .eq('id', userId)
         .single();
 
@@ -60,16 +60,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('⚠️ Schema cache issue in fetchProfile, using fallback...');
           const { data: fallbackData, error: fallbackError } = await supabase
             .from('profiles')
-            .select('id, role, display_name, bio, avatar_url, hourly_rate, location, created_at, updated_at')
+            .select('id, role, display_name, bio, avatar_url, hourly_rate, location, created_at, updated_at, profile_completed')
             .eq('id', userId)
             .single();
-          
+
           if (!fallbackError && fallbackData) {
             const row = fallbackData as any;
             const transformedProfile: Profile = {
               id: row.id,
               role: row.role,
               displayName: row.display_name,
+              email: row.email,
+              phoneNumber: row.phone_number,
               bio: row.bio,
               avatarUrl: row.avatar_url,
               videoUrl: undefined,
@@ -77,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               subjects: [],
               createdAt: row.created_at,
               updatedAt: row.updated_at,
+              profileCompleted: row.profile_completed,
             };
             console.log('✅ Profile loaded from Supabase (fallback):', transformedProfile.displayName, `(${transformedProfile.role})`);
             setProfile(transformedProfile);
@@ -102,6 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: row.id,
         role: row.role,
         displayName: row.display_name,
+        email: row.email,
+        phoneNumber: row.phone_number,
         bio: row.bio,
         avatarUrl: row.avatar_url,
         videoUrl: row.video_url,
@@ -109,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         subjects: row.subjects,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
+        profileCompleted: row.profile_completed,
       };
 
       console.log('✅ Profile loaded from Supabase:', transformedProfile.displayName, `(${transformedProfile.role})`);
@@ -134,16 +140,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Return the profile (it's now in state, but also return it directly)
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('id, role, display_name, bio, avatar_url, video_url, phone_number, email, location, hourly_rate, experience_years, total_students, is_verified, is_active, created_at, updated_at, lesson_modes, duration_options, regions, timezone, teaching_style')
+          .select('id, role, display_name, bio, avatar_url, video_url, phone_number, email, location, hourly_rate, experience_years, total_students, is_verified, is_active, created_at, updated_at, lesson_modes, duration_options, regions, timezone, teaching_style, profile_completed')
           .eq('id', data.user.id)
           .single();
-        
+
         // Transform to camelCase
         const profileRow = profileData as any;
         const transformedProfile: Profile | null = profileRow ? {
           id: profileRow.id,
           role: profileRow.role,
           displayName: profileRow.display_name,
+          email: profileRow.email,
+          phoneNumber: profileRow.phone_number,
           bio: profileRow.bio,
           avatarUrl: profileRow.avatar_url,
           videoUrl: profileRow.video_url,
@@ -151,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           subjects: profileRow.subjects,
           createdAt: profileRow.created_at,
           updatedAt: profileRow.updated_at,
+          profileCompleted: profileRow.profile_completed,
         } : null;
         
         return { error: null, profile: transformedProfile };

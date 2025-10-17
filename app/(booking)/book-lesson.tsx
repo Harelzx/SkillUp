@@ -16,17 +16,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTeacherBookingData } from '@/hooks/useTeacherBookingData';
 import { useTeacherAvailability } from '@/hooks/useTeacherAvailability';
 import { useTeacherBookingRealtime } from '@/hooks/useTeacherBookingRealtime';
-
-const MOCK_AVAILABLE_CREDITS = 50;
+import { useCredits } from '@/context/CreditsContext';
 
 export default function BookLessonScreen() {
   const router = useRouter();
   const { teacherId: rawTeacherId } = useLocalSearchParams();
   const queryClient = useQueryClient();
-  
+  const { credits: availableCredits, refetchCredits } = useCredits();
+
   // Convert teacherId from array to string if needed
   const teacherId = Array.isArray(rawTeacherId) ? rawTeacherId[0] : rawTeacherId;
-  
+
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -177,7 +177,7 @@ export default function BookLessonScreen() {
         // Payment - validate payment method if needed
         const hourlyRate = teacher?.hourly_rate || 150;
         const totalPrice = hourlyRate * (bookingData.duration / 60);
-        const creditsToApply = bookingData.useCredits ? Math.min(MOCK_AVAILABLE_CREDITS, totalPrice) : 0;
+        const creditsToApply = bookingData.useCredits ? Math.min(availableCredits, totalPrice) : 0;
         const amountToPay = totalPrice - creditsToApply;
         
         // If payment needed and no method selected
@@ -278,7 +278,7 @@ export default function BookLessonScreen() {
       // Calculate amounts
       const hourlyRate = teacher?.hourly_rate || 150;
       const totalPrice = hourlyRate * (bookingData.duration / 60);
-      const creditsToApply = bookingData.useCredits ? Math.min(MOCK_AVAILABLE_CREDITS, totalPrice) : 0;
+      const creditsToApply = bookingData.useCredits ? Math.min(availableCredits, totalPrice) : 0;
       const amountToPay = totalPrice - creditsToApply;
 
       // Determine payment method
@@ -305,9 +305,15 @@ export default function BookLessonScreen() {
 
       // Optimistic UI: Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['myBookings'] });
       queryClient.invalidateQueries({ queryKey: ['teacher-slots', teacherId] });
+      queryClient.invalidateQueries({ queryKey: ['teacher-availability', teacherId] });
       queryClient.invalidateQueries({ queryKey: ['student-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['credits'] });
+
+      // Refetch credits from DB to update the balance
+      console.log('🔄 [Booking] Refetching credits after booking...');
+      await refetchCredits();
       
       // Show success message based on status
       const isAwaitingPayment = result.status === 'awaiting_payment';
@@ -440,7 +446,7 @@ export default function BookLessonScreen() {
           <BookingStep5
             data={bookingData}
             teacher={teacher}
-            availableCredits={MOCK_AVAILABLE_CREDITS}
+            availableCredits={availableCredits}
             onChange={updateBookingData}
             selectedPaymentMethod={selectedPaymentMethod}
             onPaymentMethodSelect={setSelectedPaymentMethod}
@@ -458,7 +464,7 @@ export default function BookLessonScreen() {
       // Calculate if fully covered by credits
       const hourlyRate = teacher?.hourly_rate || 150;
       const totalPrice = hourlyRate * (bookingData.duration / 60);
-      const creditsToApply = bookingData.useCredits ? Math.min(MOCK_AVAILABLE_CREDITS, totalPrice) : 0;
+      const creditsToApply = bookingData.useCredits ? Math.min(availableCredits, totalPrice) : 0;
       const amountToPay = totalPrice - creditsToApply;
       
       return amountToPay === 0 ? 'סיים הזמנה' : 'אשר ושלם';

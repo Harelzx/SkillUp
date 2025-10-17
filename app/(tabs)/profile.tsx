@@ -65,13 +65,13 @@ export default function ProfileScreen() {
 
   // Use real user data from auth context
   const user = {
-    name: profile?.display_name || 'משתמש',
+    name: profile?.displayName || 'משתמש',
     email: profile?.email || '',
     phone: profile?.phone_number || '',
-    avatar: profile?.avatar_url || '',
+    avatar: profile?.avatarUrl || '',
     bio: profile?.bio || '',
     totalLessons: 15, // TODO: Get from API
-    memberSince: profile?.created_at ? new Date(profile.created_at).getFullYear().toString() : '2024',
+    memberSince: profile?.createdAt ? new Date(profile.createdAt).getFullYear().toString() : '2024',
     role: (profile?.role || 'student') as 'student' | 'teacher',
   };
 

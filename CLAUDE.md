@@ -116,6 +116,41 @@ npm run lint
 
 ## Common Issues & Solutions
 
+### ⚠️ "אין זמינות" (No Availability) Error
+
+**Problem**: Students see "no availability" when trying to book lessons, even after teachers open days.
+
+**Root Cause**: The `availability_slots` table is empty.
+
+**Solution**: Run migration 015 to seed availability data.
+
+**Quick Fix**:
+```sql
+-- Run this in Supabase SQL Editor
+-- Copy/paste content from migrations/015_seed_availability_slots.sql
+```
+
+**Verify Fix**:
+```sql
+-- Should return ~960 or more
+SELECT COUNT(*) FROM availability_slots WHERE is_booked = FALSE;
+
+-- Check which teachers have availability
+SELECT
+  p.display_name,
+  COUNT(a.id) as available_slots,
+  MIN(a.start_at)::DATE as first_available,
+  MAX(a.start_at)::DATE as last_available
+FROM availability_slots a
+JOIN profiles p ON p.id = a.teacher_id
+WHERE a.is_booked = FALSE AND a.start_at >= NOW()
+GROUP BY p.display_name;
+```
+
+**More details**: See [debug-availability.md](debug-availability.md) for comprehensive troubleshooting guide.
+
+---
+
 ### TypeScript Image Styling
 ```tsx
 // Issue: Image style type conflicts
@@ -598,12 +633,32 @@ Run these in Supabase SQL Editor (Dashboard → SQL Editor → New Query):
    - Updates create_booking for payment UI
    - Creates release_expired_holds() function
 
+5. **`migrations/014_availability_management_functions.sql`**
+   - Creates RPC functions for teacher availability management
+   - Functions: upsert_availability_slots, close_day, open_day, get_teacher_availability_slots
+   - Enables teachers to manage their calendar slots
+
+6. **`migrations/015_seed_availability_slots.sql`** ⚠️ **IMPORTANT**
+   - Seeds ~960 availability slots for 4 test teachers
+   - **Required for booking system to work** - without this, students see "no availability"
+   - Creates slots for 30 days ahead (Mon-Fri, 8 hours/day)
+   - Can be re-run safely (has ON CONFLICT DO NOTHING)
+
 **Verify migrations:**
 ```sql
 -- Check all components exist
 SELECT typname FROM pg_type WHERE typname IN ('booking_mode', 'payment_method');
 SELECT table_name FROM information_schema.tables WHERE table_name IN ('payments', 'refunds', 'availability_slots');
 SELECT routine_name FROM information_schema.routines WHERE routine_name IN ('create_booking', 'cancel_booking');
+
+-- Verify availability slots exist (should return ~960)
+SELECT COUNT(*) FROM availability_slots;
+
+-- Check slots per teacher
+SELECT p.display_name, COUNT(a.id) as slots
+FROM availability_slots a
+JOIN profiles p ON p.id = a.teacher_id
+GROUP BY p.display_name;
 ```
 
 ---

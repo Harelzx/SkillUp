@@ -146,7 +146,6 @@ export async function createBooking(params: {
     p_credits_to_apply: params.creditsToApply || 0,
     p_coupon_code: params.couponCode || null,
     p_source: params.source || 'mobile',
-    p_selected_payment_method: params.paymentMethod || 'card',
   });
 
   if (error) {
