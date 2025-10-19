@@ -101,6 +101,7 @@ const resources = {
         error: 'שגיאה',
         success: 'הצלחה',
         confirm: 'אשר',
+        done: 'סיום',
       },
       auth: {
         signIn: 'התחברות',
@@ -268,17 +269,6 @@ const resources = {
         totalLessons: 'שיעורים',
         memberSince: 'חבר מאז',
         version: 'גרסה',
-      },
-      common: {
-        cancel: 'בטל',
-        confirm: 'אשר',
-        save: 'שמור',
-        edit: 'ערוך',
-        delete: 'מחק',
-        back: 'חזור',
-        next: 'הבא',
-        done: 'סיום',
-        loading: 'טוען...',
       },
       booking: {
         selectDate: 'בחר תאריך',
