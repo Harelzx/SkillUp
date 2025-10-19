@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,8 +15,11 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 60 * 24, // 24 hours
-      retry: 2,
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours (formerly cacheTime)
+      retry: 1, // Reduced from 2 for faster failure handling
+      refetchOnWindowFocus: false, // Disable refetch on window focus
+      refetchOnMount: false, // Disable refetch on component mount if data is fresh
+      refetchOnReconnect: 'always', // Only refetch on network reconnect
     },
   },
 });
