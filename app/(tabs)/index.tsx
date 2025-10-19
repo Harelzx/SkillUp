@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Star, Clock, Gift } from 'lucide-react-native';
+import { Star, Gift, MapPin } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Typography } from '@/ui/Typography';
 import { Card, CardContent } from '@/ui/Card';
@@ -58,7 +58,7 @@ export default function HomeScreen() {
   const popularSubjects = getPopularSubjects(t);
   const bannerMessages = getBannerMessages();
 
-  // Fetch real teachers from Supabase
+  // Fetch real teachers from Supabase with optimized caching
   const { data: teachers = [], isLoading, error } = useQuery({
     queryKey: ['featuredTeachers', selectedSubject],
     queryFn: async () => {
@@ -85,6 +85,10 @@ export default function HomeScreen() {
         };
       });
     },
+    staleTime: 1000 * 60 * 10, // 10 minutes - teachers don't change frequently
+    gcTime: 1000 * 60 * 60, // 1 hour cache time
+    refetchOnMount: false, // Use cache if data is fresh
+    refetchOnWindowFocus: false, // Don't refetch on focus
   });
 
   // Map subject keys to Hebrew names from database
@@ -99,18 +103,22 @@ export default function HomeScreen() {
     'programming': 'מדעי המחשב',
   };
 
-  const filteredTeachers = teachers.filter(teacher => {
-    if (selectedSubject) {
-      const hebrewSubject = subjectKeyToHebrew[selectedSubject];
-      if (!hebrewSubject || !teacher.subjects || !Array.isArray(teacher.subjects)) {
-        return false;
+  // Memoize filtered teachers to avoid recalculation on every render
+  const filteredTeachers = useMemo(() => {
+    return teachers.filter(teacher => {
+      if (selectedSubject) {
+        const hebrewSubject = subjectKeyToHebrew[selectedSubject];
+        if (!hebrewSubject || !teacher.subjects || !Array.isArray(teacher.subjects)) {
+          return false;
+        }
+        return teacher.subjects.some(s => String(s) === String(hebrewSubject));
       }
-      return teacher.subjects.some(s => String(s) === String(hebrewSubject));
-    }
-    return true;
-  });
+      return true;
+    });
+  }, [teachers, selectedSubject]);
 
-  const renderTeacherCard = ({ item }: { item: Teacher }) => {
+  // Memoized TeacherCard component for better performance
+  const TeacherCard = React.memo(({ item }: { item: Teacher }) => {
     // Safety check - ensure all required fields exist
     if (!item || !item.id) {
       return null;
@@ -121,6 +129,8 @@ export default function HomeScreen() {
     const safeRate = Number(item.hourlyRate) || 0;
     const safeRating = Number(item.rating) || 0;
     const safeReviews = Number(item.totalReviews) || 0;
+    const safeBio = String(item.bio || '').trim();
+    const safeLocation = String(item.location || '').trim();
 
     // Ensure subjects is always an array - convert all to strings and filter empty
     // API returns either 'subjects' or 'subject_names'
@@ -128,6 +138,10 @@ export default function HomeScreen() {
     const safeSubjects = Array.isArray(subjectData)
       ? subjectData.map((s: any) => String(s || '')).filter((s: string) => s.trim() !== '')
       : [];
+
+    const handlePress = useCallback(() => {
+      router.push(`/(tabs)/teacher/${String(item.id)}`);
+    }, [item.id]);
 
     return (
     <Card
@@ -146,17 +160,17 @@ export default function HomeScreen() {
       }}
     >
       <TouchableOpacity
-        onPress={() => router.push(`/(tabs)/teacher/${String(item.id)}`)}
+        onPress={handlePress}
         activeOpacity={0.98}
       >
-        {/* Header: Avatar + Name + Rating */}
+        {/* Top Row: Avatar + Name (left) | Rating (right) */}
         <View style={{
           flexDirection: 'row-reverse',
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: spacing[2],
         }}>
-          {/* Right side: Avatar + Name */}
+          {/* Left side: Avatar + Name */}
           <View style={{
             flexDirection: 'row-reverse',
             alignItems: 'center',
@@ -164,9 +178,9 @@ export default function HomeScreen() {
           }}>
             {/* Avatar */}
             <View style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
               backgroundColor: colors.primary[600],
               justifyContent: 'center',
               alignItems: 'center',
@@ -177,7 +191,7 @@ export default function HomeScreen() {
               {item.avatarUrl ? (
                 <Image
                   source={{ uri: item.avatarUrl }}
-                  style={{ width: 32, height: 32 }}
+                  style={{ width: 40, height: 40 }}
                   resizeMode="cover"
                 />
               ) : (
@@ -187,7 +201,7 @@ export default function HomeScreen() {
               )}
             </View>
 
-            {/* Name - right aligned */}
+            {/* Name - left aligned */}
             <Typography
               variant="body1"
               weight="semibold"
@@ -198,135 +212,84 @@ export default function HomeScreen() {
             </Typography>
           </View>
 
-          {/* Left side: Rating */}
+          {/* Right side: Rating */}
           <View style={{
-            flexDirection: 'row',
+            flexDirection: 'row-reverse',
             alignItems: 'center',
           }}>
+            <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
             {safeRating > 0 ? (
               <>
                 <Typography
                   variant="caption"
-                  color="textSecondary"
-                  style={{ fontSize: 11, marginLeft: 2 }}
+                  weight="bold"
+                  style={{ fontSize: 13, marginHorizontal: 4 }}
                 >
-                  {`(${safeReviews})`}
+                  {safeRating.toFixed(1)}
                 </Typography>
                 <Typography
                   variant="caption"
-                  weight="medium"
-                  style={{ fontSize: 13, marginHorizontal: 3 }}
+                  color="textSecondary"
+                  style={{ fontSize: 12, opacity: 0.7 }}
                 >
-                  {safeRating.toFixed(1)}
+                  {`(${safeReviews})`}
                 </Typography>
               </>
             ) : (
               <Typography
                 variant="caption"
                 color="textSecondary"
-                style={{ fontSize: 11, marginHorizontal: 3 }}
+                style={{ fontSize: 12, marginLeft: 4 }}
               >
-                {'חדש'}
+                חדש
               </Typography>
             )}
-            <View style={{ marginRight: 2 }}>
-              <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
-            </View>
           </View>
         </View>
 
-        {/* Meta Strip: Price + Time - right aligned */}
-        <View style={{
-          flexDirection: 'row-reverse',
-          alignItems: 'center',
-          justifyContent: 'flex-start',
-          marginBottom: spacing[2],
-        }}>
-          {/* Price Pill - neutral brand style */}
-          <View style={{
-            backgroundColor: colors.gray[100],
-            paddingHorizontal: spacing[3],
-            paddingVertical: spacing[2] - 2,
-            borderRadius: 9999,
-            borderWidth: 1,
-            borderColor: colors.gray[200],
-            flexDirection: 'row-reverse',
-            alignItems: 'center',
-            marginRight: spacing[2],
-          }}>
+        {/* Bio Section - right aligned */}
+        {safeBio && (
+          <View style={{ marginBottom: spacing[2] }}>
             <Typography
               variant="body2"
-              weight="semibold"
-              style={{ fontSize: 14, color: colors.gray[900] }}
+              color="textSecondary"
+              numberOfLines={2}
+              style={{ fontSize: 13, textAlign: 'right' }}
             >
-              {`₪${safeRate}/שעה`}
+              {safeBio}
             </Typography>
           </View>
+        )}
 
-          {/* Separator */}
-          <View style={{
-            width: 3,
-            height: 3,
-            borderRadius: 1.5,
-            backgroundColor: colors.gray[400],
-          }} />
-
-          {/* Availability */}
-          {item.nextAvailable ? (
-            <View style={{
-              flexDirection: 'row-reverse',
-              alignItems: 'center',
-            }}>
-              <View style={{ marginRight: 4 }}>
-                <Clock size={13} color={colors.success[600]} />
-              </View>
-              <Typography
-                variant="caption"
-                color="success"
-                weight="medium"
-                style={{ fontSize: 13 }}
-              >
-                {String(item.nextAvailable)}
-              </Typography>
-            </View>
-          ) : (
-            <Typography
-              variant="caption"
-              color="textSecondary"
-              style={{ fontSize: 12, textAlign: 'right' }}
-            >
-              זמינות גמישה
-            </Typography>
-          )}
-        </View>
-
-        {/* Subjects Chips - right aligned */}
+        {/* Subjects Chips - row-reverse aligned */}
         {safeSubjects.length > 0 && (
           <View style={{
             flexDirection: 'row-reverse',
             flexWrap: 'wrap',
-            marginBottom: spacing[1] + 2,
             justifyContent: 'flex-start',
+            marginBottom: spacing[2],
           }}>
             {safeSubjects.slice(0, 3).map((subject, index) => (
               <View
                 key={index}
                 style={{
                   backgroundColor: colors.gray[100],
-                  paddingHorizontal: spacing[2] + 2,
-                  paddingVertical: spacing[1] + 2,
-                  borderRadius: 9999,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 6,
                   borderWidth: 1,
                   borderColor: colors.gray[200],
-                  marginLeft: spacing[2],
+                  marginHorizontal: 3,
+                  marginVertical: 2,
                 }}
               >
                 <Typography
                   variant="caption"
+                  weight="bold"
                   style={{
                     fontSize: 12,
                     color: colors.gray[700],
-                    textAlign: 'right',
+                    textAlign: 'center',
                   }}
                 >
                   {String(subject || '')}
@@ -336,12 +299,12 @@ export default function HomeScreen() {
             {safeSubjects.length > 3 && (
               <View style={{
                 paddingHorizontal: spacing[2],
-                paddingVertical: spacing[1] + 2,
+                paddingVertical: 6,
               }}>
                 <Typography
                   variant="caption"
                   color="textSecondary"
-                  style={{ fontSize: 11, textAlign: 'right' }}
+                  style={{ fontSize: 11, textAlign: 'center' }}
                 >
                   {`+${safeSubjects.length - 3} עוד`}
                 </Typography>
@@ -349,10 +312,46 @@ export default function HomeScreen() {
             )}
           </View>
         )}
+
+        {/* Bottom Row: Price (left) | Location (right) */}
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          {/* Left side: Price */}
+          <Typography
+            variant="body2"
+            weight="bold"
+            style={{ fontSize: 14, color: colors.blue[500] }}
+          >
+            {`₪${safeRate}/שעה`}
+          </Typography>
+
+          {/* Right side: Location */}
+          {safeLocation ? (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}>
+              <Typography
+                variant="caption"
+                style={{ fontSize: 14, fontWeight: 'light', textAlign: 'right', marginRight: 4 }}
+              >
+                {safeLocation}
+              </Typography>
+              <MapPin size={12} color={colors.green[600]} />
+            </View>
+          ) : (
+            <View />
+          )}
+        </View>
       </TouchableOpacity>
     </Card>
     );
-  };
+  });
+
+  const renderTeacherCard = ({ item }: { item: Teacher }) => <TeacherCard item={item} />;
 
   const styles = createStyle({
     container: {
