@@ -90,7 +90,21 @@ export async function getTeachers(params?: {
 export async function getFeaturedTeachers(limit: number = 10) {
   const { data, error } = await supabase
     .from('teacher_profiles_with_stats')
-    .select('*')
+    .select(`
+      id,
+      display_name,
+      bio,
+      avatar_url,
+      hourly_rate,
+      location,
+      subject_names,
+      avg_rating,
+      review_count,
+      experience_years,
+      total_students,
+      is_active,
+      is_verified
+    `)
     .eq('is_active', true)
     .eq('is_verified', true)
     // In development: show all verified teachers
