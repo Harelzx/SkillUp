@@ -159,7 +159,23 @@ export default function SearchScreen() {
     'פסנתר למתחילים',
   ]);
 
-  const cities = ['הכל', 'תל אביב', 'רמת גן', 'ירושלים', 'הרצליה', 'חיפה', 'פתח תקווה'];
+  const cities = [
+    'הכל',
+    'תל אביב',
+    'ירושלים',
+    'חיפה',
+    'באר שבע',
+    'ראשון לציון',
+    'פתח תקווה',
+    'אשדוד',
+    'נתניה',
+    'בני ברק',
+    'חולון',
+    'רמת גן',
+    'אשקלון',
+    'רחובות',
+    'הרצליה'
+  ];
   const ratings = [4.5, 4.0, 3.5, 3.0];
 
   // Popular subjects - using Hebrew names from database
@@ -293,10 +309,11 @@ export default function SearchScreen() {
 
     // Ensure all fields are strings
     const safeName = String(item.displayName || 'לא ידוע');
-    const safeBio = String(item.bio || '');
+    const safeBio = String(item.bio || '').trim();
     const safeRate = Number(item.hourlyRate) || 0;
     const safeRating = Number(item.rating) || 0;
     const safeReviews = Number(item.totalReviews) || 0;
+    const safeLocation = String(item.location || '').trim();
 
     // Ensure subjects is always an array - convert all to strings and filter empty
     const safeSubjects = Array.isArray(item.subjects)
@@ -310,75 +327,178 @@ export default function SearchScreen() {
     >
       <Card style={styles.teacherCard}>
         <CardContent>
-          <View style={[styles.teacherRow, { flexDirection: getFlexDirection() }]}>
-            {/* Avatar */}
-            <View style={styles.teacherAvatar}>
-              {item.avatarUrl ? (
-                <Image
-                  source={{ uri: item.avatarUrl }}
-                  style={{ width: 48, height: 48, borderRadius: 24 }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Typography variant="h5" color="white" weight="bold">
-                  {safeName.charAt(0) || '?'}
-                </Typography>
-              )}
-            </View>
-
-            {/* Info */}
-            <View style={styles.teacherInfo}>
-              <Typography variant="body1" weight="semibold" numberOfLines={1} style={{ textAlign: 'right' }}>
-                {safeName}
-              </Typography>
-              <Typography variant="caption" color="textSecondary" numberOfLines={2} style={{ textAlign: 'right' }}>
-                {safeBio}
-              </Typography>
-
-              {/* Subjects */}
-              {safeSubjects.length > 0 && (
-                <View style={[styles.subjectsRow, { flexDirection: 'row-reverse', justifyContent: 'flex-start' }]}>
-                  {safeSubjects.slice(0, 2).map((subject, idx) => (
-                    <View key={idx} style={styles.subjectBadge}>
-                      <Typography variant="caption" color="primary" style={{ fontSize: 10 }}>
-                        {subject}
-                      </Typography>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {/* Price & Rating */}
-            <View style={styles.teacherMeta}>
-              <View style={[styles.ratingRow, { flexDirection: 'row', justifyContent: 'flex-start' }]}>
-                {safeRating > 0 ? (
-                  <>
-                    <Typography variant="caption" style={{ marginLeft: 2 }}>
-                      {`(${safeReviews})`}
-                    </Typography>
-                    <Typography variant="caption" style={{ marginHorizontal: 2 }}>
-                      {safeRating.toFixed(1)}
-                    </Typography>
-                  </>
+          {/* Row 1: Avatar + Name (right) | Rating (left) */}
+          <View style={{
+            flexDirection: 'row-reverse',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: spacing[2],
+          }}>
+            {/* Right side: Avatar + Name */}
+            <View style={{
+              flexDirection: 'row-reverse',
+              alignItems: 'center',
+              flex: 1,
+            }}>
+              {/* Avatar */}
+              <View style={styles.teacherAvatar}>
+                {item.avatarUrl ? (
+                  <Image
+                    source={{ uri: item.avatarUrl }}
+                    style={{ width: 48, height: 48, borderRadius: 24 }}
+                    resizeMode="cover"
+                  />
                 ) : (
-                  <Typography variant="caption" color="textSecondary" style={{ marginHorizontal: 2 }}>
-                    {'חדש'}
+                  <Typography variant="h5" color="white" weight="bold">
+                    {safeName.charAt(0) || '?'}
                   </Typography>
                 )}
-                <View style={{ marginRight: 2 }}>
-                  <Star size={12} color={colors.warning[500]} fill={colors.warning[500]} />
-                </View>
               </View>
-              <Typography variant="body2" weight="semibold" color="primary" style={{ textAlign: 'right', marginTop: spacing[1] }}>
-                {`₪${safeRate}/שעה`}
+
+              {/* Name - right aligned */}
+              <Typography
+                variant="body1"
+                weight="semibold"
+                numberOfLines={1}
+                style={{ flex: 1, fontSize: 16, textAlign: 'right', marginRight: spacing[2] }}
+              >
+                {safeName}
               </Typography>
-              {item.nextAvailable && (
-                <Typography variant="caption" color="success" style={{ marginTop: 2, textAlign: 'right' }}>
-                  {String(item.nextAvailable || '')}
+            </View>
+
+            {/* Left side: Rating */}
+            <View style={{
+              flexDirection: 'row-reverse',
+              alignItems: 'center',
+            }}>
+              <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
+              {safeRating > 0 ? (
+                <>
+                  <Typography
+                    variant="caption"
+                    weight="bold"
+                    style={{ fontSize: 13, marginHorizontal: 4 }}
+                  >
+                    {safeRating.toFixed(1)}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="textSecondary"
+                    style={{ fontSize: 12, opacity: 0.7 }}
+                  >
+                    {`(${safeReviews})`}
+                  </Typography>
+                </>
+              ) : (
+                <Typography
+                  variant="caption"
+                  color="textSecondary"
+                  style={{ fontSize: 12, marginLeft: 4 }}
+                >
+                  חדש
                 </Typography>
               )}
             </View>
+          </View>
+
+          {/* Row 2: Bio - right aligned */}
+          {safeBio && (
+            <View style={{ marginBottom: spacing[2] }}>
+              <Typography
+                variant="body2"
+                color="textSecondary"
+                numberOfLines={2}
+                style={{ fontSize: 13, textAlign: 'right' }}
+              >
+                {safeBio}
+              </Typography>
+            </View>
+          )}
+
+          {/* Row 3: Subjects chips - left aligned */}
+          {safeSubjects.length > 0 && (
+            <View style={{
+              flexDirection: 'row-reverse',
+              flexWrap: 'wrap',
+              justifyContent: 'flex-start',
+              marginBottom: spacing[2],
+            }}>
+              {safeSubjects.slice(0, 3).map((subject, index) => (
+                <View
+                  key={index}
+                  style={{
+                    backgroundColor: colors.gray[100],
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderRadius: 6,
+                    borderWidth: 1,
+                    borderColor: colors.gray[200],
+                    marginHorizontal: 3,
+                    marginVertical: 2,
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    weight="bold"
+                    style={{
+                      fontSize: 12,
+                      color: colors.gray[700],
+                      textAlign: 'center',
+                    }}
+                  >
+                    {String(subject || '')}
+                  </Typography>
+                </View>
+              ))}
+              {safeSubjects.length > 3 && (
+                <View style={{
+                  paddingHorizontal: spacing[2],
+                  paddingVertical: 6,
+                }}>
+                  <Typography
+                    variant="caption"
+                    color="textSecondary"
+                    style={{ fontSize: 11, textAlign: 'center' }}
+                  >
+                    {`+${safeSubjects.length - 3} עוד`}
+                  </Typography>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Row 4: Price (right) | Location (left) */}
+          <View style={{
+            flexDirection: 'row-reverse',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            {/* Left side: Location */}
+            {safeLocation ? (
+              <View style={{
+                flexDirection: 'row-reverse',
+                alignItems: 'center',
+              }}>
+                <Typography
+                  variant="caption"
+                  style={{ fontSize: 14, fontWeight: 'light', textAlign: 'right', marginRight: 4 }}
+                >
+                  {safeLocation}
+                </Typography>
+                <MapPin size={12} color={colors.green[600]} />
+              </View>
+            ) : (
+              <View />
+            )}
+
+            {/* Right side: Price */}
+            <Typography
+              variant="body2"
+              weight="bold"
+              style={{ fontSize: 14, color: colors.blue[500] }}
+            >
+              {`₪${safeRate}/שעה`}
+            </Typography>
           </View>
         </CardContent>
       </Card>
@@ -423,13 +543,13 @@ export default function SearchScreen() {
       padding: spacing[1],
     },
     categoriesContainer: {
-      marginBottom: spacing[3],
+      marginBottom: spacing[1],
     },
     categoryPill: {
       backgroundColor: colors.white,
-      borderRadius: 20,
-      paddingHorizontal: spacing[3],
-      paddingVertical: spacing[2],
+      borderRadius: 8,
+      paddingHorizontal: spacing[2],
+      paddingVertical: spacing[1],
       marginRight: isRTL ? 0 : spacing[2],
       marginLeft: isRTL ? spacing[2] : 0,
       borderWidth: 1,
@@ -451,12 +571,14 @@ export default function SearchScreen() {
     },
     recentSearchChip: {
       backgroundColor: colors.gray[100],
-      borderRadius: 16,
-      paddingHorizontal: spacing[3],
-      paddingVertical: spacing[1] + 2,
+      borderRadius: 6,
+      paddingHorizontal: spacing[2],
+      paddingVertical: spacing[1],
       marginRight: isRTL ? 0 : spacing[2],
       marginLeft: isRTL ? spacing[2] : 0,
       marginBottom: spacing[2],
+      borderWidth: 1,
+      borderColor: colors.gray[200],
     },
     searchResults: {
       flex: 1,
@@ -469,14 +591,17 @@ export default function SearchScreen() {
     teacherCard: {
       marginBottom: spacing[3],
       backgroundColor: colors.white,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 0.08)',
     },
     teacherRow: {
       alignItems: 'center',
     },
     teacherAvatar: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: colors.primary[600],
       justifyContent: 'center',
       alignItems: 'center',
@@ -489,11 +614,14 @@ export default function SearchScreen() {
       marginTop: spacing[1],
     },
     subjectBadge: {
-      backgroundColor: colors.primary[50],
-      borderRadius: 12,
-      paddingHorizontal: spacing[2],
+      backgroundColor: colors.gray[100],
+      borderRadius: 6,
+      paddingHorizontal: 6,
       paddingVertical: 2,
-      marginLeft: spacing[1],
+      borderWidth: 1,
+      borderColor: colors.gray[200],
+      marginHorizontal: 3,
+      marginVertical: 2,
     },
     teacherMeta: {
       alignItems: 'flex-end',
@@ -533,13 +661,15 @@ export default function SearchScreen() {
     },
     ratingChip: {
       backgroundColor: colors.gray[100],
-      borderRadius: 20,
+      borderRadius: 8,
       paddingHorizontal: spacing[2],
       paddingVertical: spacing[1],
       marginRight: isRTL ? 0 : spacing[2],
       marginLeft: isRTL ? spacing[2] : 0,
       flexDirection: 'row',
       alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.gray[200],
     },
     priceRangeContainer: {
       flexDirection: 'row',
@@ -633,11 +763,11 @@ export default function SearchScreen() {
                 onPress={() => handleCategorySelect(item.id)}
               >
                 <View style={styles.categoryContent}>
-                  <Typography style={{ fontSize: 16, marginHorizontal: spacing[1] }}>
+                  <Typography style={{ fontSize: 12, marginHorizontal: spacing[1] }}>
                     {String(item.icon || '')}
                   </Typography>
                   <Typography
-                    variant="body2"
+                    variant="caption"
                     weight={selectedCategory === item.id ? 'semibold' : 'normal'}
                     color={selectedCategory === item.id ? 'primary' : 'text'}
                   >
@@ -667,7 +797,7 @@ export default function SearchScreen() {
                     style={styles.recentSearchChip}
                     onPress={() => handleRecentSearch(search)}
                   >
-                    <Typography variant="body2" color="text">
+                    <Typography variant="caption" color="text" weight="medium">
                       {String(search || '')}
                     </Typography>
                   </TouchableOpacity>
@@ -779,151 +909,222 @@ export default function SearchScreen() {
         transparent={false}
         onRequestClose={() => setShowFiltersModal(false)}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Typography variant="h6" weight="semibold" style={{ textAlign: 'center', flex: 1 }}>
-              סינון וחיפוש מתקדם
-            </Typography>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }}>
+          {/* Header - Fixed */}
+          <View style={{ 
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            padding: spacing[4],
+            borderBottomWidth: 1,
+            borderBottomColor: colors.gray[200],
+            alignItems: 'center'
+          }}>
             <TouchableOpacity
-              style={styles.modalCloseButton}
+              style={{ padding: spacing[2] }}
               onPress={() => setShowFiltersModal(false)}
             >
-              <X size={24} color={colors.gray[600]} />
+              <X size={28} color={colors.gray[700]} />
             </TouchableOpacity>
+            <Typography variant="h4" weight="bold" style={{ flex: 1, textAlign: 'center', fontSize: 18 }}>
+              סינון מתקדם
+            </Typography>
+            {/* Spacer for centering */}
+            <View style={{ width: 44 }} />
           </View>
 
-          <ScrollView style={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
-            {/* City Filter */}
-            <View style={styles.filterRow}>
-              <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[2] }}>
-                עיר
+          {/* Content - Scrollable */}
+          <ScrollView style={{ flex: 1, padding: spacing[4] }} showsVerticalScrollIndicator={false}>
+            
+            {/* City Section */}
+            <View style={{ marginBottom: spacing[6] }}>
+              <Typography variant="h6" weight="bold" style={{ marginBottom: spacing[2], fontSize: 16, color: colors.gray[900] }}>
+                בחר עיר
               </Typography>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={[{ flexDirection: getFlexDirection() }]}>
-                  {cities.map((city) => (
-                    <TouchableOpacity
-                      key={city}
-                      style={[
-                        styles.filterChip,
-                        selectedCity === city && styles.filterChipActive
-                      ]}
-                      onPress={() => setSelectedCity(city)}
+              <View style={{ 
+                flexDirection: 'row-reverse', 
+                flexWrap: 'wrap',
+                marginHorizontal: -spacing[1]
+              }}>
+                {cities.map((city) => (
+                  <TouchableOpacity
+                    key={city}
+                    style={{
+                      margin: spacing[1],
+                      paddingHorizontal: spacing[2],
+                      paddingVertical: spacing[1],
+                      backgroundColor: selectedCity === city ? colors.primary[600] : colors.gray[100],
+                      borderRadius: 8,
+                      borderWidth: 2,
+                      borderColor: selectedCity === city ? colors.primary[600] : 'transparent',
+                      alignItems: 'center',
+                      minHeight: 36,
+                      justifyContent: 'center',
+                      alignSelf: 'flex-start'
+                    }}
+                    onPress={() => setSelectedCity(city)}
+                  >
+                    <Typography 
+                      variant="body2" 
+                      weight="semibold"
+                      color={selectedCity === city ? 'white' : 'text'}
+                      style={{ fontSize: 12, textAlign: 'center' }}
                     >
-                      <Typography
-                        variant="caption"
-                        color={selectedCity === city ? 'white' : 'text'}
-                      >
-                        {String(city)}
-                      </Typography>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
+                      {String(city)}
+                    </Typography>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
-            {/* Price Range */}
-            <View style={styles.filterRow}>
-              <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[2] }}>
-                {`טווח מחירים: ₪${priceRange[0]} - ₪${priceRange[1]} לשעה`}
+            {/* Price Section */}
+            <View style={{ marginBottom: spacing[6] }}>
+              <Typography variant="h6" weight="bold" style={{ marginBottom: spacing[2], fontSize: 16, color: colors.gray[900] }}>
+                טווח מחירים
               </Typography>
-              <View style={styles.priceRangeContainer}>
+              <Typography variant="body2" color="textSecondary" style={{ marginBottom: spacing[2], fontSize: 14 }}>
+                {`₪${priceRange[0]} - ₪${priceRange[1]} לשעה`}
+              </Typography>
+              <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', marginHorizontal: -spacing[1] }}>
                 <TouchableOpacity
-                  style={[
-                    styles.priceButton,
-                    priceRange[0] === 50 && priceRange[1] === 150 && styles.priceButtonActive
-                  ]}
+                  style={{
+                    margin: spacing[1],
+                    paddingHorizontal: spacing[2],
+                    paddingVertical: spacing[1],
+                    backgroundColor: priceRange[0] === 50 && priceRange[1] === 150 ? colors.primary[600] : colors.gray[100],
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor: priceRange[0] === 50 && priceRange[1] === 150 ? colors.primary[600] : 'transparent',
+                    alignItems: 'center',
+                    minHeight: 36,
+                    justifyContent: 'center',
+                    alignSelf: 'flex-start'
+                  }}
                   onPress={() => setPriceRange([50, 150])}
                 >
-                  <Typography
-                    variant="caption"
-                    color={priceRange[0] === 50 && priceRange[1] === 150 ? 'white' : 'text'}
-                  >
-                    {'₪50-150'}
+                  <Typography variant="body2" weight="semibold" color={priceRange[0] === 50 && priceRange[1] === 150 ? 'white' : 'text'} style={{ fontSize: 12 }}>
+                    ₪50-150
                   </Typography>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[
-                    styles.priceButton,
-                    priceRange[0] === 150 && priceRange[1] === 200 && styles.priceButtonActive
-                  ]}
+                  style={{
+                    margin: spacing[1],
+                    paddingHorizontal: spacing[2],
+                    paddingVertical: spacing[1],
+                    backgroundColor: priceRange[0] === 150 && priceRange[1] === 200 ? colors.primary[600] : colors.gray[100],
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor: priceRange[0] === 150 && priceRange[1] === 200 ? colors.primary[600] : 'transparent',
+                    alignItems: 'center',
+                    minHeight: 36,
+                    justifyContent: 'center',
+                    alignSelf: 'flex-start'
+                  }}
                   onPress={() => setPriceRange([150, 200])}
                 >
-                  <Typography
-                    variant="caption"
-                    color={priceRange[0] === 150 && priceRange[1] === 200 ? 'white' : 'text'}
-                  >
-                    {'₪150-200'}
+                  <Typography variant="body2" weight="semibold" color={priceRange[0] === 150 && priceRange[1] === 200 ? 'white' : 'text'} style={{ fontSize: 12 }}>
+                    ₪150-200
                   </Typography>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[
-                    styles.priceButton,
-                    priceRange[0] === 200 && priceRange[1] === 300 && styles.priceButtonActive
-                  ]}
+                  style={{
+                    margin: spacing[1],
+                    paddingHorizontal: spacing[2],
+                    paddingVertical: spacing[1],
+                    backgroundColor: priceRange[0] === 200 && priceRange[1] === 300 ? colors.primary[600] : colors.gray[100],
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor: priceRange[0] === 200 && priceRange[1] === 300 ? colors.primary[600] : 'transparent',
+                    alignItems: 'center',
+                    minHeight: 36,
+                    justifyContent: 'center',
+                    alignSelf: 'flex-start'
+                  }}
                   onPress={() => setPriceRange([200, 300])}
                 >
-                  <Typography
-                    variant="caption"
-                    color={priceRange[0] === 200 && priceRange[1] === 300 ? 'white' : 'text'}
-                  >
-                    {'₪200+'}
+                  <Typography variant="body2" weight="semibold" color={priceRange[0] === 200 && priceRange[1] === 300 ? 'white' : 'text'} style={{ fontSize: 12 }}>
+                    ₪200+
                   </Typography>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Rating Filter */}
-            <View style={styles.filterRow}>
-              <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[2] }}>
-                {'דירוג מינימלי'}
+            {/* Rating Section */}
+            <View style={{ marginBottom: spacing[6] }}>
+              <Typography variant="h6" weight="bold" style={{ marginBottom: spacing[2], fontSize: 16, color: colors.gray[900] }}>
+                דירוג מינימלי
               </Typography>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={[{ flexDirection: getFlexDirection() }]}>
-                  {ratings.map((rating) => (
-                    <TouchableOpacity
-                      key={rating}
-                      style={[
-                        styles.ratingChip,
-                        selectedRating === rating && styles.filterChipActive
-                      ]}
-                      onPress={() => setSelectedRating(selectedRating === rating ? null : rating)}
+              <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', marginHorizontal: -spacing[1] }}>
+                {ratings.map((rating) => (
+                  <TouchableOpacity
+                    key={rating}
+                    style={{
+                      margin: spacing[1],
+                      paddingHorizontal: spacing[2],
+                      paddingVertical: spacing[1],
+                      backgroundColor: selectedRating === rating ? colors.primary[600] : colors.gray[100],
+                      borderRadius: 8,
+                      borderWidth: 2,
+                      borderColor: selectedRating === rating ? colors.primary[600] : 'transparent',
+                      alignItems: 'center',
+                      minHeight: 36,
+                      justifyContent: 'center',
+                      flexDirection: 'row-reverse',
+                      alignSelf: 'flex-start'
+                    }}
+                    onPress={() => setSelectedRating(selectedRating === rating ? null : rating)}
+                  >
+                    <Star
+                      size={14}
+                      color={selectedRating === rating ? colors.white : colors.warning[500]}
+                      fill={selectedRating === rating ? colors.white : colors.warning[500]}
+                    />
+                    <Typography 
+                      variant="body2" 
+                      weight="semibold" 
+                      color={selectedRating === rating ? 'white' : 'text'} 
+                      style={{ marginLeft: spacing[1], fontSize: 12 }}
                     >
-                      <Star
-                        size={14}
-                        color={selectedRating === rating ? colors.white : colors.warning[500]}
-                        fill={selectedRating === rating ? colors.white : colors.warning[500]}
-                      />
-                      <Typography
-                        variant="caption"
-                        color={selectedRating === rating ? 'white' : 'text'}
-                        style={{ marginLeft: spacing[1] }}
-                      >
-                        {`${rating}+`}
-                      </Typography>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
+                      {rating}+ ומעלה
+                    </Typography>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
-            {/* Clear Filters */}
-            {(selectedCity !== 'הכל' || priceRange[0] !== 50 || priceRange[1] !== 300 || selectedRating) && (
-              <TouchableOpacity style={styles.clearFiltersButton} onPress={clearAllFilters}>
-                <Typography variant="caption" color="textSecondary" weight="medium">
-                  {'נקה פילטרים'}
-                </Typography>
-              </TouchableOpacity>
-            )}
           </ScrollView>
 
-          {/* Modal Actions */}
-          <View style={styles.modalActions}>
+          {/* Footer - Fixed */}
+          <View style={{ 
+            padding: spacing[4],
+            borderTopWidth: 1,
+            borderTopColor: colors.gray[200],
+            backgroundColor: colors.white
+          }}>
             <TouchableOpacity
-              style={styles.applyFiltersButton}
+              style={{
+                backgroundColor: colors.primary[600],
+                paddingVertical: spacing[4],
+                paddingHorizontal: spacing[4],
+                borderRadius: 12,
+                alignItems: 'center',
+                marginBottom: spacing[2]
+              }}
               onPress={() => setShowFiltersModal(false)}
             >
-              <Typography variant="body2" color="white" weight="semibold">
-                {`החל פילטרים (${filteredTeachers.length} מורים)`}
+              <Typography variant="h6" color="white" weight="bold" style={{ fontSize: 16 }}>
+                החל סינון ({filteredTeachers.length} מורים)
+              </Typography>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={{
+                backgroundColor: 'transparent',
+                paddingVertical: spacing[3],
+                alignItems: 'center'
+              }}
+              onPress={clearAllFilters}
+            >
+              <Typography variant="body2" color="textSecondary" weight="semibold" style={{ fontSize: 14 }}>
+                נקה את כל הסינונים
               </Typography>
             </TouchableOpacity>
           </View>
@@ -975,10 +1176,10 @@ const styles = createStyle({
     backgroundColor: colors.white,
   },
   categoryChip: {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[1],
+    paddingVertical: spacing[1],
     backgroundColor: colors.gray[100],
-    borderRadius: 20,
+    borderRadius: 6,
     marginRight: spacing[2],
   },
   categoryChipActive: {
@@ -1016,30 +1217,49 @@ const styles = createStyle({
     backgroundColor: colors.white,
   },
   modalHeader: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
     borderBottomWidth: 1,
     borderBottomColor: colors.gray[200],
+    backgroundColor: colors.white,
   },
   modalCloseButton: {
     padding: spacing[2],
+    marginLeft: spacing[2],
   },
   modalScrollContent: {
     flex: 1,
     paddingHorizontal: spacing[4],
+    paddingTop: spacing[3],
+    paddingBottom: spacing[3],
+    backgroundColor: colors.gray[50],
+  },
+  filterSection: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: spacing[3],
+    marginBottom: spacing[3],
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   filterRow: {
-    marginVertical: spacing[4],
+    // marginVertical removed - handled by filterSection
   },
   filterChip: {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
     backgroundColor: colors.gray[100],
-    borderRadius: 20,
+    borderRadius: 8,
     marginRight: spacing[2],
+    borderWidth: 1,
+    borderColor: colors.gray[200],
   },
   filterChipActive: {
     backgroundColor: colors.primary[600],
@@ -1049,11 +1269,13 @@ const styles = createStyle({
     marginTop: spacing[2],
   },
   priceButton: {
-    paddingHorizontal: spacing[3],
+    paddingHorizontal: spacing[2],
     paddingVertical: spacing[2],
     backgroundColor: colors.gray[100],
-    borderRadius: 20,
+    borderRadius: 8,
     marginRight: spacing[2],
+    borderWidth: 1,
+    borderColor: colors.gray[200],
   },
   priceButtonActive: {
     backgroundColor: colors.primary[600],
@@ -1068,6 +1290,12 @@ const styles = createStyle({
     padding: spacing[4],
     borderTopWidth: 1,
     borderTopColor: colors.gray[200],
+    backgroundColor: colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
   },
   applyFiltersButton: {
     backgroundColor: colors.primary[600],
@@ -1075,5 +1303,16 @@ const styles = createStyle({
     paddingHorizontal: spacing[4],
     borderRadius: 12,
     alignItems: 'center',
+    flex: 1,
+  },
+  secondaryButton: {
+    backgroundColor: colors.white,
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.gray[300],
+    flex: 1,
   },
 });

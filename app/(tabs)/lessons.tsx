@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -70,7 +70,7 @@ export default function LessonsScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Fetch upcoming lessons from API
+  // Fetch upcoming lessons from API with optimized caching
   const { data: upcomingBookings = [], isLoading: loadingUpcoming, refetch: refetchUpcoming } = useQuery({
     queryKey: ['myBookings', 'upcoming'],
     queryFn: async () => {
@@ -89,9 +89,13 @@ export default function LessonsScreen() {
         isOnline: b.location_type === 'online',
       }));
     },
+    staleTime: 1000 * 60 * 2, // 2 minutes - lessons can change more frequently
+    gcTime: 1000 * 60 * 30, // 30 minutes cache time
+    refetchOnMount: false, // Use cache if data is fresh
+    refetchOnWindowFocus: false, // Don't refetch on focus
   });
 
-  // Fetch past lessons from API
+  // Fetch past lessons from API with optimized caching
   const { data: pastBookings = [], isLoading: loadingPast, refetch: refetchPast } = useQuery({
     queryKey: ['myBookings', 'past'],
     queryFn: async () => {
@@ -110,16 +114,14 @@ export default function LessonsScreen() {
         isOnline: b.location_type === 'online',
       }));
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes - past lessons change less frequently
+    gcTime: 1000 * 60 * 60, // 1 hour cache time
+    refetchOnMount: false, // Use cache if data is fresh
+    refetchOnWindowFocus: false, // Don't refetch on focus
   });
 
-  // Refetch bookings when screen is focused
-  useFocusEffect(
-    React.useCallback(() => {
-      console.log('🔍 [Lessons] Screen focused - refetching bookings');
-      refetchUpcoming();
-      refetchPast();
-    }, [refetchUpcoming, refetchPast])
-  );
+  // Removed useFocusEffect refetch - now relies on React Query cache
+  // Data will be automatically refetched when stale, reducing unnecessary API calls
 
   // Fetch teacher availability for rescheduling
   const { data: availability = [] } = useQuery({
@@ -136,8 +138,9 @@ export default function LessonsScreen() {
     enabled: !!selectedLesson?.teacherId && rescheduleModalVisible,
   });
 
-  const upcomingLessons = upcomingBookings as Lesson[];
-  const pastLessons = pastBookings as Lesson[];
+  // Memoize lesson lists to avoid recalculation
+  const upcomingLessons = useMemo(() => upcomingBookings as Lesson[], [upcomingBookings]);
+  const pastLessons = useMemo(() => pastBookings as Lesson[], [pastBookings]);
 
   const getStatusColor = (status: Lesson['status']) => {
     switch (status) {
@@ -171,12 +174,12 @@ export default function LessonsScreen() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Handle cancel lesson
-  const handleCancelLesson = (lesson: Lesson) => {
+  // Handle cancel lesson with useCallback for performance
+  const handleCancelLesson = useCallback((lesson: Lesson) => {
     setSelectedLesson(lesson);
     setSelectedRefundMethod(null);
     setCancelModalVisible(true);
-  };
+  }, []);
 
   // Process cancellation
   const processCancellation = async () => {
@@ -207,12 +210,12 @@ export default function LessonsScreen() {
     }
   };
 
-  // Handle reschedule lesson
-  const handleRescheduleLesson = (lesson: Lesson) => {
+  // Handle reschedule lesson with useCallback for performance
+  const handleRescheduleLesson = useCallback((lesson: Lesson) => {
     setSelectedLesson(lesson);
     setSelectedTimeSlot(null);
     setRescheduleModalVisible(true);
-  };
+  }, []);
 
   // Process reschedule
   const processReschedule = async () => {
