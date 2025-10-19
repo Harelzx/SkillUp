@@ -13,6 +13,7 @@ export {
   getTeacherAvailability,
   updateTeacherAvailability,
   updateTeacherSubjects,
+  getTeacherReviews,
 } from './teachersAPI';
 
 // Teacher Management API (for teacher users - manage profile)

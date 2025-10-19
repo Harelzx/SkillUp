@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { getCreditBalance } from '@/services/api/creditsAPI';
+import { useAuth } from '@/features/auth/auth-context';
 
 interface CreditsContextType {
   credits: number;
@@ -14,16 +15,29 @@ const CreditsContext = createContext<CreditsContextType | undefined>(undefined);
 export function CreditsProvider({ children }: { children: ReactNode }) {
   const [credits, setCreditsState] = useState<number>(0);
   const [isFetching, setIsFetching] = useState(false);
+  const { session } = useAuth();
 
-  // Fetch credits from DB on mount and when user logs in
+  // Fetch credits from DB when user is authenticated
   useEffect(() => {
-    console.log('🔵 [CreditsContext] Mounted, will fetch credits...');
-    fetchCredits();
-  }, []);
+    if (session?.user) {
+      console.log('🔵 [CreditsContext] User authenticated, fetching credits...');
+      fetchCredits();
+    } else {
+      console.log('🔵 [CreditsContext] No user session, setting credits to 0');
+      setCreditsState(0);
+    }
+  }, [session]);
 
   const fetchCredits = async () => {
     if (isFetching) {
       console.log('⏭️ [CreditsContext] Already fetching, skipping...');
+      return;
+    }
+
+    // Check if user is authenticated before attempting to fetch
+    if (!session?.user) {
+      console.log('🔵 [CreditsContext] No authenticated user, skipping credits fetch');
+      setCreditsState(0);
       return;
     }
 
