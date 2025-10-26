@@ -138,16 +138,14 @@ export async function createPayoutAccount() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Check if teacher profile exists
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('role')
+  // Check if user is a teacher by checking teachers table
+  const { data: teacherData, error: teacherError } = await supabase
+    .from('teachers')
+    .select('id')
     .eq('id', user.id)
     .single();
 
-  if (profileError) throw profileError;
-
-  if (profile.role !== 'teacher') {
+  if (teacherError || !teacherData) {
     throw new Error('Only teachers can create payout accounts');
   }
 

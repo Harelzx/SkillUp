@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { getCreditBalance } from '@/services/api/creditsAPI';
 import { useAuth } from '@/features/auth/auth-context';
 
@@ -16,25 +16,9 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   const [credits, setCreditsState] = useState<number>(0);
   const [isFetching, setIsFetching] = useState(false);
   const { session } = useAuth();
+  const lastFetchedUserId = useRef<string | null>(null);
 
-  // Fetch credits from DB when user is authenticated
-  useEffect(() => {
-    if (session?.user) {
-      console.log('🔵 [CreditsContext] User authenticated, fetching credits...');
-      fetchCredits();
-    } else {
-      console.log('🔵 [CreditsContext] No user session, setting credits to 0');
-      setCreditsState(0);
-    }
-  }, [session]);
-
-  const fetchCredits = async () => {
-    if (isFetching) {
-      console.log('⏭️ [CreditsContext] Already fetching, skipping...');
-      return;
-    }
-
-    // Check if user is authenticated before attempting to fetch
+  const fetchCredits = useCallback(async () => {
     if (!session?.user) {
       console.log('🔵 [CreditsContext] No authenticated user, skipping credits fetch');
       setCreditsState(0);
@@ -45,17 +29,46 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     console.log('🔵 [CreditsContext] Fetching credits balance from DB...');
 
     try {
-      const balance = await getCreditBalance();
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Credits fetch timeout')), 10000);
+      });
+
+      const balance = await Promise.race([
+        getCreditBalance(),
+        timeoutPromise
+      ]) as number;
+      
       console.log('✅ [CreditsContext] Fetched credits balance:', balance);
       setCreditsState(balance);
+      lastFetchedUserId.current = session.user.id;
     } catch (error: any) {
       console.error('❌ [CreditsContext] Error fetching credits:', error?.message || error);
-      // If error (e.g., not logged in), keep at 0
+      // If error (e.g., not logged in, timeout, etc.), keep at 0
       setCreditsState(0);
     } finally {
       setIsFetching(false);
     }
-  };
+  }, [session?.user]);
+
+  // Fetch credits from DB when user is authenticated or user ID changes
+  useEffect(() => {
+    const userId = session?.user?.id || null;
+
+    // If no user, reset
+    if (!userId) {
+      console.log('🔵 [CreditsContext] No user session, setting credits to 0');
+      setCreditsState(0);
+      lastFetchedUserId.current = null;
+      return;
+    }
+
+    // Only fetch if user ID changed or hasn't been fetched yet
+    if (lastFetchedUserId.current !== userId && !isFetching) {
+      console.log('🔵 [CreditsContext] User authenticated, fetching credits...');
+      fetchCredits();
+    }
+  }, [session?.user?.id, fetchCredits]);
 
   const addCredits = (amount: number) => {
     setCreditsState(prev => prev + amount);

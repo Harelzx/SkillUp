@@ -112,9 +112,9 @@ export async function getTeacherProfile(teacherId: string): Promise<TeacherProfi
   console.log('🔵 Fetching teacher profile:', teacherId);
   
   try {
-    // Try explicit column selection first
+    // Fetch from teachers table
     const { data, error } = await supabase
-      .from('profiles')
+      .from('teachers')
       .select(`
         id,
         display_name,
@@ -129,45 +129,10 @@ export async function getTeacherProfile(teacherId: string): Promise<TeacherProfi
         teaching_style
       `)
       .eq('id', teacherId)
-      .eq('role', 'teacher')
       .single();
 
     if (error) {
-      console.error('❌ Error fetching teacher profile (attempt 1):', error);
-      
-      // Fallback: try with minimal columns if cache issue
-      if (error.code === 'PGRST204') {
-        console.log('⚠️ Schema cache issue, trying fallback with minimal columns...');
-        
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('profiles')
-          .select('id, display_name, bio, avatar_url, hourly_rate, location')
-          .eq('id', teacherId)
-          .eq('role', 'teacher')
-          .single();
-        
-        if (fallbackError) {
-          throw fallbackError;
-        }
-        
-        const fbData = fallbackData as any;
-        console.log('✅ Fetched profile with fallback (using defaults for new fields)');
-        
-        return {
-          id: fbData.id,
-          displayName: fbData.display_name,
-          bio: fbData.bio,
-          avatarUrl: fbData.avatar_url,
-          hourlyRate: fbData.hourly_rate || 150,
-          lessonModes: ['online', 'at_teacher', 'at_student'], // defaults
-          durationOptions: [45, 60, 90], // defaults
-          regions: [],
-          timezone: 'Asia/Jerusalem',
-          teachingStyle: undefined,
-          location: fbData.location,
-        };
-      }
-      
+      console.error('❌ Error fetching teacher profile:', error);
       throw error;
     }
 

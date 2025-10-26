@@ -2,6 +2,9 @@
 // API Services - Central Export
 // ============================================
 
+// Students API
+export * from './studentsAPI';
+
 // Teachers API (for students - view teachers)
 export {
   getTeacherById,

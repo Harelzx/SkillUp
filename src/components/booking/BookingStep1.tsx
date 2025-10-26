@@ -1,7 +1,7 @@
 import { View, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
-import { BookingData, LessonType, StudentLevel } from '@/types/booking';
+import { BookingData, LessonType } from '@/types/booking';
 import { Wifi, Home, School } from 'lucide-react-native';
 import type { BookingMode } from '@/hooks/useTeacherBookingData';
 
@@ -20,14 +20,21 @@ const LESSON_TYPES: { value: LessonType; label: string; icon: any; description: 
   { value: 'teacher_location', label: 'אצל המורה', icon: School, description: 'תגיע למורה' },
 ];
 
-const DURATIONS = [45, 60, 90] as const;
-
-const STUDENT_LEVELS: { value: StudentLevel; label: string }[] = [
+const STUDENT_LEVEL_CATEGORIES: { value: any; label: string }[] = [
   { value: 'elementary', label: 'יסודי' },
-  { value: 'middle_school', label: 'חטיבה' },
+  { value: 'middle_school', label: 'חט״ב' },
   { value: 'high_school', label: 'תיכון' },
-  { value: 'academic', label: 'אקדמיה' },
+  { value: 'student', label: 'סטודנט' },
+  { value: 'adult', label: 'מבוגר' },
   { value: 'other', label: 'אחר' },
+];
+
+const STUDENT_LEVEL_PROFICIENCIES: { value: any; label: string }[] = [
+  { value: 'beginner', label: 'מתחיל' },
+  { value: 'basic', label: 'בסיסי' },
+  { value: 'intermediate', label: 'בינוני' },
+  { value: 'advanced', label: 'מתקדם' },
+  { value: 'competitive', label: 'תחרותי/מקצועי' },
 ];
 
 export function BookingStep1({ data, availableSubjects, availableModes, availableDurations, onChange, errors }: BookingStep1Props) {
@@ -36,8 +43,8 @@ export function BookingStep1({ data, availableSubjects, availableModes, availabl
     !availableModes || availableModes.includes(type.value as BookingMode)
   );
   
-  // Use available durations or default
-  const durations = availableDurations || DURATIONS;
+  // Use available durations or default to [45, 60, 90]
+  const durations = availableDurations || [45, 60, 90];
   return (
     <ScrollView 
       style={{ flex: 1 }}
@@ -175,38 +182,83 @@ export function BookingStep1({ data, availableSubjects, availableModes, availabl
             {errors.duration}
           </Typography>
         )}
+        <Typography variant="caption" color="textSecondary" style={{ marginTop: spacing[1], textAlign: 'right', fontStyle: 'italic' }}>
+          💡 משכי השיעור מוגדרים על ידי המורה
+        </Typography>
       </View>
 
-      {/* Student Level (Optional) */}
+      {/* Student Level Category */}
       <View style={{ marginBottom: spacing[4] }}>
         <Typography variant="body1" weight="semibold" style={{ textAlign: 'right', marginBottom: spacing[2] }}>
-          רמת התלמיד (אופציונלי)
+          קטגוריית גיל <Typography color="error">*</Typography>
         </Typography>
         <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap' }}>
-          {STUDENT_LEVELS.map((level) => (
+          {STUDENT_LEVEL_CATEGORIES.map((level) => (
             <TouchableOpacity
               key={level.value}
-              onPress={() => onChange({ studentLevel: level.value })}
+              onPress={() => onChange({ studentLevelCategory: level.value })}
               style={{
                 paddingHorizontal: spacing[4],
                 paddingVertical: spacing[2],
                 borderRadius: 20,
                 borderWidth: 1,
-                borderColor: data.studentLevel === level.value ? colors.primary[600] : colors.gray[300],
-                backgroundColor: data.studentLevel === level.value ? colors.primary[50] : colors.white,
+                borderColor: data.studentLevelCategory === level.value ? colors.primary[600] : colors.gray[300],
+                backgroundColor: data.studentLevelCategory === level.value ? colors.primary[50] : colors.white,
                 marginLeft: spacing[2],
                 marginBottom: spacing[2],
               }}
             >
               <Typography
                 variant="body2"
-                color={data.studentLevel === level.value ? 'primary' : 'text'}
+                color={data.studentLevelCategory === level.value ? 'primary' : 'text'}
               >
                 {level.label}
               </Typography>
             </TouchableOpacity>
           ))}
         </View>
+        {errors.studentLevelCategory && (
+          <Typography variant="caption" color="error" style={{ marginTop: spacing[1], textAlign: 'right' }}>
+            {errors.studentLevelCategory}
+          </Typography>
+        )}
+      </View>
+
+      {/* Student Level Proficiency */}
+      <View style={{ marginBottom: spacing[4] }}>
+        <Typography variant="body1" weight="semibold" style={{ textAlign: 'right', marginBottom: spacing[2] }}>
+          רמת מיומנות <Typography color="error">*</Typography>
+        </Typography>
+        <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap' }}>
+          {STUDENT_LEVEL_PROFICIENCIES.map((level) => (
+            <TouchableOpacity
+              key={level.value}
+              onPress={() => onChange({ studentLevelProficiency: level.value })}
+              style={{
+                paddingHorizontal: spacing[4],
+                paddingVertical: spacing[2],
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: data.studentLevelProficiency === level.value ? colors.primary[600] : colors.gray[300],
+                backgroundColor: data.studentLevelProficiency === level.value ? colors.primary[50] : colors.white,
+                marginLeft: spacing[2],
+                marginBottom: spacing[2],
+              }}
+            >
+              <Typography
+                variant="body2"
+                color={data.studentLevelProficiency === level.value ? 'primary' : 'text'}
+              >
+                {level.label}
+              </Typography>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {errors.studentLevelProficiency && (
+          <Typography variant="caption" color="error" style={{ marginTop: spacing[1], textAlign: 'right' }}>
+            {errors.studentLevelProficiency}
+          </Typography>
+        )}
       </View>
 
       {/* Notes */}

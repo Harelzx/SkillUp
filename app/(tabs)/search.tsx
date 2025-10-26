@@ -8,6 +8,9 @@ import {
   ActivityIndicator,
   Image,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getTeachers, getSubjects } from '@/services/api';
@@ -910,29 +913,40 @@ export default function SearchScreen() {
         onRequestClose={() => setShowFiltersModal(false)}
       >
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }}>
-          {/* Header - Fixed */}
-          <View style={{ 
-            flexDirection: isRTL ? 'row-reverse' : 'row',
-            padding: spacing[4],
-            borderBottomWidth: 1,
-            borderBottomColor: colors.gray[200],
-            alignItems: 'center'
-          }}>
-            <TouchableOpacity
-              style={{ padding: spacing[2] }}
-              onPress={() => setShowFiltersModal(false)}
-            >
-              <X size={28} color={colors.gray[700]} />
-            </TouchableOpacity>
-            <Typography variant="h4" weight="bold" style={{ flex: 1, textAlign: 'center', fontSize: 18 }}>
-              סינון מתקדם
-            </Typography>
-            {/* Spacer for centering */}
-            <View style={{ width: 44 }} />
-          </View>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1, maxHeight: Dimensions.get('window').height * 0.92 }}
+          >
+            {/* Header - Fixed */}
+            <View style={{ 
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              padding: spacing[4],
+              borderBottomWidth: 1,
+              borderBottomColor: colors.gray[200],
+              alignItems: 'center',
+              backgroundColor: colors.white,
+              zIndex: 10,
+              elevation: 3,
+            }}>
+              <TouchableOpacity
+                onPress={() => setShowFiltersModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ padding: spacing[2] }}
+              >
+                <X size={28} color={colors.gray[700]} />
+              </TouchableOpacity>
+              <Typography variant="h4" weight="bold" style={{ flex: 1, textAlign: 'center', fontSize: 18 }}>
+                סינון מתקדם
+              </Typography>
+              <View style={{ width: 44 }} />
+            </View>
 
-          {/* Content - Scrollable */}
-          <ScrollView style={{ flex: 1, padding: spacing[4] }} showsVerticalScrollIndicator={false}>
+            {/* Content - Scrollable */}
+            <ScrollView 
+              style={{ flex: 1 }} 
+              contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[8] }}
+              showsVerticalScrollIndicator={false}
+            >
             
             {/* City Section */}
             <View style={{ marginBottom: spacing[6] }}>
@@ -1097,7 +1111,12 @@ export default function SearchScreen() {
             padding: spacing[4],
             borderTopWidth: 1,
             borderTopColor: colors.gray[200],
-            backgroundColor: colors.white
+            backgroundColor: colors.white,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 4,
+            elevation: 3,
           }}>
             <TouchableOpacity
               style={{
@@ -1128,6 +1147,7 @@ export default function SearchScreen() {
               </Typography>
             </TouchableOpacity>
           </View>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
 

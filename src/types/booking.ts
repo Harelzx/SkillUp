@@ -1,14 +1,16 @@
 // Booking Flow Types
 
 export type LessonType = 'online' | 'student_location' | 'teacher_location';
-export type StudentLevel = 'elementary' | 'middle_school' | 'high_school' | 'academic' | 'other';
+export type StudentLevelCategory = 'elementary' | 'middle_school' | 'high_school' | 'student' | 'adult' | 'other';
+export type StudentLevelProficiency = 'beginner' | 'basic' | 'intermediate' | 'advanced' | 'competitive';
 
 export interface BookingData {
   // Step 1: Lesson Details
   subject: string;
   lessonType: LessonType;
   duration: 45 | 60 | 90;
-  studentLevel?: StudentLevel;
+  studentLevelCategory?: StudentLevelCategory;
+  studentLevelProficiency?: StudentLevelProficiency;
   notes?: string;
 
   // Step 2: Date & Time

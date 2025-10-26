@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
-import { BookingData } from '@/types/booking';
+import { BookingData, StudentLevelCategory, StudentLevelProficiency } from '@/types/booking';
 import { Calendar, Clock, MapPin, BookOpen, User, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react-native';
 import type { TeacherBookingProfile } from '@/hooks/useTeacherBookingData';
 
@@ -17,6 +17,23 @@ const LESSON_TYPE_LABELS = {
   online: 'אונליין',
   student_location: 'בבית התלמיד',
   teacher_location: 'בבית המורה',
+};
+
+const LEVEL_CATEGORY_LABELS: Record<StudentLevelCategory, string> = {
+  elementary: 'יסודי',
+  middle_school: 'חט״ב',
+  high_school: 'תיכון',
+  student: 'סטודנט',
+  adult: 'מבוגר',
+  other: 'אחר',
+};
+
+const LEVEL_PROFICIENCY_LABELS: Record<StudentLevelProficiency, string> = {
+  beginner: 'מתחיל',
+  basic: 'בסיסי',
+  intermediate: 'בינוני',
+  advanced: 'מתקדם',
+  competitive: 'תחרותי/מקצועי',
 };
 
 export function BookingStep4({ data, teacher, onChange, errors }: BookingStep4Props) {
@@ -133,6 +150,26 @@ export function BookingStep4({ data, teacher, onChange, errors }: BookingStep4Pr
         </View>
 
         <View style={{ height: 1, backgroundColor: colors.gray[200], marginBottom: spacing[3] }} />
+
+        {/* Student Level */}
+        {(data.studentLevelCategory || data.studentLevelProficiency) && (
+          <>
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', marginBottom: spacing[3] }}>
+              <User size={20} color={colors.gray[600]} style={{ marginLeft: spacing[2] }} />
+              <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                <Typography variant="caption" color="textSecondary">
+                  רמת התלמיד
+                </Typography>
+                <Typography variant="body1" weight="semibold">
+                  {data.studentLevelCategory && LEVEL_CATEGORY_LABELS[data.studentLevelCategory]}
+                  {data.studentLevelCategory && data.studentLevelProficiency && ' • '}
+                  {data.studentLevelProficiency && LEVEL_PROFICIENCY_LABELS[data.studentLevelProficiency]}
+                </Typography>
+              </View>
+            </View>
+            <View style={{ height: 1, backgroundColor: colors.gray[200], marginBottom: spacing[3] }} />
+          </>
+        )}
 
         {/* Location/Type */}
         <View style={{ flexDirection: 'row-reverse', alignItems: 'center' }}>

@@ -122,7 +122,7 @@ export default function TeacherOnboardingModal({ teacherId, onComplete }: Teache
     try {
       await updateTeacherProfile(teacherId, { bio: formData.bio, hourlyRate: parseFloat(formData.hourlyRate), location: formData.location });
       await updateTeacherSubjects(teacherId, formData.subjects);
-      const { error: updateError } = await supabase.from('profiles').update({ profile_completed: true } as any).eq('id', teacherId);
+      const { error: updateError } = await supabase.from('teachers').update({ profile_completed: true } as any).eq('id', teacherId);
       if (updateError) throw updateError;
       Alert.alert('ברוכים הבאים! 🎉', 'הפרופיל שלך הושלם בהצלחה!', [{ text: 'מעולה!', onPress: onComplete }]);
     } catch (error: any) {

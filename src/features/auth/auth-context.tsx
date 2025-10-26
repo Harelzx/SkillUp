@@ -47,80 +47,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string, retries = 3) => {
     try {
-      // Fetch profile from Supabase - explicit columns to avoid cache issues
+      // Get user metadata to determine role
+      const { data: { user } } = await supabase.auth.getUser();
+      const role = user?.user_metadata?.role || 'student';
+
+      // Determine which table to query
+      const table = role === 'teacher' ? 'teachers' : 'students';
+      
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role, display_name, bio, avatar_url, video_url, phone_number, email, location, hourly_rate, experience_years, total_students, is_verified, is_active, created_at, updated_at, lesson_modes, duration_options, regions, timezone, teaching_style, profile_completed')
+        .from(table)
+        .select('*')
         .eq('id', userId)
         .single();
 
       if (error) {
-        // If cache issue (PGRST204), try with minimal columns
-        if (error.code === 'PGRST204') {
-          console.log('⚠️ Schema cache issue in fetchProfile, using fallback...');
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('profiles')
-            .select('id, role, display_name, bio, avatar_url, hourly_rate, location, created_at, updated_at, profile_completed')
-            .eq('id', userId)
-            .single();
-
-          if (!fallbackError && fallbackData) {
-            const row = fallbackData as any;
-            const transformedProfile: Profile = {
-              id: row.id,
-              role: row.role,
-              displayName: row.display_name,
-              email: row.email,
-              phoneNumber: row.phone_number,
-              bio: row.bio,
-              avatarUrl: row.avatar_url,
-              videoUrl: undefined,
-              hourlyRate: row.hourly_rate,
-              subjects: [],
-              createdAt: row.created_at,
-              updatedAt: row.updated_at,
-              profileCompleted: row.profile_completed,
-            };
-            console.log('✅ Profile loaded from Supabase (fallback):', transformedProfile.displayName, `(${transformedProfile.role})`);
-            setProfile(transformedProfile);
-            return;
-          }
-        }
-        
         // If profile not found (PGRST116) and we have retries left, wait and retry
         if (error.code === 'PGRST116' && retries > 0) {
-          // Silent retry - no console spam
           await new Promise(resolve => setTimeout(resolve, 500));
           return fetchProfile(userId, retries - 1);
         }
-
-        // Silent fail - profile doesn't exist yet or user logged out
-        // This is normal during logout or before profile is created
         return;
       }
 
-      // Transform snake_case to camelCase for consistency with TypeScript conventions
-      const row = data as any;
-      const transformedProfile: Profile = {
-        id: row.id,
-        role: row.role,
-        displayName: row.display_name,
-        email: row.email,
-        phoneNumber: row.phone_number,
-        bio: row.bio,
-        avatarUrl: row.avatar_url,
-        videoUrl: row.video_url,
-        hourlyRate: row.hourly_rate,
-        subjects: row.subjects,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        profileCompleted: row.profile_completed,
-      };
+      // Transform based on table type
+      let transformedProfile: Profile;
+
+      if (role === 'teacher') {
+        const row = data as any;
+        transformedProfile = {
+          id: row.id,
+          role: 'teacher',
+          displayName: row.display_name,
+          email: row.email,
+          phoneNumber: row.phone,
+          bio: row.bio,
+          avatarUrl: row.avatar_url,
+          videoUrl: row.video_url,
+          hourlyRate: row.hourly_rate,
+          subjects: [],
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          profileCompleted: row.profile_completed || false,
+        };
+      } else {
+        const row = data as any;
+        transformedProfile = {
+          id: row.id,
+          role: 'student',
+          displayName: `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Student',
+          email: row.email,
+          phoneNumber: row.phone,
+          bio: row.bio,
+          avatarUrl: row.avatar_url,
+          videoUrl: undefined,
+          hourlyRate: undefined,
+          subjects: row.subjects_interests || [],
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          profileCompleted: true, // Students don't have this flag
+        };
+      }
 
       console.log('✅ Profile loaded from Supabase:', transformedProfile.displayName, `(${transformedProfile.role})`);
       setProfile(transformedProfile);
     } catch (error: any) {
-      // Silent fail - already handled above
+      // Silent fail
     }
   };
 
@@ -137,32 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fetch profile after successful Supabase login
       if (data.user) {
         await fetchProfile(data.user.id);
-        // Return the profile (it's now in state, but also return it directly)
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('id, role, display_name, bio, avatar_url, video_url, phone_number, email, location, hourly_rate, experience_years, total_students, is_verified, is_active, created_at, updated_at, lesson_modes, duration_options, regions, timezone, teaching_style, profile_completed')
-          .eq('id', data.user.id)
-          .single();
-
-        // Transform to camelCase
-        const profileRow = profileData as any;
-        const transformedProfile: Profile | null = profileRow ? {
-          id: profileRow.id,
-          role: profileRow.role,
-          displayName: profileRow.display_name,
-          email: profileRow.email,
-          phoneNumber: profileRow.phone_number,
-          bio: profileRow.bio,
-          avatarUrl: profileRow.avatar_url,
-          videoUrl: profileRow.video_url,
-          hourlyRate: profileRow.hourly_rate,
-          subjects: profileRow.subjects,
-          createdAt: profileRow.created_at,
-          updatedAt: profileRow.updated_at,
-          profileCompleted: profileRow.profile_completed,
-        } : null;
-        
-        return { error: null, profile: transformedProfile };
+        return { error: null, profile };
       }
 
       return { error: null, profile: null };
@@ -195,42 +161,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
 
-      // Create profile with all user data
+      // Create profile in appropriate table based on role
       if (data.user) {
         const profileData: any = {
           id: data.user.id,
-          role: userData.role,
-          display_name: userData.displayName,
-          phone_number: userData.phoneNumber || null,
-          is_verified: false,
+          email,
           is_active: true,
-          total_students: 0,
         };
 
-        // Try to add email if column exists
-        try {
-          profileData.email = email;
-        } catch (e) {
-          // Email column might not exist, that's OK
-        }
+        if (userData.role === 'teacher') {
+          // Insert into teachers table
+          profileData.display_name = userData.displayName;
+          profileData.phone = userData.phoneNumber || null;
+          profileData.is_verified = false;
+          profileData.total_students = 0;
 
-        console.log('🔵 Creating profile with data:', profileData);
+          console.log('🔵 Creating teacher profile:', profileData);
+          const { error: profileError } = await supabase
+            .from('teachers')
+            .insert(profileData);
+          
+          if (profileError) {
+            console.error('❌ Teacher profile creation error:', profileError);
+            throw profileError;
+          }
+        } else {
+          // Insert into students table
+          const nameParts = userData.displayName.split(' ');
+          profileData.first_name = nameParts[0] || 'Student';
+          profileData.last_name = nameParts.slice(1).join(' ') || '';
+          profileData.phone = userData.phoneNumber || null;
 
-        const { error: profileError, data: insertedProfile } = await supabase
-          .from('profiles')
-          .insert(profileData)
-          .select()
-          .single();
-
-        console.log('🔵 Profile insert response:', {
-          success: !profileError,
-          error: profileError?.message,
-          profileCreated: !!insertedProfile
-        });
-
-        if (profileError) {
-          console.error('❌ Profile creation error:', profileError);
-          throw profileError;
+          console.log('🔵 Creating student profile:', profileData);
+          const { error: profileError } = await supabase
+            .from('students')
+            .insert(profileData);
+          
+          if (profileError) {
+            console.error('❌ Student profile creation error:', profileError);
+            throw profileError;
+          }
         }
 
         console.log('✅ Profile created successfully!');
@@ -261,19 +231,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateProfile = async (updates: Partial<Profile>) => {
     try {
       if (!session?.user) throw new Error('No user logged in');
+      if (!profile) throw new Error('No profile loaded');
 
+      // Determine which table to update based on role
+      const table = profile.role === 'teacher' ? 'teachers' : 'students';
+      
       // Convert camelCase updates to snake_case for database
       const dbUpdates: any = {};
-      if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
-      if (updates.bio !== undefined) dbUpdates.bio = updates.bio;
-      if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
-      if (updates.videoUrl !== undefined) dbUpdates.video_url = updates.videoUrl;
-      if (updates.hourlyRate !== undefined) dbUpdates.hourly_rate = updates.hourlyRate;
+      
+      if (profile.role === 'teacher') {
+        if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
+        if (updates.bio !== undefined) dbUpdates.bio = updates.bio;
+        if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
+        if (updates.videoUrl !== undefined) dbUpdates.video_url = updates.videoUrl;
+        if (updates.hourlyRate !== undefined) dbUpdates.hourly_rate = updates.hourlyRate;
+      } else {
+        // For students, would need to handle first_name/last_name split
+        if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
+      }
 
       console.log('🔵 Updating profile in auth-context:', dbUpdates);
 
-      const { error } = await (supabase as any)
-        .from('profiles')
+      const { error } = await supabase
+        .from(table)
         .update(dbUpdates)
         .eq('id', session.user.id);
 

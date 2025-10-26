@@ -36,13 +36,11 @@ export default function RootLayout() {
 
   if (!isI18nInitialized) {
     return (
-      
-    <GluestackUIProvider mode="light">
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Loading...</Text>
-      </View>
-    </GluestackUIProvider>
-  
+      <GluestackUIProvider mode="light">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text>Loading...</Text>
+        </View>
+      </GluestackUIProvider>
     );
   }
 

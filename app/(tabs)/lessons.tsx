@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -9,8 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Calendar,
   Clock,
@@ -19,8 +19,6 @@ import {
   AlertCircle,
   Plus,
   X,
-  CreditCard,
-  Coins,
 } from 'lucide-react-native';
 import { Card, CardContent } from '@/ui/Card';
 import { Typography } from '@/ui/Typography';
@@ -28,8 +26,7 @@ import { Button, ButtonText } from '@gluestack-ui/themed';
 import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
-import { useCredits } from '@/context/CreditsContext';
-import { getMyBookings, cancelBooking, rescheduleBooking, getTeacherAvailability } from '@/services/api';
+import { getMyBookings, cancelBooking } from '@/services/api';
 
 interface Lesson {
   id: string;
@@ -38,56 +35,59 @@ interface Lesson {
   subject: string;
   date: string;
   time: string;
+  startAt?: string; // For sorting
   status: 'upcoming' | 'completed' | 'cancelled';
   price: number;
   isOnline: boolean;
   cancelledAt?: string;
+  awaitingPayment?: boolean;
 }
 
-interface TimeSlot {
-  date: string;
-  time: string;
-  available: boolean;
-}
-
-type RefundMethod = 'card' | 'credits';
+// Removed unused interfaces - reschedule and refund functionality removed
 
 export default function LessonsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { getFlexDirection, isRTL } = useRTL();
-  const { addCredits } = useCredits();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const [pressedButton, setPressedButton] = useState<string | null>(null);
 
   // Modal states
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
-  const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-  const [selectedRefundMethod, setSelectedRefundMethod] = useState<RefundMethod | null>(null);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Fetch upcoming lessons from API with optimized caching
-  const { data: upcomingBookings = [], isLoading: loadingUpcoming, refetch: refetchUpcoming } = useQuery({
+  const { data: upcomingBookings = [] } = useQuery({
     queryKey: ['myBookings', 'upcoming'],
     queryFn: async () => {
       console.log('🔄 [Lessons] Fetching upcoming bookings...');
       const bookings = await getMyBookings({ upcoming: true });
       console.log('✅ [Lessons] Fetched', bookings.length, 'upcoming bookings');
-      return bookings.map((b: any) => ({
+      // Filter out completed/cancelled bookings from upcoming
+      const filteredBookings = bookings.filter((b: any) => 
+        b.status !== 'completed' && b.status !== 'cancelled'
+      );
+      // Map and sort by start_at (most recent first)
+      const mappedBookings = filteredBookings.map((b: any) => ({
         id: b.id,
         teacherId: b.teacher_id,
         teacherName: b.teacher?.display_name || '',
         subject: b.subject?.name_he || '',
         date: new Date(b.start_at).toLocaleDateString('he-IL'),
         time: new Date(b.start_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
-        status: b.status === 'completed' ? 'completed' : b.status === 'cancelled' ? 'cancelled' : 'upcoming',
+        startAt: b.start_at, // Keep original for sorting
+        status: b.status === 'awaiting_payment' ? 'upcoming' : 'upcoming',
         price: b.price || 0,
         isOnline: b.location_type === 'online',
+        awaitingPayment: b.status === 'awaiting_payment',
       }));
+      // Sort by start_at ascending (nearest first)
+      return mappedBookings.sort((a: any, b: any) => 
+        new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+      );
     },
     staleTime: 1000 * 60 * 2, // 2 minutes - lessons can change more frequently
     gcTime: 1000 * 60 * 30, // 30 minutes cache time
@@ -96,23 +96,30 @@ export default function LessonsScreen() {
   });
 
   // Fetch past lessons from API with optimized caching
-  const { data: pastBookings = [], isLoading: loadingPast, refetch: refetchPast } = useQuery({
+  const { data: pastBookings = [] } = useQuery({
     queryKey: ['myBookings', 'past'],
     queryFn: async () => {
       console.log('🔄 [Lessons] Fetching past bookings...');
       const bookings = await getMyBookings({ upcoming: false });
       console.log('✅ [Lessons] Fetched', bookings.length, 'past bookings');
-      return bookings.map((b: any) => ({
+      // Map and sort by start_at (most recent first)
+      const mappedBookings = bookings.map((b: any) => ({
         id: b.id,
         teacherId: b.teacher_id,
         teacherName: b.teacher?.display_name || '',
         subject: b.subject?.name_he || '',
         date: new Date(b.start_at).toLocaleDateString('he-IL'),
         time: new Date(b.start_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
-        status: b.status === 'completed' ? 'completed' : b.status === 'cancelled' ? 'cancelled' : 'upcoming',
+        startAt: b.start_at, // Keep original for sorting
+        status: b.status === 'completed' ? 'completed' : b.status === 'cancelled' ? 'cancelled' : 'completed',
         price: b.price || 0,
         isOnline: b.location_type === 'online',
+        awaitingPayment: b.status === 'awaiting_payment',
       }));
+      // Sort by start_at descending (most recent first)
+      return mappedBookings.sort((a: any, b: any) => 
+        new Date(b.startAt).getTime() - new Date(a.startAt).getTime()
+      );
     },
     staleTime: 1000 * 60 * 5, // 5 minutes - past lessons change less frequently
     gcTime: 1000 * 60 * 60, // 1 hour cache time
@@ -122,21 +129,7 @@ export default function LessonsScreen() {
 
   // Removed useFocusEffect refetch - now relies on React Query cache
   // Data will be automatically refetched when stale, reducing unnecessary API calls
-
-  // Fetch teacher availability for rescheduling
-  const { data: availability = [] } = useQuery({
-    queryKey: ['teacherAvailability', selectedLesson?.teacherId],
-    queryFn: async () => {
-      if (!selectedLesson?.teacherId) return [];
-      const slots = await getTeacherAvailability(selectedLesson.teacherId);
-      return slots.map((slot: any) => ({
-        date: slot.date,
-        time: `${slot.start_time}-${slot.end_time}`,
-        available: slot.is_active,
-      }));
-    },
-    enabled: !!selectedLesson?.teacherId && rescheduleModalVisible,
-  });
+  // Removed reschedule functionality - user can cancel and book again
 
   // Memoize lesson lists to avoid recalculation
   const upcomingLessons = useMemo(() => upcomingBookings as Lesson[], [upcomingBookings]);
@@ -177,32 +170,25 @@ export default function LessonsScreen() {
   // Handle cancel lesson with useCallback for performance
   const handleCancelLesson = useCallback((lesson: Lesson) => {
     setSelectedLesson(lesson);
-    setSelectedRefundMethod(null);
     setCancelModalVisible(true);
   }, []);
 
   // Process cancellation
   const processCancellation = async () => {
-    if (!selectedLesson || !selectedRefundMethod) return;
+    if (!selectedLesson) return;
 
     setIsProcessing(true);
 
     try {
-      await cancelBooking(selectedLesson.id, selectedRefundMethod);
+      // Cancel booking without refund
+      await cancelBooking(selectedLesson.id, 'credits'); // Pass credits as default
 
       // Refresh bookings
       queryClient.invalidateQueries({ queryKey: ['myBookings'] });
 
-      // Add credits if refund method is credits
-      if (selectedRefundMethod === 'credits') {
-        addCredits(selectedLesson.price);
-      }
-
-      const refundText = selectedRefundMethod === 'card' ? 'לכרטיס' : 'בקרדיטים';
-      showToast(`השיעור בוטל בהצלחה. ההחזר ${refundText} בוצע`);
+      showToast('השיעור בוטל בהצלחה. ניתן לקבוע שיעור חדש');
       setCancelModalVisible(false);
       setSelectedLesson(null);
-      setSelectedRefundMethod(null);
     } catch (error) {
       Alert.alert('שגיאה', 'אירעה שגיאה בביטול השיעור. נסה שוב.');
     } finally {
@@ -210,38 +196,7 @@ export default function LessonsScreen() {
     }
   };
 
-  // Handle reschedule lesson with useCallback for performance
-  const handleRescheduleLesson = useCallback((lesson: Lesson) => {
-    setSelectedLesson(lesson);
-    setSelectedTimeSlot(null);
-    setRescheduleModalVisible(true);
-  }, []);
-
-  // Process reschedule
-  const processReschedule = async () => {
-    if (!selectedLesson || !selectedTimeSlot) return;
-
-    setIsProcessing(true);
-
-    try {
-      await rescheduleBooking(selectedLesson.id, {
-        newDate: selectedTimeSlot.date,
-        newTime: selectedTimeSlot.time,
-      });
-
-      // Refresh bookings
-      queryClient.invalidateQueries({ queryKey: ['myBookings'] });
-
-      showToast('המועד עודכן בהצלחה');
-      setRescheduleModalVisible(false);
-      setSelectedLesson(null);
-      setSelectedTimeSlot(null);
-    } catch (error) {
-      Alert.alert('שגיאה', 'אירעה שגיאה בעדכון המועד. נסה שוב.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  // Removed reschedule functionality - user can book again from past lessons
 
   const styles = createStyle({
     container: {
@@ -426,6 +381,25 @@ export default function LessonsScreen() {
             </View>
           </View>
 
+          {/* Awaiting Payment Badge */}
+          {lesson.status === 'upcoming' && lesson.awaitingPayment && (
+            <View style={{
+              marginTop: spacing[2],
+              marginBottom: spacing[2],
+              paddingHorizontal: spacing[2],
+              paddingVertical: spacing[1],
+              backgroundColor: colors.orange[50],
+              borderRadius: 8,
+              alignSelf: 'flex-end',
+              borderWidth: 1,
+              borderColor: colors.orange[200],
+            }}>
+              <Typography variant="caption" style={{ color: colors.orange[700], fontWeight: '600' }}>
+                ⏳ ממתין לתשלום
+              </Typography>
+            </View>
+          )}
+
           <View style={styles.lessonInfo}>
             <View style={[styles.infoRow, { flexDirection: getFlexDirection() }]}>
               <Calendar size={16} color={colors.gray[600]} />
@@ -447,38 +421,10 @@ export default function LessonsScreen() {
           </View>
 
           {lesson.status === 'upcoming' && (
-            <View style={[styles.actions, { flexDirection: getFlexDirection(), gap: spacing[3] }]}>
+            <View style={[styles.actions, { flexDirection: getFlexDirection() }]}>
               <Button
                 style={{
-                  flex: 1,
-                  minHeight: 48,
-                  paddingHorizontal: spacing[4],
-                  paddingVertical: spacing[3],
-                  backgroundColor: pressedButton === `reschedule-${lesson.id}` ? '#0056CC' : '#007AFF',
-                  borderRadius: 10,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  shadowColor: '#007AFF',
-                  shadowOffset: { width: 0, height: pressedButton === `reschedule-${lesson.id}` ? 1 : 2 },
-                  shadowOpacity: pressedButton === `reschedule-${lesson.id}` ? 0.3 : 0.2,
-                  shadowRadius: pressedButton === `reschedule-${lesson.id}` ? 2 : 4,
-                  elevation: pressedButton === `reschedule-${lesson.id}` ? 1 : 3,
-                  transform: [{ scale: pressedButton === `reschedule-${lesson.id}` ? 0.98 : 1 }],
-                }}
-                onPressIn={() => setPressedButton(`reschedule-${lesson.id}`)}
-                onPressOut={() => setPressedButton(null)}
-                onPress={() => handleRescheduleLesson(lesson)}
-              >
-                <View style={[{ flexDirection: getFlexDirection(), alignItems: 'center', gap: spacing[1] }]}>
-                  <Calendar size={16} color="white" />
-                  <ButtonText style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>
-                    שנה תאריך
-                  </ButtonText>
-                </View>
-              </Button>
-              <Button
-                style={{
-                  flex: 1,
+                  width: '100%',
                   minHeight: 48,
                   paddingHorizontal: spacing[4],
                   paddingVertical: spacing[3],
@@ -527,8 +473,8 @@ export default function LessonsScreen() {
                 onPressIn={() => setPressedButton(`book-again-${lesson.id}`)}
                 onPressOut={() => setPressedButton(null)}
                 onPress={() => {
-                  // Handle book again action
-                  console.log('Book again lesson with:', lesson.teacherName);
+                  // Navigate to teacher profile for booking
+                  router.push(`/(tabs)/teacher/${lesson.teacherId}`);
                 }}
               >
                 <View style={[{ flexDirection: getFlexDirection(), alignItems: 'center', gap: spacing[1] }]}>
@@ -645,55 +591,12 @@ export default function LessonsScreen() {
 
               <View style={styles.modalHeader}>
                 <Typography variant="h4" weight="bold" align="center" style={{ marginBottom: spacing[2] }}>
-                  איך תרצה לקבל החזר?
+                  לבטל את השיעור?
                 </Typography>
                 <Typography variant="body2" color="textSecondary" align="center">
-                  בחר את שיטת ההחזר המועדפת עליך
+                  האם אתה בטוח שברצונך לבטל את השיעור? לאחר הביטול תצטרך לקבוע שיעור חדש
                 </Typography>
               </View>
-
-              {/* Refund Options */}
-              <TouchableOpacity
-                style={[
-                  styles.refundOption,
-                  selectedRefundMethod === 'card' && styles.refundOptionSelected
-                ]}
-                onPress={() => setSelectedRefundMethod('card')}
-              >
-                <CreditCard 
-                  size={24} 
-                  color={selectedRefundMethod === 'card' ? colors.primary[600] : colors.gray[600]} 
-                />
-                <View style={styles.refundOptionContent}>
-                  <Typography variant="body1" weight="semibold">
-                    החזר לכרטיס
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    הכסף יוחזר לכרטיס האשראי תוך 3-5 ימי עסקים
-                  </Typography>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.refundOption,
-                  selectedRefundMethod === 'credits' && styles.refundOptionSelected
-                ]}
-                onPress={() => setSelectedRefundMethod('credits')}
-              >
-                <Coins 
-                  size={24} 
-                  color={selectedRefundMethod === 'credits' ? colors.primary[600] : colors.gray[600]} 
-                />
-                <View style={styles.refundOptionContent}>
-                  <Typography variant="body1" weight="semibold">
-                    החזר בקרדיטים
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    הקרדיטים יתווספו מיד לחשבונך
-                  </Typography>
-                </View>
-              </TouchableOpacity>
 
               {/* Action Buttons */}
               <View style={{ flexDirection: getFlexDirection(), gap: spacing[2], marginTop: spacing[4] }}>
@@ -712,119 +615,15 @@ export default function LessonsScreen() {
                 <Button
                   style={{ 
                     flex: 1,
-                    backgroundColor: selectedRefundMethod ? colors.red[600] : colors.gray[300]
+                    backgroundColor: colors.red[600]
                   }}
                   onPress={processCancellation}
-                  disabled={!selectedRefundMethod || isProcessing}
+                  disabled={isProcessing}
                 >
                   {isProcessing ? (
                     <ActivityIndicator color={colors.white} />
                   ) : (
                     <ButtonText style={{ color: colors.white }}>אשר ביטול</ButtonText>
-                  )}
-                </Button>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Reschedule Modal */}
-      <Modal
-        visible={rescheduleModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setRescheduleModalVisible(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1}
-          onPress={() => setRescheduleModalVisible(false)}
-        >
-          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalContent}>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setRescheduleModalVisible(false)}
-              >
-                <X size={24} color={colors.gray[600]} />
-              </TouchableOpacity>
-
-              <View style={styles.modalHeader}>
-                <Typography variant="h4" weight="bold" align="center" style={{ marginBottom: spacing[2] }}>
-                  בחרו מועד חדש
-                </Typography>
-                <Typography variant="body2" color="textSecondary" align="center">
-                  זמינות של {selectedLesson?.teacherName}
-                </Typography>
-              </View>
-
-              {/* Time Slots */}
-              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
-                {availability.length > 0 ? (
-                  availability.map((slot, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.timeSlot,
-                        selectedTimeSlot?.date === slot.date && 
-                        selectedTimeSlot?.time === slot.time && 
-                        styles.timeSlotSelected
-                      ]}
-                      onPress={() => setSelectedTimeSlot(slot)}
-                    >
-                      <View style={{ flexDirection: getFlexDirection(), alignItems: 'center', gap: spacing[2] }}>
-                        <Calendar 
-                          size={20} 
-                          color={selectedTimeSlot?.date === slot.date && selectedTimeSlot?.time === slot.time 
-                            ? colors.primary[600] 
-                            : colors.gray[600]
-                          } 
-                        />
-                        <Typography 
-                          variant="body1" 
-                          weight={selectedTimeSlot?.date === slot.date && selectedTimeSlot?.time === slot.time ? 'semibold' : 'normal'}
-                        >
-                          {slot.date} בשעה {slot.time}
-                        </Typography>
-                      </View>
-                    </TouchableOpacity>
-                  ))
-                ) : (
-                  <View style={{ padding: spacing[4], alignItems: 'center' }}>
-                    <Typography variant="body2" color="textSecondary" align="center">
-                      אין מועדים פנויים כרגע
-                    </Typography>
-                  </View>
-                )}
-              </ScrollView>
-
-              {/* Action Buttons */}
-              <View style={{ flexDirection: getFlexDirection(), gap: spacing[2], marginTop: spacing[4] }}>
-                <Button
-                  style={{ 
-                    flex: 1,
-                    backgroundColor: colors.gray[200],
-                    borderRadius: 8,
-                    paddingVertical: spacing[3],
-                  }}
-                  onPress={() => setRescheduleModalVisible(false)}
-                  disabled={isProcessing}
-                >
-                  <ButtonText style={{ color: colors.gray[700] }}>ביטול</ButtonText>
-                </Button>
-                <Button
-                  style={{ 
-                    flex: 1,
-                    backgroundColor: selectedTimeSlot ? colors.primary[600] : colors.gray[300]
-                  }}
-                  onPress={processReschedule}
-                  disabled={!selectedTimeSlot || isProcessing}
-                >
-                  {isProcessing ? (
-                    <ActivityIndicator color={colors.white} />
-                  ) : (
-                    <ButtonText style={{ color: colors.white }}>שנה מועד</ButtonText>
                   )}
                 </Button>
               </View>

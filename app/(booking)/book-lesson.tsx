@@ -42,7 +42,8 @@ export default function BookLessonScreen() {
     subject: '',
     lessonType: 'online',
     duration: 60,
-    studentLevel: undefined,
+    studentLevelCategory: undefined,
+    studentLevelProficiency: undefined,
     notes: '',
     date: undefined,
     timeSlot: undefined,
@@ -83,7 +84,8 @@ export default function BookLessonScreen() {
         subject: '',
         lessonType: 'online',
         duration: 60,
-        studentLevel: undefined,
+        studentLevelCategory: undefined,
+        studentLevelProficiency: undefined,
         notes: '',
         date: undefined,
         timeSlot: undefined,
@@ -150,6 +152,13 @@ export default function BookLessonScreen() {
           if (!teacher.duration_options.includes(bookingData.duration)) {
             newErrors.duration = 'משך השיעור שנבחר אינו זמין';
           }
+        }
+
+        if (!bookingData.studentLevelCategory) {
+          newErrors.studentLevelCategory = 'נא לבחור קטגוריית גיל';
+        }
+        if (!bookingData.studentLevelProficiency) {
+          newErrors.studentLevelProficiency = 'נא לבחור רמת מיומנות';
         }
         break;
 
@@ -294,7 +303,8 @@ export default function BookLessonScreen() {
         timezone: 'Asia/Jerusalem',
         notes: bookingData.notes || undefined,
         location: bookingData.address || undefined,
-        studentLevel: bookingData.studentLevel || undefined,
+        studentLevelCategory: bookingData.studentLevelCategory!,
+        studentLevelProficiency: bookingData.studentLevelProficiency!,
         creditsToApply,
         couponCode: bookingData.couponCode || undefined,
         source: 'mobile',

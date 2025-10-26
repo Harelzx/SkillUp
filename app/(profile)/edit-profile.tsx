@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -7,10 +7,14 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Platform,
+  KeyboardAvoidingView,
+  ImageStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import {
   ArrowRight,
   Camera,
@@ -29,6 +33,8 @@ import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { useCredits } from '@/context/CreditsContext';
+import { useAuth } from '@/features/auth/auth-context';
+import { getStudentProfile, updateStudentProfile, uploadStudentAvatar, type StudentProfileUpdate } from '@/services/api';
 
 const popularSubjects = [
   'מתמטיקה', 'אנגלית', 'פיזיקה', 'כימיה', 'היסטוריה',
@@ -46,21 +52,59 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const { getFlexDirection, isRTL } = useRTL();
   const { credits } = useCredits();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   
-  const [firstName, setFirstName] = useState('יוסי');
-  const [lastName, setLastName] = useState('כהן');
-  const [email, setEmail] = useState('yossi@example.com');
-  const [phone, setPhone] = useState('050-123-4567');
-  const [age, setAge] = useState('17');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [age, setAge] = useState('');
   const [city, setCity] = useState('תל אביב');
-  const [bio, setBio] = useState('תלמיד כיתה יב מחפש שיפור בציונים באנגלית ומתמטיקה');
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(['מתמטיקה', 'אנגלית']);
+  const [bio, setBio] = useState('');
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [avatar, setAvatar] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
   // Validation errors
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  // Fetch student profile
+  const { data: studentData, isLoading: loadingProfile } = useQuery({
+    queryKey: ['student-profile', user?.id],
+    queryFn: () => getStudentProfile(user!.id),
+    enabled: !!user,
+  });
+
+  // Populate form from fetched data
+  useEffect(() => {
+    if (studentData) {
+      setFirstName(studentData.firstName || '');
+      setLastName(studentData.lastName || '');
+      setEmail(studentData.email || '');
+      setPhone(studentData.phone || '');
+      setAge(studentData.birthYear?.toString() || '');
+      setCity(studentData.city || 'תל אביב');
+      setBio(studentData.bio || '');
+      setSelectedSubjects(studentData.subjectsInterests || []);
+      setAvatar(studentData.avatarUrl || null);
+    }
+  }, [studentData]);
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: (updates: StudentProfileUpdate) => updateStudentProfile(user!.id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-profile', user?.id] });
+      showToast('הפרופיל עודכן בהצלחה');
+      setTimeout(() => {
+        router.back();
+      }, 1500);
+    },
+    onError: (error: any) => {
+      Alert.alert('שגיאה', error.message || 'אירעה שגיאה בעדכון הפרופיל');
+    },
+  });
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -88,24 +132,27 @@ export default function EditProfileScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Show toast message
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   const handleSave = async () => {
     if (!validate()) return;
-    
-    setIsSaving(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setToastMessage('הפרופיל עודכן בהצלחה');
-      setTimeout(() => {
-        setToastMessage(null);
-        router.back();
-      }, 2000);
-    } catch (error) {
-      Alert.alert('שגיאה', 'אירעה שגיאה בעדכון הפרופיל');
-    } finally {
-      setIsSaving(false);
-    }
+    if (!user) return;
+
+    updateMutation.mutate({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.trim(),
+      phone,
+      birthYear: age ? parseInt(age) : undefined,
+      city: city.trim(),
+      bio: bio.trim(),
+      subjectsInterests: selectedSubjects,
+      avatarUrl: avatar || undefined,
+    });
   };
 
   const toggleSubject = (subject: string) => {
@@ -154,7 +201,7 @@ export default function EditProfileScreen() {
       width: 100,
       height: 100,
       borderRadius: 50,
-    },
+    } as ImageStyle,
     cameraButton: {
       position: 'absolute',
       bottom: 0,
@@ -248,6 +295,19 @@ export default function EditProfileScreen() {
     },
   });
 
+  if (loadingProfile) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary[600]} />
+          <Typography variant="body2" color="textSecondary" style={{ marginTop: spacing[3] }}>
+            טוען פרופיל...
+          </Typography>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -267,13 +327,17 @@ export default function EditProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
               {avatar ? (
-                <Image source={{ uri: avatar }} style={styles.avatarImage} />
+                <Image source={{ uri: avatar }} style={styles.avatarImage as any} resizeMode="cover" />
               ) : (
                 <User size={40} color={colors.white} />
               )}
@@ -494,7 +558,7 @@ export default function EditProfileScreen() {
               alignItems: 'center',
               minHeight: 48,
             }}
-            disabled={isSaving}
+            disabled={updateMutation.isPending}
           >
             <Typography variant="body1" weight="semibold" style={{ color: colors.gray[700] }}>
               ביטול
@@ -505,15 +569,15 @@ export default function EditProfileScreen() {
             onPress={handleSave}
             style={{
               flex: 1,
-              backgroundColor: isSaving ? colors.primary[400] : colors.primary[600],
+              backgroundColor: updateMutation.isPending ? colors.primary[400] : colors.primary[600],
               paddingVertical: spacing[3],
               borderRadius: 12,
               alignItems: 'center',
               minHeight: 48,
             }}
-            disabled={isSaving}
+            disabled={updateMutation.isPending}
           >
-            {isSaving ? (
+            {updateMutation.isPending ? (
               <ActivityIndicator color={colors.white} />
             ) : (
               <Typography variant="body1" weight="semibold" style={{ color: colors.white }}>
@@ -532,6 +596,7 @@ export default function EditProfileScreen() {
           </Typography>
         </View>
       )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

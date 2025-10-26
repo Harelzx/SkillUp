@@ -15,6 +15,136 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      students: {
+        Row: {
+          id: string
+          first_name: string
+          last_name: string
+          email: string | null
+          phone: string | null
+          birth_year: number | null
+          city: string | null
+          bio: string | null
+          avatar_url: string | null
+          subjects_interests: string[] | null
+          level_category: string | null
+          level_proficiency: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          first_name: string
+          last_name: string
+          email?: string | null
+          phone?: string | null
+          birth_year?: number | null
+          city?: string | null
+          bio?: string | null
+          avatar_url?: string | null
+          subjects_interests?: string[] | null
+          level_category?: string | null
+          level_proficiency?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          first_name?: string
+          last_name?: string
+          email?: string | null
+          phone?: string | null
+          birth_year?: number | null
+          city?: string | null
+          bio?: string | null
+          avatar_url?: string | null
+          subjects_interests?: string[] | null
+          level_category?: string | null
+          level_proficiency?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      teachers: {
+        Row: {
+          id: string
+          display_name: string
+          email: string | null
+          phone: string | null
+          bio: string | null
+          avatar_url: string | null
+          video_url: string | null
+          location: string | null
+          hourly_rate: number | null
+          experience_years: number | null
+          total_students: number
+          is_verified: boolean
+          is_active: boolean
+          is_subscribed: boolean
+          subscription_tier: string | null
+          lesson_modes: string[] | null
+          duration_options: number[] | null
+          regions: string[] | null
+          timezone: string | null
+          teaching_style: string | null
+          profile_completed: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          display_name: string
+          email?: string | null
+          phone?: string | null
+          bio?: string | null
+          avatar_url?: string | null
+          video_url?: string | null
+          location?: string | null
+          hourly_rate?: number | null
+          experience_years?: number | null
+          total_students?: number
+          is_verified?: boolean
+          is_active?: boolean
+          is_subscribed?: boolean
+          subscription_tier?: string | null
+          lesson_modes?: string[] | null
+          duration_options?: number[] | null
+          regions?: string[] | null
+          timezone?: string | null
+          teaching_style?: string | null
+          profile_completed?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          display_name?: string
+          email?: string | null
+          phone?: string | null
+          bio?: string | null
+          avatar_url?: string | null
+          video_url?: string | null
+          location?: string | null
+          hourly_rate?: number | null
+          experience_years?: number | null
+          total_students?: number
+          is_verified?: boolean
+          is_active?: boolean
+          is_subscribed?: boolean
+          subscription_tier?: string | null
+          lesson_modes?: string[] | null
+          duration_options?: number[] | null
+          regions?: string[] | null
+          timezone?: string | null
+          teaching_style?: string | null
+          profile_completed?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
       profiles: {
         Row: {
           id: string
@@ -146,13 +276,27 @@ export interface Database {
           subject_id: string
           start_at: string
           end_at: string
-          status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+          status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'awaiting_payment' | 'refunded'
           price: number
           is_online: boolean
           location: string | null
           notes: string | null
           cancelled_at: string | null
           cancellation_reason: string | null
+          mode: 'online' | 'student_location' | 'teacher_location' | null
+          duration_minutes: number | null
+          price_per_hour: number | null
+          total_price: number | null
+          credits_applied: number | null
+          coupon_code: string | null
+          discount_amount: number | null
+          timezone: string | null
+          source: string | null
+          currency: string | null
+          payment_method_selected: string | null
+          hold_expires_at: string | null
+          student_level_category: string | null
+          student_level_proficiency: string | null
           created_at: string
           updated_at: string
         }
@@ -160,16 +304,30 @@ export interface Database {
           id?: string
           teacher_id: string
           student_id: string
-          subject_id: string
+          subject_id?: string
           start_at: string
           end_at: string
-          status?: 'pending' | 'confirmed' | 'completed' | 'cancelled'
-          price: number
+          status?: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'awaiting_payment' | 'refunded'
+          price?: number
           is_online?: boolean
           location?: string | null
           notes?: string | null
           cancelled_at?: string | null
           cancellation_reason?: string | null
+          mode?: 'online' | 'student_location' | 'teacher_location' | null
+          duration_minutes?: number | null
+          price_per_hour?: number | null
+          total_price?: number | null
+          credits_applied?: number | null
+          coupon_code?: string | null
+          discount_amount?: number | null
+          timezone?: string | null
+          source?: string | null
+          currency?: string | null
+          payment_method_selected?: string | null
+          hold_expires_at?: string | null
+          student_level_category?: string | null
+          student_level_proficiency?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -180,13 +338,27 @@ export interface Database {
           subject_id?: string
           start_at?: string
           end_at?: string
-          status?: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+          status?: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'awaiting_payment' | 'refunded'
           price?: number
           is_online?: boolean
           location?: string | null
           notes?: string | null
           cancelled_at?: string | null
           cancellation_reason?: string | null
+          mode?: 'online' | 'student_location' | 'teacher_location' | null
+          duration_minutes?: number | null
+          price_per_hour?: number | null
+          total_price?: number | null
+          credits_applied?: number | null
+          coupon_code?: string | null
+          discount_amount?: number | null
+          timezone?: string | null
+          source?: string | null
+          currency?: string | null
+          payment_method_selected?: string | null
+          hold_expires_at?: string | null
+          student_level_category?: string | null
+          student_level_proficiency?: string | null
           created_at?: string
           updated_at?: string
         }

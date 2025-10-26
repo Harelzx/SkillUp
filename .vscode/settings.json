@@ -1,0 +1,44 @@
+{
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "typescript.suggest.autoImports": false,
+  "typescript.tsserver.maxTsServerMemory": 4096,
+  "typescript.updateImportsOnFileMove.enabled": "never",
+  "files.exclude": {
+    "**/.git": true,
+    "**/node_modules": true,
+    "**/.expo": true,
+    "**/.next": true,
+    "**/.cache": true,
+    "**/dist": true,
+    "**/build": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.expo": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/package-lock.json": true
+  },
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/.expo/**": true,
+    "**/.cache/**": true,
+    "**/dist/**": true,
+    "**/build/**": true
+  },
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": false
+  },
+  "editor.parameterHints.enabled": false,
+  "editor.suggest.showSnippets": false,
+  "editor.suggest.showKeywords": false,
+  "editor.suggest.showStatusBar": false,
+  "editor.inlineSuggest.enabled": false,
+  "files.autoSave": "onFocusChange",
+  "files.autoSaveDelay": 1000
+}
+

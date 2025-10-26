@@ -35,6 +35,8 @@ export async function getMyBookings(params?: {
   if (params?.upcoming !== undefined) {
     if (params.upcoming) {
       query = query.gte('start_at', new Date().toISOString());
+      // For upcoming, include confirmed, pending, and awaiting_payment statuses
+      query = query.in('status', ['pending', 'confirmed', 'awaiting_payment']);
     } else {
       query = query.lt('start_at', new Date().toISOString());
     }
@@ -119,7 +121,8 @@ export async function createBooking(params: {
   timezone?: string;
   notes?: string;
   location?: string;
-  studentLevel?: string;
+  studentLevelCategory: string;
+  studentLevelProficiency: string;
   creditsToApply?: number;
   couponCode?: string;
   source?: string;
@@ -130,6 +133,16 @@ export async function createBooking(params: {
 
   // Generate idempotency key
   const idempotencyKey = `booking_${user.id}_${params.teacherId}_${params.startAt}_${Date.now()}`;
+
+  // Map payment methods to database enum values
+  // Database only supports: 'credits', 'card', 'card_sim'
+  const mapPaymentMethod = (method?: string): 'card' | 'credits' | 'card_sim' => {
+    if (!method || method === 'credits') return 'credits';
+    if (method === 'card' || method === 'card_sim') return method;
+    // Map mobile payment methods to 'card'
+    if (method === 'apple_pay' || method === 'google_pay' || method === 'bit') return 'card';
+    return 'card';
+  };
 
   const { data, error} = await supabase.rpc('create_booking', {
     p_idempotency_key: idempotencyKey,
@@ -142,10 +155,12 @@ export async function createBooking(params: {
     p_timezone: params.timezone || 'Asia/Jerusalem',
     p_notes: params.notes || null,
     p_location: params.location || null,
-    p_student_level: params.studentLevel || null,
+    p_student_level_category: params.studentLevelCategory,
+    p_student_level_proficiency: params.studentLevelProficiency,
     p_credits_to_apply: params.creditsToApply || 0,
     p_coupon_code: params.couponCode || null,
     p_source: params.source || 'mobile',
+    p_selected_payment_method: mapPaymentMethod(params.paymentMethod),
   });
 
   if (error) {
@@ -156,9 +171,17 @@ export async function createBooking(params: {
       throw new Error('השעה הזו כבר תפוסה. אנא בחר שעה אחרת.');
     } else if (error.code === '53000') {
       throw new Error('התשלום נכשל. אנא נסה שוב.');
+    } else if (error.code === '22000') {
+      // Handle validation errors (duration, mode, etc.)
+      if (error.message.includes('Duration') || error.message.includes('not supported by teacher')) {
+        throw new Error('משך השיעור שנבחר אינו נתמך על ידי המורה. אנא בחר אופציה אחרת.');
+      } else if (error.message.includes('Mode') || error.message.includes('not supported')) {
+        throw new Error('סוג השיעור שנבחר אינו נתמך על ידי המורה. אנא בחר אופציה אחרת.');
+      }
+      throw new Error(error.message || 'נתונים לא תקינים. אנא בדוק את הפרטים ונסה שוב.');
     } else if (error.message.includes('Insufficient credits')) {
       throw new Error('אין מספיק קרדיטים. אנא הוסף קרדיטים או בחר באמצעי תשלום אחר.');
-    } else if (error.message.includes('already booked')) {
+    } else if (error.message.includes('already booked') || error.message.includes('Time slot is already booked')) {
       throw new Error('השעה הזו כבר תפוסה. אנא בחר שעה אחרת.');
     }
     

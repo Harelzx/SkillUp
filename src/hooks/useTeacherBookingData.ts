@@ -55,9 +55,9 @@ export function useTeacherBookingData(
         throw new Error('המורה לא הגדיר נושאי הוראה');
       }
 
-      // 3. Get teacher settings from profiles (lesson_modes, duration_options, etc.)
+      // 3. Get teacher settings from teachers table (lesson_modes, duration_options, etc.)
       const { data: teacherSettings } = await supabase
-        .from('profiles')
+        .from('teachers')
         .select('lesson_modes, duration_options, regions, timezone')
         .eq('id', teacherId)
         .single();
