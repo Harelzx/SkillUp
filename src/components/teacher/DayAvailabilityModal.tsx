@@ -25,7 +25,7 @@ import {
   openDay,
   type AvailabilitySlot,
   type SlotInput,
-} from '@/services/api';
+} from '@/services/api/teacherAPI';
 
 interface DayAvailabilityModalProps {
   visible: boolean;
