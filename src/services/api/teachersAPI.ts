@@ -12,23 +12,54 @@ import type {
 
 /**
  * Get teacher profile with stats by ID
+ * Query from teachers table with subjects and stats
  */
 export async function getTeacherById(teacherId: string) {
-  const { data, error } = await supabase
-    .from('teacher_profiles_with_stats')
+  // Query from teachers table directly
+  const { data: teacher, error } = await supabase
+    .from('teachers')
     .select('*')
     .eq('id', teacherId)
     .single();
 
-  if (error) throw error;
-  return data as TeacherProfile;
+  if (error) {
+    console.error('❌ Error fetching teacher by ID:', error);
+    throw error;
+  }
+
+  // Get subjects
+  const { data: subjectsData } = await supabase
+    .from('teacher_subjects')
+    .select('subject_id, subjects(id, name_he)')
+    .eq('teacher_id', teacherId);
+  
+  const subjectNames = subjectsData?.map((item: any) => item.subjects?.name_he).filter(Boolean) || [];
+  const subjectIds = subjectsData?.map((item: any) => item.subject_id).filter(Boolean) || [];
+  
+  // Get ratings and stats
+  const { data: avgRating } = await supabase
+    .rpc('get_teacher_avg_rating', { teacher_uuid: teacherId } as any);
+  
+  const { data: reviewCount } = await supabase
+    .rpc('get_teacher_review_count', { teacher_uuid: teacherId } as any);
+  
+  const teacherData = teacher as any;
+  if (!teacherData) throw new Error('Teacher not found');
+  
+  return {
+    ...teacherData,
+    subject_names: subjectNames,
+    subject_ids: subjectIds,
+    avg_rating: avgRating || 0,
+    review_count: reviewCount || 0,
+  } as TeacherProfile;
 }
 
 /**
  * Get all teachers with pagination and filters
  */
 export async function getTeachers(params?: {
-  subjectId?: string;
+  subjectIds?: string[];
   location?: string;
   minRate?: number;
   maxRate?: number;
@@ -36,29 +67,26 @@ export async function getTeachers(params?: {
   limit?: number;
   offset?: number;
 }) {
+  // Query from teachers table directly to show new teachers
   let query = supabase
-    .from('teacher_profiles_with_stats')
+    .from('teachers')
     .select('*', { count: 'exact' })
     .eq('is_active', true)
-    .order('avg_rating', { ascending: false, nullsFirst: true });
+    .order('created_at', { ascending: false });
 
-  // Filter by subject
-  if (params?.subjectId) {
-    query = query.contains('subject_ids', [params.subjectId]);
-  }
+  // Filter by subject - will be done after fetching subjects
 
   // Filter by location
   if (params?.location) {
     query = query.ilike('location', `%${params.location}%`);
   }
 
-  // Filter by hourly rate range
-  if (params?.minRate !== undefined) {
-    query = query.gte('hourly_rate', params.minRate);
-  }
-  if (params?.maxRate !== undefined) {
-    query = query.lte('hourly_rate', params.maxRate);
-  }
+  // Filter by hourly rate range - handle NULL rates properly
+  // Apply filters only for non-null rates, filter after in-memory
+  const minRate = params?.minRate !== undefined && params.minRate > 0 ? params.minRate : undefined;
+  const maxRate = params?.maxRate !== undefined && params.maxRate > 0 ? params.maxRate : undefined;
+  
+  // Don't apply rate filters in query, do it in memory to handle NULL
 
   // Search by name, bio, or subjects
   if (params?.searchQuery) {
@@ -79,17 +107,78 @@ export async function getTeachers(params?: {
   }
 
   const { data, error, count } = await query;
-
   if (error) throw error;
-  return { teachers: data as TeacherProfile[], total: count || 0 };
+
+  // עכשיו מושכים subjects בנפרד עבור כל מורה
+  const teachersWithSubjects = await Promise.all(
+    (data || []).map(async (teacher: any) => {
+      // שליפת subjects מ-teacher_subjects
+      const { data: subjectsData } = await supabase
+        .from('teacher_subjects')
+        .select('subject_id, subjects(id, name_he)')
+        .eq('teacher_id', teacher.id);
+      
+      const subjectNames = subjectsData?.map((item: any) => item.subjects?.name_he).filter(Boolean) || [];
+      const subjectIds = subjectsData?.map((item: any) => item.subject_id).filter(Boolean) || [];
+      
+      // שליפת rating ו-review count
+      const { data: avgRating } = await supabase
+        .rpc('get_teacher_avg_rating', { teacher_uuid: teacher.id } as any);
+      
+      const { data: reviewCount } = await supabase
+        .rpc('get_teacher_review_count', { teacher_uuid: teacher.id } as any);
+      
+      return {
+        ...teacher,
+        subject_names: subjectNames,
+        subject_ids: subjectIds,
+        avg_rating: avgRating || 0,
+        review_count: reviewCount || 0,
+      };
+    })
+  );
+
+  // עכשיו מסננים לפי subjects ו-hourly_rate אם צריך
+  let filtered = teachersWithSubjects;
+  
+  // סינון hourly_rate בזיכרון (לטיפול ב-NULL)
+  if (minRate !== undefined || maxRate !== undefined) {
+    filtered = filtered.filter(teacher => {
+      const rate = teacher.hourly_rate;
+      if (rate === null || rate === undefined) return true; // כלול מורים ללא מחיר
+      if (minRate !== undefined && rate < minRate) return false;
+      if (maxRate !== undefined && rate > maxRate) return false;
+      return true;
+    });
+  }
+  
+  if (params?.subjectIds && params.subjectIds.length > 0) {
+    filtered = filtered.filter(teacher =>
+      teacher.subject_ids.some((id: string) => params.subjectIds!.includes(id))
+    );
+  }
+
+  // סינון לפי searchQuery בנושאים (client-side)
+  if (params?.searchQuery) {
+    const queryLower = params.searchQuery.toLowerCase();
+    filtered = filtered.filter(teacher => {
+      const hasMatch = teacher.display_name?.toLowerCase().includes(queryLower) ||
+                      teacher.bio?.toLowerCase().includes(queryLower) ||
+                      teacher.subject_names?.some((s: string) => s.toLowerCase().includes(queryLower));
+      return hasMatch;
+    });
+  }
+
+  return { teachers: filtered as TeacherProfile[], total: filtered.length };
 }
 
 /**
  * Get featured/top teachers
  */
 export async function getFeaturedTeachers(limit: number = 10) {
+  // Query from teachers table directly to show new teachers immediately
   const { data, error } = await supabase
-    .from('teacher_profiles_with_stats')
+    .from('teachers')
     .select(`
       id,
       display_name,
@@ -97,26 +186,49 @@ export async function getFeaturedTeachers(limit: number = 10) {
       avatar_url,
       hourly_rate,
       location,
-      subject_names,
-      avg_rating,
-      review_count,
       experience_years,
       total_students,
       is_active,
-      is_verified
+      is_verified,
+      created_at
     `)
     .eq('is_active', true)
-    .eq('is_verified', true)
-    // In development: show all verified teachers
-    // In production: uncomment the rating/review filters
-    // .gte('avg_rating', 4.5)
-    // .gte('review_count', 5)
-    .order('avg_rating', { ascending: false, nullsFirst: false })
+    // Remove .eq('is_verified', true) to show unverified teachers too
+    .order('created_at', { ascending: false })
     .order('total_students', { ascending: false })
     .limit(limit);
 
   if (error) throw error;
-  return data as TeacherProfile[];
+  
+  // Get subjects and stats separately for each teacher (allows NULL ratings)
+  const teachersWithSubjects = await Promise.all(
+    (data || []).map(async (teacher: any) => {
+      // Get subjects
+      const { data: subjectsData } = await supabase
+        .from('teacher_subjects')
+        .select('subject_id, subjects(name_he)')
+        .eq('teacher_id', teacher.id);
+      
+      const subjectNames = subjectsData?.map((item: any) => item.subjects?.name_he).filter(Boolean) || [];
+      
+      // Get avg rating (nullable)
+      const { data: avgRating } = await supabase
+        .rpc('get_teacher_avg_rating', { teacher_uuid: teacher.id } as any);
+      
+      // Get review count (nullable)
+      const { data: reviewCount } = await supabase
+        .rpc('get_teacher_review_count', { teacher_uuid: teacher.id } as any);
+      
+      return {
+        ...teacher,
+        subject_names: subjectNames,
+        avg_rating: avgRating || 0,
+        review_count: reviewCount || 0,
+      };
+    })
+  );
+  
+  return teachersWithSubjects as TeacherProfile[];
 }
 
 // ============================================

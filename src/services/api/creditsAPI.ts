@@ -9,8 +9,27 @@ import type { CreditTransaction } from '@/types/api';
  * Get student's current credit balance
  */
 export async function getCreditBalance() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError) {
+    throw new Error('Authentication error: ' + authError.message);
+  }
+  
+  if (!user) {
+    throw new Error('Not authenticated');
+  }
+
+  // Check if student exists in students table
+  const { data: student, error: studentError } = await supabase
+    .from('students')
+    .select('id')
+    .eq('id', user.id)
+    .single();
+
+  if (studentError || !student) {
+    console.log('🔵 [creditsAPI] Student not found, returning 0');
+    return 0;
+  }
 
   const { data, error } = await supabase
     .from('student_credits')
@@ -27,9 +46,13 @@ export async function getCreditBalance() {
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('❌ [creditsAPI] Error creating credit record:', insertError);
+        throw insertError;
+      }
       return newRecord.balance;
     }
+    console.error('❌ [creditsAPI] Error fetching credits:', error);
     throw error;
   }
 

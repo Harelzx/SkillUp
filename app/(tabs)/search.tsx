@@ -13,8 +13,9 @@ import {
   Dimensions,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { getTeachers, getSubjects } from '@/services/api';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { getSubjects } from '@/services/api';
+import { useSearchTeachers } from '@/hooks/useTeachers';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
@@ -77,6 +78,7 @@ export default function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { isRTL, getFlexDirection } = useRTL();
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedCity, setSelectedCity] = useState<string>('הכל');
@@ -102,56 +104,17 @@ export default function SearchScreen() {
     queryFn: getSubjects,
   });
 
-  // Fetch teachers from API with filters
-  const { data: teachersData, isLoading: loadingTeachers } = useQuery({
-    queryKey: ['teachers', selectedCategory, selectedCity, priceRange, selectedRating],
-    queryFn: async () => {
-      const params: any = {
-        limit: 100,
-      };
-
-      // Add subject filter
-      if (selectedCategory && selectedCategory !== 'all') {
-        // Find subject ID from name
-        const subject = subjects.find(s => s.name_he === selectedCategory);
-        if (subject) {
-          params.subjectId = subject.id;
-        }
-      }
-
-      // Add location filter
-      if (selectedCity && selectedCity !== 'הכל') {
-        params.location = selectedCity;
-      }
-
-      // Add price range filter
-      params.minRate = priceRange[0];
-      params.maxRate = priceRange[1];
-
-      // Don't send searchQuery to API - filter client-side instead
-      // This allows searching in subjects (which are arrays)
-
-      const result = await getTeachers(params);
-      return result.teachers.map((t: any) => {
-        const subjects = Array.isArray(t.subject_names)
-          ? t.subject_names.filter((s: any) => typeof s === 'string' && s.trim())
-          : [];
-
-        return {
-          id: t.id,
-          displayName: t.display_name || 'לא ידוע',
-          bio: t.bio || '',
-          avatarUrl: t.avatar_url,
-          hourlyRate: t.hourly_rate || 0,
-          subjects: subjects,
-          rating: t.avg_rating || 0,
-          totalReviews: t.review_count || 0,
-          location: t.location || '',
-          experienceYears: t.experience_years || 0,
-          totalStudents: t.total_students || 0,
-        };
-      });
-    },
+  // Fetch teachers from unified `teachers`
+  const { data: teachersData = [], isLoading: loadingTeachers } = useSearchTeachers({
+    query: searchQuery,
+    subjects: selectedCategory && selectedCategory !== 'all' 
+      ? subjects.filter(s => s.name_he === selectedCategory).map(s => s.id)
+      : undefined,
+    location: selectedCity !== 'הכל' ? selectedCity : undefined,
+    minRate: priceRange[0],
+    maxRate: priceRange[1],
+    sortBy: sortBy,
+    limit: 100,
   });
 
   const mockTeachers: Teacher[] = teachersData || [];
@@ -199,7 +162,7 @@ export default function SearchScreen() {
     { id: 'ספרות', name: 'ספרות', icon: '📚' },
   ];
 
-  // Advanced filtering logic
+  // Advanced filtering logic - removed duplicate searchQuery and city filters (already done in server)
   const filteredTeachers = useMemo(() => {
     let results = mockTeachers;
 
@@ -211,33 +174,21 @@ export default function SearchScreen() {
       );
     }
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      results = results.filter(teacher => {
-        const nameMatch = (teacher.displayName || '').toLowerCase().includes(query);
-        const bioMatch = (teacher.bio || '').toLowerCase().includes(query);
-        const subjectMatch = Array.isArray(teacher.subjects) && teacher.subjects.some(s => String(s).toLowerCase().includes(query));
-        const locationMatch = teacher.location && teacher.location.toLowerCase().includes(query);
-        return nameMatch || bioMatch || subjectMatch || locationMatch;
-      });
-    }
-
-    // Filter by category (from local selection)
+    // Filter by selected category (local)
     if (selectedCategory && selectedCategory !== 'all') {
       results = results.filter(teacher =>
         Array.isArray(teacher.subjects) && teacher.subjects.some(s => String(s) === String(selectedCategory))
       );
     }
 
-    // Filter by city
+    // Filter by city (client-side for performance)
     if (selectedCity && selectedCity !== 'הכל') {
       results = results.filter(teacher =>
         teacher.location === selectedCity
       );
     }
 
-    // Filter by price range
+    // Filter by price range (already in server, but keep as safety)
     results = results.filter(teacher =>
       teacher.hourlyRate >= priceRange[0] && teacher.hourlyRate <= priceRange[1]
     );
@@ -265,7 +216,7 @@ export default function SearchScreen() {
     });
 
     return results;
-  }, [mockTeachers, incomingCategory, searchQuery, selectedCategory, selectedCity, priceRange, selectedRating, sortBy]);
+  }, [mockTeachers, incomingCategory, selectedCategory, selectedCity, priceRange, selectedRating, sortBy]);
 
   // Check if any filters are active
   const hasActiveFilters = incomingCategory || searchQuery || (selectedCategory && selectedCategory !== 'all') ||
@@ -786,7 +737,7 @@ export default function SearchScreen() {
 
       {/* Content */}
       {!hasActiveFilters ? (
-        <ScrollView>
+        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
           {/* Recent Searches */}
           {recentSearches.length > 0 && (
             <View style={styles.recentSearches}>
@@ -944,7 +895,7 @@ export default function SearchScreen() {
             {/* Content - Scrollable */}
             <ScrollView 
               style={{ flex: 1 }} 
-              contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[8] }}
+              contentContainerStyle={{ padding: spacing[4], paddingBottom: insets.bottom + 100 }}
               showsVerticalScrollIndicator={false}
             >
             

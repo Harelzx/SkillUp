@@ -22,8 +22,12 @@ import { colors, spacing, shadows } from '@/theme/tokens';
 import { useRTL } from '@/context/RTLContext';
 import { getLessonsForDate, TeacherLesson } from '@/data/teacher-data';
 import { DayAvailabilityModal } from '@/components/teacher/DayAvailabilityModal';
+import { DayLessonsList } from '@/components/teacher/DayLessonsList';
 import { useAuth } from '@/features/auth/auth-context';
 import { subscribeToTeacherAvailability } from '@/services/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getTeacherBookings, cancelBooking } from '@/services/api/bookingsAPI';
+import { supabase } from '@/lib/supabase';
 
 interface CalendarDay {
   date: Date;
@@ -280,12 +284,34 @@ export default function TeacherCalendarScreen() {
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [modalVisible, setModalVisible] = useState(false);
   const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   
+  const queryClient = useQueryClient();
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
+  
+  // Fetch bookings for selected date
+  const selectedDateStr = selectedDate.toISOString().split('T')[0];
+  const { data: dayBookings = [], isLoading: isLoadingBookings } = useQuery({
+    queryKey: ['teacher-day-lessons', profile?.id, selectedDateStr],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      const bookings = await getTeacherBookings(profile.id, { 
+        date: selectedDateStr 
+      });
+      // Only show confirmed and awaiting_payment bookings
+      return bookings.filter((b: any) => 
+        b.status === 'confirmed' || b.status === 'awaiting_payment'
+      );
+    },
+    enabled: !!profile?.id,
+    staleTime: 1000 * 60, // 1 minute
+  });
   
   // Calculate dynamic cell width accounting for gaps and padding
   // Container padding: 12px on each side = 24px total
@@ -314,23 +340,40 @@ export default function TeacherCalendarScreen() {
   };
   
   const handleDayPress = (day: CalendarDay) => {
-    // If clicking on current or future date, open availability modal
-    // If clicking on past date with lessons, show lessons
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (day.date >= today) {
-      setSelectedDay(day);
-      setAvailabilityModalVisible(true);
-    } else if (day.hasLessons) {
-      setSelectedDay(day);
-      setModalVisible(true);
-    }
+    // Only update selected date for lessons list
+    setSelectedDate(day.date);
   };
 
   const handleSlotsUpdated = () => {
     // Refresh the calendar data
     setRefreshKey(prev => prev + 1);
+  };
+
+  const handleManageAvailability = () => {
+    const day = days.find(d => d.date.toDateString() === selectedDate.toDateString());
+    if (day) {
+      setSelectedDay(day);
+      setAvailabilityModalVisible(true);
+    }
+  };
+
+  const handleCancelLesson = (bookingId: string) => {
+    setBookingToCancel(bookingId);
+    setCancelModalVisible(true);
+  };
+
+  const confirmCancellation = async () => {
+    if (!bookingToCancel) return;
+    try {
+      await cancelBooking(bookingToCancel, 'Cancelled by teacher', 'credits');
+      queryClient.invalidateQueries({ queryKey: ['teacher-day-lessons'] });
+      setRefreshKey(prev => prev + 1);
+    } catch (error: any) {
+      console.error('Error cancelling booking:', error);
+    } finally {
+      setCancelModalVisible(false);
+      setBookingToCancel(null);
+    }
   };
 
   // Subscribe to realtime availability updates
@@ -347,6 +390,35 @@ export default function TeacherCalendarScreen() {
       unsubscribe();
     };
   }, [profile?.id]);
+
+  // Subscribe to realtime booking updates
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const channel = supabase
+      .channel(`teacher-bookings-${profile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `teacher_id=eq.${profile.id}`,
+        },
+        (payload) => {
+          console.log('📡 Realtime booking update:', payload);
+          // Invalidate the query for the selected date
+          queryClient.invalidateQueries({
+            queryKey: ['teacher-day-lessons', profile.id],
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id, queryClient]);
   
   // Dynamic cell size based on available space
   const finalCellSize = Math.max(cellWidth, 42);
@@ -475,7 +547,7 @@ export default function TeacherCalendarScreen() {
       
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: spacing[4] }}
+        contentContainerStyle={{ paddingBottom: spacing[20] }}
       >
         {/* Calendar Grid */}
         <View style={styles.calendarContainer}>
@@ -681,6 +753,17 @@ export default function TeacherCalendarScreen() {
             </View>
           </Card>
         </View>
+
+        {/* Day Lessons List */}
+        {profile && (
+          <DayLessonsList
+            bookings={dayBookings}
+            isLoading={isLoadingBookings}
+            selectedDate={selectedDate}
+            onManageAvailability={handleManageAvailability}
+            onCancelLesson={handleCancelLesson}
+          />
+        )}
       </ScrollView>
       
       {/* Day Lessons Modal (for past dates) */}
@@ -700,6 +783,77 @@ export default function TeacherCalendarScreen() {
           onSlotsUpdated={handleSlotsUpdated}
         />
       )}
+
+      {/* Cancellation Confirmation Modal */}
+      <Modal
+        visible={cancelModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCancelModalVisible(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: spacing[4],
+          }}
+          onPress={() => setCancelModalVisible(false)}
+        >
+          <Pressable
+            style={{
+              backgroundColor: colors.white,
+              borderRadius: 16,
+              padding: spacing[5],
+              width: '100%',
+              maxWidth: 400,
+              ...shadows.xl,
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Typography variant="h4" weight="bold" align="center" style={{ marginBottom: spacing[2] }}>
+              לבטל את השיעור?
+            </Typography>
+            <Typography variant="body2" color="textSecondary" align="center" style={{ marginBottom: spacing[4] }}>
+              האם אתה בטוח שברצונך לבטל את השיעור? הקרדיטים יוחזרו אוטומטית לתלמיד.
+            </Typography>
+
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing[2] }}>
+              <TouchableOpacity
+                onPress={() => setCancelModalVisible(false)}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.gray[200],
+                  borderRadius: 8,
+                  paddingVertical: spacing[3],
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Typography variant="body2" weight="semibold" style={{ color: colors.gray[700] }}>
+                  ביטול
+                </Typography>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmCancellation}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.red[600],
+                  borderRadius: 8,
+                  paddingVertical: spacing[3],
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Typography variant="body2" weight="semibold" style={{ color: colors.white }}>
+                  אשר ביטול
+                </Typography>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -19,8 +19,8 @@ export async function getMyBookings(params?: {
     .from('bookings')
     .select(`
       *,
-      teacher:profiles!bookings_teacher_id_fkey(id, display_name, avatar_url),
-      student:profiles!bookings_student_id_fkey(id, display_name, avatar_url),
+      teacher:teachers!bookings_teacher_id_fkey(id, display_name, avatar_url),
+      student:students!bookings_student_id_fkey(id, first_name, last_name, avatar_url),
       subject:subjects(id, name, name_he, icon)
     `)
     .or(`teacher_id.eq.${user.id},student_id.eq.${user.id}`)
@@ -59,7 +59,7 @@ export async function getTeacherBookings(teacherId: string, params?: {
     .from('bookings')
     .select(`
       *,
-      student:profiles!bookings_student_id_fkey(id, display_name, avatar_url, phone),
+      student:students!bookings_student_id_fkey(id, first_name, last_name, avatar_url, phone),
       subject:subjects(id, name, name_he, icon)
     `)
     .eq('teacher_id', teacherId)
@@ -94,8 +94,8 @@ export async function getBookingById(bookingId: string) {
     .from('bookings')
     .select(`
       *,
-      teacher:profiles!bookings_teacher_id_fkey(id, display_name, avatar_url, phone, hourly_rate),
-      student:profiles!bookings_student_id_fkey(id, display_name, avatar_url, phone),
+      teacher:teachers!bookings_teacher_id_fkey(id, display_name, avatar_url, phone, hourly_rate),
+      student:students!bookings_student_id_fkey(id, first_name, last_name, avatar_url, phone),
       subject:subjects(id, name, name_he, icon)
     `)
     .eq('id', bookingId)
