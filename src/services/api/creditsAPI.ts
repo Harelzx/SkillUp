@@ -337,6 +337,52 @@ export async function awardBonusCredits(
 }
 
 // ============================================
+// COUPON REDEMPTION
+// ============================================
+
+/**
+ * Redeem a coupon code for credits
+ */
+export async function redeemCoupon(code: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .rpc('redeem_coupon', {
+      p_student_id: user.id,
+      p_code: code.toUpperCase().trim(),
+    });
+
+  if (error) throw error;
+  return data as {
+    success: boolean;
+    credits_awarded: number;
+    description: string;
+    transaction_id: string;
+  };
+}
+
+/**
+ * Get student's coupon redemption history
+ */
+export async function getCouponRedemptions() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('coupon_redemptions')
+    .select(`
+      *,
+      coupon:coupons(code, description)
+    `)
+    .eq('student_id', user.id)
+    .order('redeemed_at', { ascending: false });
+
+  if (error) throw error;
+  return data;
+}
+
+// ============================================
 // CREDIT STATISTICS
 // ============================================
 

@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           subjects: row.subjects_interests || [],
           createdAt: row.created_at,
           updatedAt: row.updated_at,
-          profileCompleted: true, // Students don't have this flag
+          profileCompleted: row.profile_completed || false,
         };
       }
 
