@@ -10,13 +10,14 @@ export interface StudentProfile {
   lastName: string;
   email?: string;
   phone?: string;
-  birthYear?: number;
+  birthDate?: string; // YYYY-MM-DD format
   city?: string;
   bio?: string;
   avatarUrl?: string;
   subjectsInterests?: string[];
   levelCategory?: string;
   levelProficiency?: string;
+  profileCompleted?: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -27,13 +28,14 @@ export interface StudentProfileUpdate {
   lastName?: string;
   email?: string;
   phone?: string;
-  birthYear?: number;
+  birthDate?: string; // YYYY-MM-DD format
   city?: string;
   bio?: string;
   subjectsInterests?: string[];
   levelCategory?: string;
   levelProficiency?: string;
   avatarUrl?: string;
+  profileCompleted?: boolean;
 }
 
 /**
@@ -55,13 +57,14 @@ export async function getStudentProfile(userId: string): Promise<StudentProfile>
     lastName: data.last_name,
     email: data.email || undefined,
     phone: data.phone || undefined,
-    birthYear: data.birth_year || undefined,
+    birthDate: data.birth_date || undefined,
     city: data.city || undefined,
     bio: data.bio || undefined,
     avatarUrl: data.avatar_url || undefined,
     subjectsInterests: data.subjects_interests || [],
     levelCategory: data.level_category || undefined,
     levelProficiency: data.level_proficiency || undefined,
+    profileCompleted: data.profile_completed || false,
     isActive: data.is_active,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
@@ -84,13 +87,14 @@ export async function updateStudentProfile(
   if (updates.lastName !== undefined) payload.last_name = updates.lastName.trim();
   if (updates.email !== undefined) payload.email = updates.email.trim() || null;
   if (updates.phone !== undefined) payload.phone = normalizePhone(updates.phone) || null;
-  if (updates.birthYear !== undefined) payload.birth_year = updates.birthYear || null;
+  if (updates.birthDate !== undefined) payload.birth_date = updates.birthDate || null;
   if (updates.city !== undefined) payload.city = updates.city.trim() || null;
   if (updates.bio !== undefined) payload.bio = updates.bio.trim() || null;
   if (updates.subjectsInterests !== undefined) payload.subjects_interests = updates.subjectsInterests;
   if (updates.levelCategory !== undefined) payload.level_category = updates.levelCategory || null;
   if (updates.levelProficiency !== undefined) payload.level_proficiency = updates.levelProficiency || null;
   if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl || null;
+  if (updates.profileCompleted !== undefined) payload.profile_completed = updates.profileCompleted;
 
   // Validate before sending
   validateStudentProfile(payload);

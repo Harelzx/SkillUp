@@ -34,13 +34,7 @@ import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { useCredits } from '@/context/CreditsContext';
 import { useAuth } from '@/features/auth/auth-context';
-import { getStudentProfile, updateStudentProfile, uploadStudentAvatar, type StudentProfileUpdate } from '@/services/api';
-
-const popularSubjects = [
-  'מתמטיקה', 'אנגלית', 'פיזיקה', 'כימיה', 'היסטוריה',
-  'מוזיקה', 'אמנות', 'תכנות', 'יוגה', 'פילאטיס',
-  'חדו״א', 'סטטיסטיקה', 'כלכלה'
-];
+import { getStudentProfile, updateStudentProfile, uploadStudentAvatar, getSubjects, type StudentProfileUpdate } from '@/services/api';
 
 const cities = [
   'תל אביב', 'רמת גן', 'ירושלים', 'חיפה', 'באר שבע',
@@ -76,6 +70,25 @@ export default function EditProfileScreen() {
     enabled: !!user,
   });
 
+  // Fetch available subjects from database
+  const { data: availableSubjects = [], isLoading: loadingSubjects } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: getSubjects,
+  });
+
+  // Calculate age from birth date
+  const calculateAge = (birthDateString?: string): string => {
+    if (!birthDateString) return '';
+    const birthDate = new Date(birthDateString);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age.toString();
+  };
+
   // Populate form from fetched data
   useEffect(() => {
     if (studentData) {
@@ -83,7 +96,7 @@ export default function EditProfileScreen() {
       setLastName(studentData.lastName || '');
       setEmail(studentData.email || '');
       setPhone(studentData.phone || '');
-      setAge(studentData.birthYear?.toString() || '');
+      setAge(calculateAge(studentData.birthDate));
       setCity(studentData.city || 'תל אביב');
       setBio(studentData.bio || '');
       setSelectedSubjects(studentData.subjectsInterests || []);
@@ -147,7 +160,6 @@ export default function EditProfileScreen() {
       lastName: lastName.trim(),
       email: email.trim(),
       phone,
-      birthYear: age ? parseInt(age) : undefined,
       city: city.trim(),
       bio: bio.trim(),
       subjectsInterests: selectedSubjects,
@@ -155,11 +167,11 @@ export default function EditProfileScreen() {
     });
   };
 
-  const toggleSubject = (subject: string) => {
-    if (selectedSubjects.includes(subject)) {
-      setSelectedSubjects(selectedSubjects.filter(s => s !== subject));
+  const toggleSubject = (subjectId: string) => {
+    if (selectedSubjects.includes(subjectId)) {
+      setSelectedSubjects(selectedSubjects.filter(s => s !== subjectId));
     } else {
-      setSelectedSubjects([...selectedSubjects, subject]);
+      setSelectedSubjects([...selectedSubjects, subjectId]);
     }
   };
 
@@ -494,27 +506,31 @@ export default function EditProfileScreen() {
           <Typography variant="body2" weight="semibold" style={styles.label}>
             מה תרצה ללמוד?
           </Typography>
-          <View style={styles.subjectsGrid}>
-            {popularSubjects.map(subject => (
-              <TouchableOpacity
-                key={subject}
-                onPress={() => toggleSubject(subject)}
-                style={[
-                  styles.subjectChip,
-                  selectedSubjects.includes(subject) && styles.subjectChipSelected
-                ]}
-              >
-                <Typography
-                  variant="body2"
-                  style={{
-                    color: selectedSubjects.includes(subject) ? colors.white : colors.gray[700]
-                  }}
+          {loadingSubjects ? (
+            <ActivityIndicator size="small" color={colors.primary[600]} />
+          ) : (
+            <View style={styles.subjectsGrid}>
+              {availableSubjects.map(subject => (
+                <TouchableOpacity
+                  key={subject.id}
+                  onPress={() => toggleSubject(subject.id)}
+                  style={[
+                    styles.subjectChip,
+                    selectedSubjects.includes(subject.id) && styles.subjectChipSelected
+                  ]}
                 >
-                  {subject}
-                </Typography>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <Typography
+                    variant="body2"
+                    style={{
+                      color: selectedSubjects.includes(subject.id) ? colors.white : colors.gray[700]
+                    }}
+                  >
+                    {subject.name_he}
+                  </Typography>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Bio */}
