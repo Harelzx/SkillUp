@@ -63,17 +63,39 @@ export function useTeacherBookingData(
         .single();
 
       // 4. Determine supported lesson modes from profile or default
-      const lessonModesRaw = teacherSettings?.lesson_modes || ['online', 'at_teacher', 'at_student'];
-      
-      // Map lesson modes to BookingMode format
-      const lessonModes: BookingMode[] = lessonModesRaw.map(mode => {
-        if (mode === 'at_teacher') return 'teacher_location';
-        if (mode === 'at_student') return 'student_location';
-        return 'online';
-      }) as BookingMode[];
+      // Normalize possible values coming from DB (supports both legacy 'at_*' and new '*_location')
+      const rawModes = Array.isArray((teacherSettings as any)?.lesson_modes)
+        ? (teacherSettings as any).lesson_modes
+        : ['online', 'teacher_location', 'student_location'];
 
-      // 5. Get regions from profile
-      const regions = teacherSettings?.regions || [];
+      const normalizedModes = (rawModes as any[])
+        .map((mode) => String(mode))
+        .map((mode) => {
+          switch (mode) {
+            case 'online':
+              return 'online';
+            case 'at_teacher':
+            case 'teacher_location':
+              return 'teacher_location';
+            case 'at_student':
+            case 'student_location':
+              return 'student_location';
+            default:
+              return null; // drop unknown values
+          }
+        })
+        .filter((m): m is BookingMode => m !== null);
+
+      // Ensure uniqueness and fallback if empty
+      const lessonModes: BookingMode[] = Array.from(new Set(normalizedModes));
+      if (lessonModes.length === 0) {
+        lessonModes.push('online');
+      }
+
+      // 5. Get regions from profile (defensive against null/invalid types)
+      const regions = Array.isArray((teacherSettings as any)?.regions)
+        ? ((teacherSettings as any).regions as string[])
+        : [];
       const location = profile.location || '';
 
       // 6. Build the complete booking profile
@@ -83,7 +105,9 @@ export function useTeacherBookingData(
         lesson_modes: lessonModes,
         region: regions[0] || location,
         areas: regions.length > 1 ? regions : undefined,
-        duration_options: teacherSettings?.duration_options || [45, 60, 90],
+        duration_options: Array.isArray((teacherSettings as any)?.duration_options)
+          ? ((teacherSettings as any).duration_options as number[])
+          : [45, 60, 90],
         max_students: 1,
         notice_required_hours: 24,
       };

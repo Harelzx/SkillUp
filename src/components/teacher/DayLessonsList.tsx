@@ -95,6 +95,14 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
   onCancelLesson,
 }) => {
   const { isRTL } = useRTL();
+  
+  // Check if selected date is today or future
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const selectedDateNormalized = new Date(selectedDate);
+  selectedDateNormalized.setHours(0, 0, 0, 0);
+  const isTodayOrFuture = selectedDateNormalized >= today;
+  const shouldShowEditButton = onManageAvailability && isTodayOrFuture;
 
   if (isLoading) {
     return (
@@ -102,19 +110,35 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
         <View style={{ 
           flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
+          justifyContent: 'space-between',
           marginBottom: spacing[3]
         }}>
           <View style={{ 
-            width: 12, 
-            height: 12, 
-            borderRadius: 6, 
-            backgroundColor: colors.primary[500],
-            marginLeft: isRTL ? 0 : spacing[2],
-            marginRight: isRTL ? spacing[2] : 0
-          }} />
-          <Typography variant="body2" weight="semibold">
-            השיעורים בתאריך {formatDate(selectedDate)}
-          </Typography>
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'center',
+          }}>
+            <View style={{ 
+              width: 12, 
+              height: 12, 
+              borderRadius: 6, 
+              backgroundColor: colors.primary[500],
+              marginLeft: isRTL ? 0 : spacing[2],
+              marginRight: isRTL ? spacing[2] : 0
+            }} />
+            <Typography variant="body2" weight="semibold">
+              השיעורים בתאריך {formatDate(selectedDate)}
+            </Typography>
+          </View>
+          {shouldShowEditButton && (
+            <TouchableOpacity
+              onPress={onManageAvailability}
+              style={{
+                padding: spacing[1],
+              }}
+            >
+              <Edit size={20} color={colors.primary[600]} />
+            </TouchableOpacity>
+          )}
         </View>
         
         {/* Skeleton Loaders */}
@@ -175,19 +199,35 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
         <View style={{ 
           flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
+          justifyContent: 'space-between',
           marginBottom: spacing[3]
         }}>
           <View style={{ 
-            width: 12, 
-            height: 12, 
-            borderRadius: 6, 
-            backgroundColor: colors.primary[500],
-            marginLeft: isRTL ? 0 : spacing[2],
-            marginRight: isRTL ? spacing[2] : 0
-          }} />
-          <Typography variant="body2" weight="semibold">
-            השיעורים בתאריך {formatDate(selectedDate)}
-          </Typography>
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'center',
+          }}>
+            <View style={{ 
+              width: 12, 
+              height: 12, 
+              borderRadius: 6, 
+              backgroundColor: colors.primary[500],
+              marginLeft: isRTL ? 0 : spacing[2],
+              marginRight: isRTL ? spacing[2] : 0
+            }} />
+            <Typography variant="body2" weight="semibold">
+              השיעורים בתאריך {formatDate(selectedDate)}
+            </Typography>
+          </View>
+          {shouldShowEditButton && (
+            <TouchableOpacity
+              onPress={onManageAvailability}
+              style={{
+                padding: spacing[1],
+              }}
+            >
+              <Edit size={20} color={colors.primary[600]} />
+            </TouchableOpacity>
+          )}
         </View>
         
         <View style={{
@@ -231,7 +271,7 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
             השיעורים בתאריך {formatDate(selectedDate)}
           </Typography>
         </View>
-        {onManageAvailability && (
+        {shouldShowEditButton && (
           <TouchableOpacity
             onPress={onManageAvailability}
             style={{

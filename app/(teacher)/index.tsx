@@ -270,6 +270,24 @@ export default function TeacherHomeScreen() {
   const teacherId = profile?.role === 'teacher' ? profile.id : undefined;
   const { data: upcoming = [], isLoading: loadingUpcoming, error: upcomingError } = useTeacherUpcomingLessons(teacherId, { limit: 5 });
   
+  // Debug: Log upcoming lessons data
+  React.useEffect(() => {
+    if (upcoming.length > 0) {
+      console.log('📱 [TeacherHome] Upcoming lessons received:', upcoming.length);
+      upcoming.forEach((lesson, i) => {
+        console.log(`📱 [TeacherHome] Lesson ${i + 1}:`, {
+          id: lesson.id,
+          student_id: lesson.student?.id,
+          student_name: lesson.student ? `${lesson.student.first_name || ''} ${lesson.student.last_name || ''}`.trim() : 'null',
+          hasStudent: !!lesson.student,
+          startAt: lesson.startAt,
+        });
+      });
+    } else if (!loadingUpcoming) {
+      console.log('📱 [TeacherHome] No upcoming lessons found or loading complete');
+    }
+  }, [upcoming, loadingUpcoming]);
+  
   const stats = getTeacherStats();
   const monthlyData = getMonthlyGrowthData();
   const notifications = getTeacherNotifications();
