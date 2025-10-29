@@ -521,9 +521,7 @@ export default function TeacherCalendarScreen() {
   useEffect(() => {
     if (!profile?.id) return;
 
-    const unsubscribe = subscribeToTeacherAvailability(profile.id, (payload) => {
-      console.log('📡 Realtime availability update:', payload);
-      // Refresh calendar when availability changes
+    const unsubscribe = subscribeToTeacherAvailability(profile.id, () => {
       setRefreshKey(prev => prev + 1);
     });
 
@@ -546,9 +544,7 @@ export default function TeacherCalendarScreen() {
           table: 'bookings',
           filter: `teacher_id=eq.${profile.id}`,
         },
-        (payload) => {
-          console.log('📡 Realtime booking update:', payload);
-          // Invalidate queries to refresh calendar display
+        () => {
           queryClient.invalidateQueries({
             queryKey: ['teacher-day-lessons', profile.id],
           });
@@ -579,9 +575,7 @@ export default function TeacherCalendarScreen() {
           table: 'availability_slots',
           filter: `teacher_id=eq.${profile.id}`,
         },
-        (payload) => {
-          console.log('📡 Realtime availability slots update:', payload);
-          // Invalidate queries to refresh calendar display
+        () => {
           queryClient.invalidateQueries({
             queryKey: ['teacher-availability-slots', profile.id],
           });
