@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -30,6 +30,7 @@ export default function TeacherProfileScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isRTL, getFlexDirection } = useRTL();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'about' | 'availability' | 'reviews'>('about');
 
   const { data: teacherData, isLoading: loadingTeacher, error: teacherError } = useQuery({
@@ -234,11 +235,20 @@ export default function TeacherProfileScreen() {
       alignItems: 'center',
     },
     bottomAction: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
       backgroundColor: colors.white,
       paddingHorizontal: spacing[4],
-      paddingVertical: spacing[1],
+      paddingTop: spacing[3],
+      paddingBottom: spacing[3],
       borderTopWidth: 1,
       borderTopColor: colors.gray[200],
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 5,
     },
     subjectsContainer: {
       flexWrap: 'wrap',
@@ -297,7 +307,7 @@ export default function TeacherProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 200 }}>
         {/* Header Section */}
         <View style={styles.headerSection}>
           <View style={[styles.profileRow, { flexDirection: getFlexDirection() }]}>
@@ -510,7 +520,7 @@ export default function TeacherProfileScreen() {
       </ScrollView>
 
       {/* Bottom Action */}
-      <View style={styles.bottomAction}>
+      <View style={[styles.bottomAction, { bottom: insets.bottom + 68 }]}>
         <Button
           onPress={handleBooking}
           style={{

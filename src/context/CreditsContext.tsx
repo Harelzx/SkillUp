@@ -18,10 +18,16 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const lastFetchedUserId = useRef<string | null>(null);
 
-  const fetchCredits = useCallback(async () => {
+  const fetchCredits = useCallback(async (abortSignal?: AbortSignal) => {
     if (!session?.user) {
       console.log('🔵 [CreditsContext] No authenticated user, skipping credits fetch');
       setCreditsState(0);
+      return;
+    }
+
+    // Check if already cancelled
+    if (abortSignal?.aborted) {
+      console.log('🔵 [CreditsContext] Fetch cancelled');
       return;
     }
 
@@ -29,9 +35,9 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     console.log('🔵 [CreditsContext] Fetching credits balance from DB...');
 
     try {
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Credits fetch timeout')), 10000);
+      // Add timeout to prevent hanging - increased to 15 seconds
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Credits fetch timeout')), 15000);
       });
 
       const balance = await Promise.race([
@@ -39,15 +45,29 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         timeoutPromise
       ]) as number;
       
+      // Check if cancelled before setting state
+      if (abortSignal?.aborted) {
+        console.log('🔵 [CreditsContext] Fetch cancelled after response');
+        return;
+      }
+      
       console.log('✅ [CreditsContext] Fetched credits balance:', balance);
       setCreditsState(balance);
       lastFetchedUserId.current = session.user.id;
     } catch (error: any) {
+      // Don't log timeout errors if cancelled
+      if (abortSignal?.aborted) {
+        console.log('🔵 [CreditsContext] Fetch cancelled');
+        return;
+      }
+      
       console.error('❌ [CreditsContext] Error fetching credits:', error?.message || error);
       // If error (e.g., not logged in, timeout, etc.), keep at 0
       setCreditsState(0);
     } finally {
-      setIsFetching(false);
+      if (!abortSignal?.aborted) {
+        setIsFetching(false);
+      }
     }
   }, [session?.user]);
 
@@ -66,9 +86,18 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     // Only fetch if user ID changed or hasn't been fetched yet
     if (lastFetchedUserId.current !== userId && !isFetching) {
       console.log('🔵 [CreditsContext] User authenticated, fetching credits...');
-      fetchCredits();
+      
+      // Create abort controller for cleanup
+      const abortController = new AbortController();
+      fetchCredits(abortController.signal);
+
+      // Cleanup function
+      return () => {
+        abortController.abort();
+      };
     }
-  }, [session?.user?.id, fetchCredits]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
 
   const addCredits = (amount: number) => {
     setCreditsState(prev => prev + amount);

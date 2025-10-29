@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,7 +17,6 @@ import {
   User,
   CheckCircle,
   AlertCircle,
-  Plus,
   X,
 } from 'lucide-react-native';
 import { Card, CardContent } from '@/ui/Card';
@@ -48,6 +47,7 @@ interface Lesson {
 export default function LessonsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { getFlexDirection, isRTL } = useRTL();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
@@ -258,22 +258,6 @@ export default function LessonsScreen() {
       paddingTop: spacing[3],
       borderTopWidth: 1,
       borderTopColor: colors.gray[200],
-    },
-    addButton: {
-      position: 'absolute',
-      bottom: spacing[4],
-      right: spacing[4],
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: colors.primary[600],
-      alignItems: 'center',
-      justifyContent: 'center',
-      shadowColor: colors.black,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 5,
     },
     // Modal styles
     modalOverlay: {
@@ -547,7 +531,7 @@ export default function LessonsScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
         {activeTab === 'upcoming' ? (
           upcomingLessons.length > 0 ? (
             upcomingLessons.map(renderLesson)
@@ -562,11 +546,6 @@ export default function LessonsScreen() {
           )
         )}
       </ScrollView>
-
-      {/* Floating Action Button */}
-      <TouchableOpacity style={styles.addButton} onPress={handleBookNewLesson}>
-        <Plus size={24} color={colors.white} />
-      </TouchableOpacity>
 
       {/* Cancel Modal */}
       <Modal

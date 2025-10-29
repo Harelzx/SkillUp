@@ -60,7 +60,7 @@ BEGIN
   END IF;
 
   -- Get teacher profile
-  SELECT * INTO v_teacher FROM profiles WHERE id = p_teacher_id AND role = 'teacher' AND is_active = TRUE;
+  SELECT * INTO v_teacher FROM teachers WHERE id = p_teacher_id AND is_active = TRUE;
   IF NOT FOUND THEN 
     RAISE EXCEPTION 'Teacher not found or inactive' USING ERRCODE = '22000'; 
   END IF;
@@ -97,7 +97,7 @@ BEGIN
   END IF;
 
   -- Get student profile
-  SELECT * INTO v_student FROM profiles WHERE id = p_student_id AND role = 'student' AND is_active = TRUE;
+  SELECT * INTO v_student FROM students WHERE id = p_student_id AND is_active = TRUE;
   IF NOT FOUND THEN 
     RAISE EXCEPTION 'Student not found or inactive' USING ERRCODE = '22000'; 
   END IF;
@@ -178,7 +178,7 @@ BEGIN
   INSERT INTO notifications (user_id, type, title, subtitle, data) VALUES
     (p_teacher_id, (CASE WHEN v_booking_status = 'awaiting_payment' THEN 'BOOKING_PENDING' ELSE 'BOOKING_CONFIRMED' END)::notification_type,
       CASE WHEN v_booking_status = 'awaiting_payment' THEN 'הזמנה חדשה (ממתין לתשלום)' ELSE 'הזמנה חדשה' END, 'תלמיד חדש הזמין שיעור',
-      jsonb_build_object('booking_id', v_booking_id, 'student_name', v_student.display_name, 'subject', p_subject, 
+      jsonb_build_object('booking_id', v_booking_id, 'student_name', TRIM(v_student.first_name || ' ' || v_student.last_name), 'subject', p_subject, 
         'start_at', p_start_at, 'duration', p_duration_minutes, 'status', v_booking_status));
 
   INSERT INTO notifications (user_id, type, title, subtitle, data) VALUES

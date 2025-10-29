@@ -1,19 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Tabs, useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { View, ActivityIndicator, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, ActivityIndicator } from 'react-native';
 import { Home, Calendar, User } from 'lucide-react-native';
 import { colors } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/auth-context';
 import { Typography } from '@/ui/Typography';
 import TeacherOnboardingModal from '@/components/teacher/TeacherOnboardingModal';
+import { CustomTabBar } from '@/components/navigation/CustomTabBar';
 
 export default function TeacherLayout() {
   const { t } = useTranslation();
   const { profile, isLoading } = useAuth();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Guard: Redirect if not a teacher
@@ -82,47 +81,15 @@ export default function TeacherLayout() {
     );
   }
 
-  // Calculate dynamic bottom padding for safe area
-  // Minimum 12px, or use safe area inset if larger
-  const dynamicBottomPadding = Math.max(12, insets.bottom);
-  
-  // Total height: base height (56) + top padding (10) + dynamic bottom padding
-  const tabBarHeight = 35 + 10 + dynamicBottomPadding;
+  // Use CustomTabBar which handles safe area internally
+
   return (
     <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         tabBarActiveTintColor: colors.primary[600],
-        tabBarInactiveTintColor: colors.gray[400],
+        tabBarInactiveTintColor: colors.gray[500],
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.white,
-          borderTopWidth: 1,
-          borderTopColor: colors.gray[200],
-          paddingTop: 10, // Top padding for vertical spacing
-          paddingBottom: dynamicBottomPadding, // Dynamic bottom padding (safe area)
-          height: tabBarHeight, // Dynamic total height
-          minHeight: 64, // Ensure minimum tap target
-          // Shadow for elevation (subtle)
-          ...Platform.select({
-            ios: {
-              shadowColor: colors.black,
-              shadowOffset: { width: 0, height: -2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 4,
-            },
-            android: {
-              elevation: 8,
-            },
-          }),
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-          marginTop: 4, // Space between icon and label
-        },
-        tabBarIconStyle: {
-          marginBottom: 0, // Remove default margin
-        },
       }}
     >
       <Tabs.Screen
@@ -130,7 +97,7 @@ export default function TeacherLayout() {
         options={{
           title: t('teacher.tabs.profile', 'פרופיל'),
           tabBarIcon: ({ color, size }) => (
-            <User size={size} color={color} />
+            <User size={26} color={color} />
           ),
           tabBarAccessibilityLabel: t('teacher.tabs.profile', 'פרופיל'),
         }}
@@ -140,7 +107,7 @@ export default function TeacherLayout() {
         options={{
           title: t('teacher.tabs.calendar', 'יומן'),
           tabBarIcon: ({ color, size }) => (
-            <Calendar size={size} color={color} />
+            <Calendar size={26} color={color} />
           ),
           tabBarAccessibilityLabel: t('teacher.tabs.calendar', 'יומן'),
         }}
@@ -150,7 +117,7 @@ export default function TeacherLayout() {
         options={{
           title: t('teacher.tabs.home', 'בית'),
           tabBarIcon: ({ color, size }) => (
-            <Home size={size} color={color} />
+            <Home size={26} color={color} />
           ),
           tabBarAccessibilityLabel: t('teacher.tabs.home', 'בית'),
         }}

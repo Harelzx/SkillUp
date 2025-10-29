@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Platform, View } from 'react-native';
 import {
   Home,
   Search,
   BookOpen,
   User,
-  Calendar
 } from 'lucide-react-native';
 import { colors } from '@/theme/tokens';
 import { useRTL } from '@/context/RTLContext';
 import { useAuth } from '@/features/auth/auth-context';
 import StudentOnboardingModal from '@/components/student/StudentOnboardingModal';
+import { CustomTabBar } from '@/components/navigation/CustomTabBar';
 
 export default function TabLayout() {
   const { t } = useTranslation();
@@ -46,9 +45,10 @@ export default function TabLayout() {
         />
       )}
       <Tabs
+        tabBar={(props) => <CustomTabBar {...props} />}
         screenOptions={{
           tabBarActiveTintColor: colors.primary[600],
-          tabBarInactiveTintColor: colors.gray[400],
+          tabBarInactiveTintColor: colors.gray[500],
           headerShown: false,
         }}
       >
@@ -57,7 +57,7 @@ export default function TabLayout() {
           options={{
             title: t('tabs.profile'),
             tabBarIcon: ({ color, size }) => (
-              <User size={size} color={color} />
+              <User size={26} color={color} />
             ),
             tabBarAccessibilityLabel: t('tabs.profile'),
           }}
@@ -67,7 +67,7 @@ export default function TabLayout() {
           options={{
             title: t('tabs.lessons'),
             tabBarIcon: ({ color, size }) => (
-              <BookOpen size={size} color={color} />
+              <BookOpen size={26} color={color} />
             ),
             tabBarAccessibilityLabel: t('tabs.lessons'),
           }}
@@ -77,7 +77,7 @@ export default function TabLayout() {
           options={{
             title: t('tabs.search'),
             tabBarIcon: ({ color, size }) => (
-              <Search size={size} color={color} />
+              <Search size={26} color={color} />
             ),
             tabBarAccessibilityLabel: t('tabs.search'),
           }}
@@ -87,7 +87,7 @@ export default function TabLayout() {
           options={{
             title: t('tabs.home'),
             tabBarIcon: ({ color, size }) => (
-              <Home size={size} color={color} />
+              <Home size={26} color={color} />
             ),
             tabBarAccessibilityLabel: t('tabs.home'),
           }}

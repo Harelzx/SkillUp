@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const fetchProfile = async (userId: string, retries = 3) => {
+  const fetchProfile = async (userId: string, retries = 3): Promise<Profile | null> => {
     try {
       // Get user metadata to determine role
       const { data: { user } } = await supabase.auth.getUser();
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await new Promise(resolve => setTimeout(resolve, 500));
           return fetchProfile(userId, retries - 1);
         }
-        return;
+        return null;
       }
 
       // Transform based on table type
@@ -110,8 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('✅ Profile loaded from Supabase:', transformedProfile.displayName, `(${transformedProfile.role})`);
       setProfile(transformedProfile);
+      return transformedProfile;
     } catch (error: any) {
       // Silent fail
+      return null;
     }
   };
 
@@ -127,8 +129,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Fetch profile after successful Supabase login
       if (data.user) {
-        await fetchProfile(data.user.id);
-        return { error: null, profile };
+        console.log('🔵 Fetching profile for user:', data.user.id);
+        const fetchedProfile = await fetchProfile(data.user.id);
+        
+        // Check if profile was loaded - if not, sign out and return error
+        if (!fetchedProfile) {
+          console.warn('⚠️ No profile found after sign in - signing out');
+          await supabase.auth.signOut();
+          return { error: new Error('User profile not found in database'), profile: null };
+        }
+        
+        console.log('✅ SignIn completed successfully!');
+        return { error: null, profile: fetchedProfile };
       }
 
       return { error: null, profile: null };
@@ -252,8 +264,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('🔵 Updating profile in auth-context:', dbUpdates);
 
-      const { error } = await supabase
-        .from(table)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from(table as any) as any)
         .update(dbUpdates)
         .eq('id', session.user.id);
 

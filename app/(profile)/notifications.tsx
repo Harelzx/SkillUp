@@ -6,7 +6,7 @@ import {
   Switch,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Bell, Mail, MessageSquare, Clock } from 'lucide-react-native';
@@ -20,6 +20,7 @@ export default function NotificationsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { getFlexDirection, isRTL } = useRTL();
+  const insets = useSafeAreaInsets();
   
   const [lessonReminders, setLessonReminders] = useState(true);
   const [lessonChanges, setLessonChanges] = useState(true);
@@ -111,7 +112,7 @@ export default function NotificationsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
         {/* Lesson Notifications */}
         <View style={styles.section}>
           <Typography variant="h6" weight="semibold" style={{ marginBottom: spacing[3] }}>

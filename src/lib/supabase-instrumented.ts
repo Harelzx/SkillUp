@@ -139,8 +139,12 @@ export async function getCurrentUserProfile() {
   const user = await getCurrentUser();
   if (!user) return null;
 
+  // Get user metadata to determine role
+  const role = user?.user_metadata?.role || 'student';
+  const table = role === 'teacher' ? 'teachers' : 'students';
+
   const { data, error } = await supabase
-    .from('profiles')
+    .from(table)
     .select('*')
     .eq('id', user.id)
     .single();

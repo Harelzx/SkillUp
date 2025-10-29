@@ -173,7 +173,28 @@ export default function LoginScreen() {
       const { error, profile: userProfile } = await signIn(formData.email, formData.password);
       
       if (error) {
-        throw error;
+        // Check if this is a profile not found error
+        if (error.message === 'User profile not found in database') {
+          Alert.alert(
+            'שגיאה',
+            'פרופיל המשתמש לא נמצא במערכת. אנא צור קשר עם התמיכה.'
+          );
+        } else {
+          Alert.alert('שגיאה', 'כתובת אימייל או סיסמה שגויים');
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if profile exists
+      if (!userProfile) {
+        console.warn('⚠️ User signed in but no profile found - cannot redirect');
+        Alert.alert(
+          'שגיאה',
+          'פרופיל המשתמש לא נמצא במערכת. אנא צור קשר עם התמיכה.'
+        );
+        setIsLoading(false);
+        return;
       }
 
       // Redirect based on role (post-login navigation)

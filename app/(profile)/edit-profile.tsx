@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   ImageStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -48,6 +48,7 @@ export default function EditProfileScreen() {
   const { credits } = useCredits();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -343,7 +344,7 @@ export default function EditProfileScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>

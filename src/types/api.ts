@@ -109,7 +109,8 @@ export interface BookingWithDetails extends Booking {
   };
   student: {
     id: string;
-    display_name: string;
+    first_name: string;
+    last_name: string;
     avatar_url: string | null;
     phone?: string | null;
   };

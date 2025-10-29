@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Star, Gift, MapPin } from 'lucide-react-native';
-import { useQuery } from '@tanstack/react-query';
 import { Typography } from '@/ui/Typography';
 import { Card, CardContent } from '@/ui/Card';
 import { colors, spacing } from '@/theme/tokens';
@@ -19,7 +18,7 @@ import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { InfoBanner } from '@/components/ui/infobanner';
 import { getBannerMessages } from '@/data/banner-messages';
-import { getFeaturedTeachers } from '@/services/api';
+import { useRecommendedTeachers } from '@/hooks/useTeachers';
 import { useAuth } from '@/features/auth/auth-context';
 
 interface Teacher {
@@ -58,38 +57,8 @@ export default function HomeScreen() {
   const popularSubjects = getPopularSubjects(t);
   const bannerMessages = getBannerMessages();
 
-  // Fetch real teachers from Supabase with optimized caching
-  const { data: teachers = [], isLoading, error } = useQuery({
-    queryKey: ['featuredTeachers', selectedSubject],
-    queryFn: async () => {
-      const teachersData = await getFeaturedTeachers(20);
-      console.log('📚 Teachers data from API:', JSON.stringify(teachersData, null, 2));
-      // Transform API data to match UI interface
-      return teachersData.map((t: any) => {
-        const subjects = Array.isArray(t.subject_names)
-          ? t.subject_names.filter((s: any) => typeof s === 'string' && s.trim())
-          : [];
-
-        return {
-          id: t.id,
-          displayName: t.display_name || 'לא ידוע',
-          bio: t.bio || '',
-          avatarUrl: t.avatar_url,
-          hourlyRate: t.hourly_rate || 0,
-          subjects: subjects,
-          rating: t.avg_rating || 0,
-          totalReviews: t.review_count || 0,
-          location: t.location || '',
-          experienceYears: t.experience_years || 0,
-          totalStudents: t.total_students || 0,
-        };
-      });
-    },
-    staleTime: 1000 * 60 * 10, // 10 minutes - teachers don't change frequently
-    gcTime: 1000 * 60 * 60, // 1 hour cache time
-    refetchOnMount: false, // Use cache if data is fresh
-    refetchOnWindowFocus: false, // Don't refetch on focus
-  });
+  // Unified teachers source from `teachers`
+  const { data: teachers = [], isLoading, error } = useRecommendedTeachers({ limit: 20, orderBy: 'rating' });
 
   // Map subject keys to Hebrew names from database
   const subjectKeyToHebrew: Record<string, string> = {
@@ -538,7 +507,7 @@ export default function HomeScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 0 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header with greeting */}
