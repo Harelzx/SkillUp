@@ -56,6 +56,8 @@ export type SearchTeachersFilters = {
   query?: string;
   subjects?: string[];
   location?: string;
+  regionId?: string;
+  cityId?: string;
   minRate?: number;
   maxRate?: number;
   sortBy?: 'rating' | 'price_low' | 'price_high' | 'reviews';
@@ -67,6 +69,8 @@ export function useSearchTeachers(filters: SearchTeachersFilters) {
   const params = {
     subjectIds: filters.subjects,  // העבר מערך במקום אחד
     location: filters.location,
+    regionId: filters.regionId,
+    cityId: filters.cityId,
     minRate: filters.minRate,
     maxRate: filters.maxRate,
     searchQuery: filters.query,

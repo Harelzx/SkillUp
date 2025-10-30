@@ -15,6 +15,61 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      regions: {
+        Row: {
+          id: string
+          name_he: string
+          name_en: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name_he: string
+          name_en: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name_he?: string
+          name_en?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      cities: {
+        Row: {
+          id: string
+          name_he: string
+          name_en: string
+          region_id: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name_he: string
+          name_en: string
+          region_id: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name_he?: string
+          name_en?: string
+          region_id?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
       students: {
         Row: {
           id: string
@@ -628,3 +683,16 @@ export interface Database {
     }
   }
 }
+
+// ============================================
+// Type Aliases for Convenience
+// ============================================
+
+export type Region = Database['public']['Tables']['regions']['Row']
+export type City = Database['public']['Tables']['cities']['Row']
+
+export type RegionInsert = Database['public']['Tables']['regions']['Insert']
+export type CityInsert = Database['public']['Tables']['cities']['Insert']
+
+export type RegionUpdate = Database['public']['Tables']['regions']['Update']
+export type CityUpdate = Database['public']['Tables']['cities']['Update']

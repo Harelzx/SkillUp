@@ -10,53 +10,81 @@ import type { CreditTransaction } from '@/types/api';
  */
 export async function getCreditBalance() {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError) {
     throw new Error('Authentication error: ' + authError.message);
   }
-  
+
   if (!user) {
     throw new Error('Not authenticated');
   }
 
-  // Check if student exists in students table
-  const { data: student, error: studentError } = await supabase
-    .from('students')
-    .select('id')
-    .eq('id', user.id)
-    .single();
+  // Try to check if student exists in students table (migration 021+)
+  // If table doesn't exist yet, we'll catch the error and continue
+  try {
+    const { data: student, error: studentError } = await supabase
+      .from('students')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle(); // Use maybeSingle instead of single to avoid throwing on no results
 
-  if (studentError || !student) {
-    console.log('🔵 [creditsAPI] Student not found, returning 0');
-    return 0;
+    // If students table exists but student not found, check profiles table as fallback
+    if (!studentError && !student) {
+      console.log('🔵 [creditsAPI] Student not found in students table, checking profiles...');
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!profile || profile.role !== 'student') {
+        console.log('🔵 [creditsAPI] User is not a student, returning 0');
+        return 0;
+      }
+    }
+  } catch (studentsTableError: any) {
+    // Students table might not exist yet (before migration 021)
+    // Check profiles table instead
+    console.log('🔵 [creditsAPI] students table not found, using profiles table');
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (!profile || profile.role !== 'student') {
+      console.log('🔵 [creditsAPI] User is not a student, returning 0');
+      return 0;
+    }
   }
 
   const { data, error } = await supabase
     .from('student_credits')
     .select('balance')
     .eq('student_id', user.id)
-    .single();
+    .maybeSingle(); // Use maybeSingle to avoid throwing on no results
 
   if (error) {
-    // If no record exists, create one with 0 balance
-    if (error.code === 'PGRST116') {
-      const { data: newRecord, error: insertError } = await supabase
-        .from('student_credits')
-        .insert({ student_id: user.id, balance: 0 })
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('❌ [creditsAPI] Error creating credit record:', insertError);
-        throw insertError;
-      }
-      return newRecord.balance;
-    }
     console.error('❌ [creditsAPI] Error fetching credits:', error);
     throw error;
   }
 
-  return data.balance;
+  // If no record exists, create one with 0 balance
+  if (!data) {
+    const { data: newRecord, error: insertError } = await supabase
+      .from('student_credits')
+      .insert({ student_id: user.id, balance: 0 })
+      .select()
+      .maybeSingle();
+
+    if (insertError) {
+      console.error('❌ [creditsAPI] Error creating credit record:', insertError);
+      throw insertError;
+    }
+    return newRecord?.balance ?? 0;
+  }
+
+  return data.balance ?? 0;
 }
 
 /**

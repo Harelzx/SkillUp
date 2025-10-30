@@ -61,6 +61,8 @@ export async function getTeacherById(teacherId: string) {
 export async function getTeachers(params?: {
   subjectIds?: string[];
   location?: string;
+  regionId?: string;
+  cityId?: string;
   minRate?: number;
   maxRate?: number;
   searchQuery?: string;
@@ -76,8 +78,18 @@ export async function getTeachers(params?: {
 
   // Filter by subject - will be done after fetching subjects
 
-  // Filter by location
-  if (params?.location) {
+  // Filter by region (new structured approach)
+  if (params?.regionId) {
+    query = query.eq('region_id', params.regionId);
+  }
+
+  // Filter by city (more specific than region)
+  if (params?.cityId) {
+    query = query.eq('city_id', params.cityId);
+  }
+
+  // Filter by location (legacy text-based search, fallback)
+  if (params?.location && !params?.regionId && !params?.cityId) {
     query = query.ilike('location', `%${params.location}%`);
   }
 

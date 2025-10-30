@@ -31,22 +31,8 @@ import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { useAuth } from '@/features/auth/auth-context';
 import { getTeacherProfile, updateTeacherProfile, getSubjects, getTeacherSubjects, updateTeacherSubjects } from '@/services/api';
-
-const CITIES = [
-  'תל אביב',
-  'רמת גן',
-  'ירושלים',
-  'חיפה',
-  'באר שבע',
-  'פתח תקווה',
-  'נתניה',
-  'רעננה',
-  'הרצליה',
-  'כפר סבא',
-  'ראשון לציון',
-  'חולון',
-  'בת ים',
-];
+import { getRegions, getCitiesByRegion } from '@/services/api/regionsAPI';
+import type { Region, City } from '@/types/database';
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120];
 
@@ -75,8 +61,11 @@ export default function EditTeacherProfileScreen() {
   // Duration options
   const [durationOptions, setDurationOptions] = useState<number[]>([45, 60, 90]);
 
-  // Regions
-  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+  // Regions and Cities
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
 
   // Subjects
   const [availableSubjects, setAvailableSubjects] = useState<Array<{ id: string; name_he: string }>>([]);
@@ -96,6 +85,12 @@ export default function EditTeacherProfileScreen() {
 
     setLoading(true);
     try {
+      // Load regions
+      const regionsResponse = await getRegions();
+      if (regionsResponse.success) {
+        setRegions(regionsResponse.regions);
+      }
+
       // Load all subjects
       const allSubjects = await getSubjects();
       setAvailableSubjects(allSubjects);
@@ -111,7 +106,21 @@ export default function EditTeacherProfileScreen() {
         setTeachingStyle(teacherProfile.teachingStyle || '');
         setLessonModes(teacherProfile.lessonModes || ['online']);
         setDurationOptions(teacherProfile.durationOptions || [45, 60, 90]);
-        setSelectedRegions(teacherProfile.regions || []);
+
+        // Set region_id and city_id from profile (new structure)
+        // Note: teacherProfile might have region_id and city_id if migrations ran
+        const profileData = teacherProfile as any;
+        if (profileData.region_id) {
+          setSelectedRegionId(profileData.region_id);
+          // Load cities for this region
+          const citiesResponse = await getCitiesByRegion(profileData.region_id);
+          if (citiesResponse.success) {
+            setCities(citiesResponse.cities);
+          }
+        }
+        if (profileData.city_id) {
+          setSelectedCityId(profileData.city_id);
+        }
       }
 
       // Load teacher subjects
@@ -175,7 +184,8 @@ export default function EditTeacherProfileScreen() {
       hourlyRate: parseFloat(hourlyRate),
       lessonModes,
       durationOptions,
-      regions: selectedRegions.length > 0 ? selectedRegions : undefined,
+      regionId: selectedRegionId || undefined,
+      cityId: selectedCityId || undefined,
       location: location || undefined,
       teachingStyle: teachingStyle || undefined,
     });
@@ -190,7 +200,8 @@ export default function EditTeacherProfileScreen() {
         hourlyRate: parseFloat(hourlyRate),
         lessonModes,
         durationOptions,
-        regions: selectedRegions.length > 0 ? selectedRegions : undefined,
+        regionId: selectedRegionId || undefined,
+        cityId: selectedCityId || undefined,
         location: location || undefined,
         teachingStyle: teachingStyle || undefined,
       });
@@ -241,11 +252,19 @@ export default function EditTeacherProfileScreen() {
     }
   };
 
-  const toggleRegion = (region: string) => {
-    if (selectedRegions.includes(region)) {
-      setSelectedRegions(selectedRegions.filter((r) => r !== region));
-    } else {
-      setSelectedRegions([...selectedRegions, region]);
+  const handleRegionChange = async (regionId: string) => {
+    setSelectedRegionId(regionId);
+    setSelectedCityId(null); // Reset city when region changes
+    setCities([]); // Clear previous cities
+
+    // Load cities for the selected region
+    try {
+      const citiesResponse = await getCitiesByRegion(regionId);
+      if (citiesResponse.success) {
+        setCities(citiesResponse.cities);
+      }
+    } catch (error) {
+      console.error('Error loading cities:', error);
     }
   };
 
@@ -688,33 +707,64 @@ export default function EditTeacherProfileScreen() {
           {errors.durationOptions && <Typography style={styles.errorText}>{errors.durationOptions}</Typography>}
         </View>
 
-        {/* Regions Section */}
+        {/* Region & City Section */}
         <View style={styles.section}>
           <Typography variant="h6" weight="bold" style={styles.sectionTitle}>
-            אזורי הוראה
+            אזור ועיר
           </Typography>
           <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], paddingHorizontal: spacing[1] }}>
-            רלוונטי לשיעורים פרונטליים
+            רלוונטי לשיעורים פרונטליים - בחר אזור ולאחר מכן עיר
           </Typography>
 
+          {/* Regions */}
+          <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[1], paddingHorizontal: spacing[1] }}>
+            אזור:
+          </Typography>
           <View style={styles.chipGrid}>
-            {CITIES.map((city) => (
+            {regions.map((region) => (
               <TouchableOpacity
-                key={city}
-                onPress={() => toggleRegion(city)}
-                style={[styles.chip, selectedRegions.includes(city) && styles.chipSelected]}
+                key={region.id}
+                onPress={() => handleRegionChange(region.id)}
+                style={[styles.chip, selectedRegionId === region.id && styles.chipSelected]}
               >
                 <Typography
                   variant="body2"
                   style={{
-                    color: selectedRegions.includes(city) ? colors.white : colors.gray[700],
+                    color: selectedRegionId === region.id ? colors.white : colors.gray[700],
                   }}
                 >
-                  {city}
+                  {region.name_he}
                 </Typography>
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Cities - only show if region is selected */}
+          {selectedRegionId && cities.length > 0 && (
+            <>
+              <Typography variant="body2" weight="semibold" style={{ marginTop: spacing[3], marginBottom: spacing[1], paddingHorizontal: spacing[1] }}>
+                עיר:
+              </Typography>
+              <View style={styles.chipGrid}>
+                {cities.map((city) => (
+                  <TouchableOpacity
+                    key={city.id}
+                    onPress={() => setSelectedCityId(city.id)}
+                    style={[styles.chip, selectedCityId === city.id && styles.chipSelected]}
+                  >
+                    <Typography
+                      variant="body2"
+                      style={{
+                        color: selectedCityId === city.id ? colors.white : colors.gray[700],
+                      }}
+                    >
+                      {city.name_he}
+                    </Typography>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
         </View>
 
         {/* Action Buttons */}

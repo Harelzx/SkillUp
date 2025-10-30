@@ -27,6 +27,7 @@ import {
   Info,
   X,
   CheckCircle,
+  Ticket,
 } from 'lucide-react-native';
 import { Card, CardContent } from '@/ui/Card';
 import { Typography } from '@/ui/Typography';
@@ -104,6 +105,13 @@ export default function ProfileScreen() {
           title: t('profile.editProfile'),
           icon: Edit3,
           onPress: () => router.push('/(profile)/edit-profile'),
+          showChevron: true,
+        },
+        {
+          id: 'redeemCoupon',
+          title: 'מימוש קופון',
+          icon: Ticket,
+          onPress: () => router.push('/(profile)/redeem-coupon'),
           showChevron: true,
         },
         {

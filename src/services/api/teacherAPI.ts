@@ -54,16 +54,18 @@ export async function updateTeacherProfile(
     lessonModes?: ('online' | 'at_teacher' | 'at_student')[];
     durationOptions?: number[];
     regions?: string[];
+    regionId?: string;
+    cityId?: string;
     timezone?: string;
     teachingStyle?: string;
     location?: string;
   }
 ): Promise<{ success: boolean; profile: any }> {
   console.log('🔵 [teacherAPI] updateTeacherProfile called with:', { teacherId, updates });
-  
+
   // Build JSONB object with snake_case column names
   const updateData: any = {};
-  
+
   if (updates.displayName !== undefined) updateData.display_name = updates.displayName;
   if (updates.bio !== undefined) updateData.bio = updates.bio;
   if (updates.avatarUrl !== undefined) updateData.avatar_url = updates.avatarUrl;
@@ -71,6 +73,8 @@ export async function updateTeacherProfile(
   if (updates.lessonModes !== undefined) updateData.lesson_modes = updates.lessonModes;
   if (updates.durationOptions !== undefined) updateData.duration_options = updates.durationOptions;
   if (updates.regions !== undefined) updateData.regions = updates.regions;
+  if (updates.regionId !== undefined) updateData.region_id = updates.regionId;
+  if (updates.cityId !== undefined) updateData.city_id = updates.cityId;
   if (updates.timezone !== undefined) updateData.timezone = updates.timezone;
   if (updates.teachingStyle !== undefined) updateData.teaching_style = updates.teachingStyle;
   if (updates.location !== undefined) updateData.location = updates.location;
