@@ -20,13 +20,13 @@ import { Typography } from '@/ui/Typography';
 import { Card } from '@/ui/Card';
 import { colors, spacing, shadows } from '@/theme/tokens';
 import { useRTL } from '@/context/RTLContext';
-import { getLessonsForDate, TeacherLesson } from '@/data/teacher-data';
 import { DayAvailabilityModal } from '@/components/teacher/DayAvailabilityModal';
 import { DayLessonsList } from '@/components/teacher/DayLessonsList';
 import { useAuth } from '@/features/auth/auth-context';
 import { subscribeToTeacherAvailability } from '@/services/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTeacherBookings, cancelBooking } from '@/services/api/bookingsAPI';
+import { getTeacherAvailabilitySlots } from '@/services/api/teacherAPI';
 import { supabase } from '@/lib/supabase';
 
 interface CalendarDay {
@@ -36,7 +36,8 @@ interface CalendarDay {
   isToday: boolean;
   hasLessons: boolean;
   hasSlots: boolean;
-  lessons: TeacherLesson[];
+  isClosed: boolean; // Day is closed (all slots booked or explicitly closed)
+  lessons: any[]; // Empty array, kept for DayModal compatibility
 }
 
 const WEEKDAYS_HE = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
@@ -46,13 +47,79 @@ const MONTHS_HE = [
 ];
 const WEEKDAYS_FULL_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
-const getDaysInMonth = (year: number, month: number): CalendarDay[] => {
+// Helper function to compare dates (day/month/year only, ignoring time)
+const isSameDate = (date1: Date, date2: Date): boolean => {
+  return date1.getDate() === date2.getDate() &&
+         date1.getMonth() === date2.getMonth() &&
+         date1.getFullYear() === date2.getFullYear();
+};
+
+const getDaysInMonth = (year: number, month: number, bookings: any[], availabilitySlots: any[]): CalendarDay[] => {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const daysInMonth = lastDay.getDate();
   const startingDayOfWeek = firstDay.getDay();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  
+  // Helper function to get bookings for a specific date
+  const getBookingsForDate = (dateStr: string) => {
+    return bookings.filter((booking: any) => {
+      const bookingDate = new Date(booking.start_at);
+      const bookingDateStr = bookingDate.toISOString().split('T')[0];
+      return bookingDateStr === dateStr;
+    });
+  };
+  
+  // Helper function to check if a date has open availability slots (future only)
+  const hasOpenSlotsForDate = (date: Date, dateStr: string): boolean => {
+    // Only check future dates (including today)
+    if (date < today) return false;
+    
+    // Get all slots for this date
+    const slotsForDate = availabilitySlots.filter((slot: any) => {
+      const slotDate = new Date(slot.startAt);
+      const slotDateStr = slotDate.toISOString().split('T')[0];
+      return slotDateStr === dateStr;
+    });
+    
+    // If no slots at all for this date, it's closed
+    if (slotsForDate.length === 0) return false;
+    
+    // Check if there's at least one slot that is not booked and in the future
+    const now = new Date();
+    return slotsForDate.some((slot: any) => {
+      const slotDate = new Date(slot.startAt);
+      // Slot is open if not booked and in the future
+      return !slot.isBooked && slotDate > now;
+    });
+  };
+  
+  // Helper function to check if a date is closed (all slots booked or no slots)
+  const isDayClosed = (date: Date, dateStr: string): boolean => {
+    // Only check future dates (including today)
+    if (date < today) return false;
+    
+    // Get all slots for this date
+    const slotsForDate = availabilitySlots.filter((slot: any) => {
+      const slotDate = new Date(slot.startAt);
+      const slotDateStr = slotDate.toISOString().split('T')[0];
+      return slotDateStr === dateStr;
+    });
+    
+    // If no slots, day is closed
+    if (slotsForDate.length === 0) return false; // Not explicitly closed, just no slots
+    
+    // Check if all slots are booked
+    const now = new Date();
+    const futureSlots = slotsForDate.filter((slot: any) => {
+      const slotDate = new Date(slot.startAt);
+      return slotDate > now;
+    });
+    
+    // Day is closed if it had slots but all future slots are booked
+    return futureSlots.length > 0 && futureSlots.every((slot: any) => slot.isBooked);
+  };
   
   const days: CalendarDay[] = [];
   
@@ -61,16 +128,17 @@ const getDaysInMonth = (year: number, month: number): CalendarDay[] => {
   for (let i = startingDayOfWeek - 1; i >= 0; i--) {
     const date = new Date(year, month - 1, prevMonthLastDay - i);
     const dateStr = date.toISOString().split('T')[0];
-    const lessons = getLessonsForDate(dateStr);
+    const dayBookings = getBookingsForDate(dateStr);
     
     days.push({
       date,
       dayNumber: prevMonthLastDay - i,
       isCurrentMonth: false,
       isToday: false,
-      hasLessons: lessons.length > 0,
-      hasSlots: false, // We don't load slots for other months
-      lessons,
+      hasLessons: dayBookings.length > 0,
+      hasSlots: false, // We don't check slots for other months
+      isClosed: false, // We don't check closed status for other months
+      lessons: [], // Empty lessons array for non-current month days
     });
   }
   
@@ -78,17 +146,19 @@ const getDaysInMonth = (year: number, month: number): CalendarDay[] => {
   for (let i = 1; i <= daysInMonth; i++) {
     const date = new Date(year, month, i);
     const dateStr = date.toISOString().split('T')[0];
-    const lessons = getLessonsForDate(dateStr);
+    const dayBookings = getBookingsForDate(dateStr);
     const isToday = date.getTime() === today.getTime();
+    const dayClosed = isDayClosed(date, dateStr);
     
     days.push({
       date,
       dayNumber: i,
       isCurrentMonth: true,
       isToday,
-      hasLessons: lessons.length > 0,
-      hasSlots: false, // TODO: Load from availability_slots
-      lessons,
+      hasLessons: dayBookings.length > 0,
+      hasSlots: hasOpenSlotsForDate(date, dateStr),
+      isClosed: dayClosed,
+      lessons: [], // Empty lessons array, we use dayBookings separately
     });
   }
   
@@ -97,16 +167,18 @@ const getDaysInMonth = (year: number, month: number): CalendarDay[] => {
   for (let i = 1; i <= remainingDays; i++) {
     const date = new Date(year, month + 1, i);
     const dateStr = date.toISOString().split('T')[0];
-    const lessons = getLessonsForDate(dateStr);
+    const dayBookings = getBookingsForDate(dateStr);
+    const dayClosed = isDayClosed(date, dateStr);
     
     days.push({
       date,
       dayNumber: i,
       isCurrentMonth: false,
       isToday: false,
-      hasLessons: lessons.length > 0,
-      hasSlots: false, // We don't load slots for other months
-      lessons,
+      hasLessons: dayBookings.length > 0,
+      hasSlots: hasOpenSlotsForDate(date, dateStr), // Check slots for next month days in grid
+      isClosed: dayClosed,
+      lessons: [], // Empty lessons array for non-current month days
     });
   }
   
@@ -295,6 +367,68 @@ export default function TeacherCalendarScreen() {
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
   
+  // Fetch bookings for the entire visible month
+  const { data: monthBookings = [] } = useQuery({
+    queryKey: ['teacher-month-bookings', profile?.id, currentYear, currentMonth],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      // Calculate start and end of visible month (including prev/next month days for calendar grid)
+      // We fetch a bit more to cover the calendar grid which shows days from prev/next month
+      const startDate = new Date(currentYear, currentMonth - 1, 1);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(currentYear, currentMonth + 2, 0); // End of next month
+      endDate.setHours(23, 59, 59, 999);
+      
+      // Fetch all bookings in this range
+      // Since getTeacherBookings doesn't support date range, we'll fetch all and filter
+      // For efficiency, we'll use direct Supabase query
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          student:students!bookings_student_id_fkey(id, first_name, last_name, avatar_url),
+          subject:subjects(id, name, name_he, icon)
+        `)
+        .eq('teacher_id', profile.id)
+        .gte('start_at', startDate.toISOString())
+        .lte('start_at', endDate.toISOString())
+        .in('status', ['confirmed', 'awaiting_payment', 'pending'])
+        .order('start_at', { ascending: true });
+      
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!profile?.id,
+    staleTime: 1000 * 60, // 1 minute
+  });
+  
+  // Fetch availability slots for the entire visible month
+  const { data: availabilitySlots = [] } = useQuery({
+    queryKey: ['teacher-availability-slots', profile?.id, currentYear, currentMonth],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      // Calculate start and end of visible month
+      const startDate = new Date(currentYear, currentMonth - 1, 1);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(currentYear, currentMonth + 2, 0); // End of next month
+      endDate.setHours(23, 59, 59, 999);
+      
+      try {
+        const slots = await getTeacherAvailabilitySlots(
+          profile.id,
+          startDate.toISOString().split('T')[0],
+          endDate.toISOString().split('T')[0]
+        );
+        return slots || [];
+      } catch (error) {
+        console.error('Error fetching availability slots:', error);
+        return [];
+      }
+    },
+    enabled: !!profile?.id,
+    staleTime: 1000 * 60, // 1 minute
+  });
+  
   // Fetch bookings for selected date
   const selectedDateStr = selectedDate.toISOString().split('T')[0];
   const { data: dayBookings = [], isLoading: isLoadingBookings } = useQuery({
@@ -323,8 +457,8 @@ export default function TeacherCalendarScreen() {
   const cellWidth = availableWidth / 7;
   
   const days = useMemo(
-    () => getDaysInMonth(currentYear, currentMonth),
-    [currentYear, currentMonth, refreshKey] // Add refreshKey to force recalculation
+    () => getDaysInMonth(currentYear, currentMonth, monthBookings, availabilitySlots),
+    [currentYear, currentMonth, refreshKey, monthBookings, availabilitySlots] // Include availabilitySlots
   );
   
   const goToPreviousMonth = () => {
@@ -345,7 +479,11 @@ export default function TeacherCalendarScreen() {
   };
 
   const handleSlotsUpdated = () => {
-    // Refresh the calendar data
+    // Invalidate both availability and bookings queries to ensure UI updates
+    queryClient.invalidateQueries({ queryKey: ['teacher-availability-slots', profile?.id] });
+    queryClient.invalidateQueries({ queryKey: ['teacher-month-bookings', profile?.id] });
+    queryClient.invalidateQueries({ queryKey: ['teacher-day-lessons'] });
+    // Also refresh the calendar data
     setRefreshKey(prev => prev + 1);
   };
 
@@ -366,7 +504,10 @@ export default function TeacherCalendarScreen() {
     if (!bookingToCancel) return;
     try {
       await cancelBooking(bookingToCancel, 'Cancelled by teacher', 'credits');
+      // Invalidate all related queries to refresh calendar display
       queryClient.invalidateQueries({ queryKey: ['teacher-day-lessons'] });
+      queryClient.invalidateQueries({ queryKey: ['teacher-month-bookings', profile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['teacher-availability-slots', profile?.id] });
       setRefreshKey(prev => prev + 1);
     } catch (error: any) {
       console.error('Error cancelling booking:', error);
@@ -380,9 +521,7 @@ export default function TeacherCalendarScreen() {
   useEffect(() => {
     if (!profile?.id) return;
 
-    const unsubscribe = subscribeToTeacherAvailability(profile.id, (payload) => {
-      console.log('📡 Realtime availability update:', payload);
-      // Refresh calendar when availability changes
+    const unsubscribe = subscribeToTeacherAvailability(profile.id, () => {
       setRefreshKey(prev => prev + 1);
     });
 
@@ -405,12 +544,45 @@ export default function TeacherCalendarScreen() {
           table: 'bookings',
           filter: `teacher_id=eq.${profile.id}`,
         },
-        (payload) => {
-          console.log('📡 Realtime booking update:', payload);
-          // Invalidate the query for the selected date
+        () => {
           queryClient.invalidateQueries({
             queryKey: ['teacher-day-lessons', profile.id],
           });
+          queryClient.invalidateQueries({
+            queryKey: ['teacher-month-bookings', profile.id],
+          });
+          setRefreshKey(prev => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id, queryClient]);
+
+  // Subscribe to realtime availability slots updates
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const channel = supabase
+      .channel(`teacher-availability-slots-${profile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'availability_slots',
+          filter: `teacher_id=eq.${profile.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ['teacher-availability-slots', profile.id],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ['teacher-month-bookings', profile.id],
+          });
+          setRefreshKey(prev => prev + 1);
         }
       )
       .subscribe();
@@ -581,6 +753,7 @@ export default function TeacherCalendarScreen() {
           >
             {days.map((day, index) => {
               const isDisabled = !day.isCurrentMonth;
+              const isSelected = !isDisabled && isSameDate(day.date, selectedDate);
               
               return (
                 <TouchableOpacity
@@ -598,14 +771,37 @@ export default function TeacherCalendarScreen() {
                       borderWidth: 1,
                       borderColor: 'rgba(0, 0, 0, 0.08)',
                     },
-                    day.isToday && {
-                      backgroundColor: colors.primary[100],
+                    // Selected date styling (not today)
+                    isSelected && !day.isToday && {
+                      backgroundColor: colors.primary[50],
                       borderWidth: 2,
-                      borderColor: colors.primary[600],
+                      borderColor: colors.primary[500],
                     },
-                    !day.isToday && day.hasLessons && {
+                    // Today styling
+                    day.isToday && {
+                      backgroundColor: colors.gray[100],
+                      borderWidth: 2,
+                      borderColor: colors.gray[400],
+                      // If today is also selected, change border to primary to show selection
+                      ...(isSelected ? {
+                        borderColor: colors.primary[500],
+                        shadowColor: colors.primary[600],
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 4,
+                        elevation: 3,
+                      } : {}),
+                    },
+                    // Days with lessons (but not selected and not today) - priority: lessons > open > closed
+                    !day.isToday && !isSelected && day.hasLessons && {
                       backgroundColor: colors.blue[50],
                     },
+                    // Days with open slots (but not selected, not today, no lessons, and not closed)
+                    !day.isToday && !isSelected && !day.hasLessons && !day.isClosed && day.hasSlots && {
+                      borderColor: colors.green[300],
+                      borderWidth: 1.5,
+                    },
+                    // Closed days (but not selected, not today, no lessons) - no special styling, just default white
                     isDisabled && {
                       backgroundColor: 'transparent',
                       borderColor: 'transparent',
@@ -645,8 +841,9 @@ export default function TeacherCalendarScreen() {
                     <View style={{ flex: 1 }} />
                     
                     {/* Dots indicator - bottom center */}
-                    {day.hasLessons && (
-                      <View style={styles.dayCellDots}>
+                    <View style={styles.dayCellDots}>
+                      {/* Blue dot for lessons */}
+                      {day.hasLessons && (
                         <View
                           style={{
                             width: 5,
@@ -657,8 +854,19 @@ export default function TeacherCalendarScreen() {
                               : colors.primary[500],
                           }}
                         />
-                      </View>
-                    )}
+                      )}
+                      {/* Green dot for open slots (only if no lessons and not closed) */}
+                      {!day.hasLessons && !day.isClosed && day.hasSlots && (
+                        <View
+                          style={{
+                            width: 5,
+                            height: 5,
+                            borderRadius: 2.5,
+                            backgroundColor: colors.green[500],
+                          }}
+                        />
+                      )}
+                    </View>
                   </View>
                 </TouchableOpacity>
               );
@@ -737,6 +945,39 @@ export default function TeacherCalendarScreen() {
                   יום עם שיעורים
                 </Typography>
               </View>
+              
+              <View
+                style={{
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  gap: spacing[2],
+                }}
+              >
+                <View
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 6,
+                    backgroundColor: colors.white,
+                    borderWidth: 1.5,
+                    borderColor: colors.green[300],
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 4,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colors.green[500],
+                    }}
+                  />
+                </View>
+                <Typography variant="caption" color="textSecondary">
+                  יום פתוח להזמנות
+                </Typography>
+              </View>
             </View>
             
             <View
@@ -748,7 +989,7 @@ export default function TeacherCalendarScreen() {
               }}
             >
               <Typography variant="caption" color="textSecondary">
-                💡 לחץ על תאריך כדי לנהל זמינות ומשבצות זמן
+                💡 לחץ על תאריך ולאחר מכן על סמל העיפרון כדי לנהל זמינות (פתיחת/סגירת שעות או סגירת יום עבודה)
               </Typography>
             </View>
           </Card>

@@ -270,6 +270,8 @@ export default function TeacherHomeScreen() {
   const teacherId = profile?.role === 'teacher' ? profile.id : undefined;
   const { data: upcoming = [], isLoading: loadingUpcoming, error: upcomingError } = useTeacherUpcomingLessons(teacherId, { limit: 5 });
   
+  // Debug logs removed
+  
   const stats = getTeacherStats();
   const monthlyData = getMonthlyGrowthData();
   const notifications = getTeacherNotifications();

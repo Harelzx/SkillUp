@@ -20,17 +20,19 @@ export function useTeacherUpcomingLessons(teacherId: string | undefined, opts?: 
     enabled: Boolean(teacherId),
     queryFn: async (): Promise<UpcomingLesson[]> => {
       const nowIso = new Date().toISOString();
-      const { data, error } = await supabase
+
+      // Step 1: Fetch bookings with student_id explicitly
+      const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
           id,
           start_at,
           end_at,
-          subject:subjects(id, name, name_he, icon),
           mode,
           total_price,
           status,
-          student:students!bookings_student_id_fkey(id, first_name, last_name, avatar_url)
+          student_id,
+          subject:subjects(id, name, name_he, icon)
         `)
         .eq('teacher_id', teacherId as string)
         .in('status', ['confirmed', 'awaiting_payment', 'pending'])
@@ -38,16 +40,53 @@ export function useTeacherUpcomingLessons(teacherId: string | undefined, opts?: 
         .order('start_at', { ascending: true })
         .limit(limit);
 
-      if (error) throw error;
+      if (bookingsError) throw bookingsError;
 
-      return (data || []).map((row: any) => ({
+      const safeBookings = (bookings || []) as any[];
+
+      // Step 2: Extract unique student IDs
+      const studentIds = Array.from(
+        new Set(
+          safeBookings
+            .map((b) => b.student_id)
+            .filter((id: any) => id != null && id !== undefined && (typeof id === 'string' ? id.trim().length > 0 : true))
+        )
+      ) as string[];
+
+      // Step 3: Fetch students separately if we have any student IDs
+      let studentsMap: Record<string, { id: string; first_name?: string; last_name?: string; avatar_url?: string }> = {};
+      
+      if (studentIds.length > 0) {
+        const { data: students, error: studentsError } = await supabase
+          .from('students')
+          .select('id, first_name, last_name, avatar_url')
+          .in('id', studentIds);
+
+        if (studentsError) throw studentsError;
+
+        // Step 4: Create map for easy lookup
+        studentsMap = (students || []).reduce((acc: any, s: any) => {
+          acc[s.id] = {
+            id: s.id,
+            first_name: s.first_name,
+            last_name: s.last_name,
+            avatar_url: s.avatar_url,
+          };
+          return acc;
+        }, {} as Record<string, { id: string; first_name?: string; last_name?: string; avatar_url?: string }>);
+      } else {
+        // no student ids to fetch
+      }
+
+      // Step 5: Merge student data back into bookings
+      return safeBookings.map((row) => ({
         id: row.id,
         startAt: row.start_at,
         endAt: row.end_at,
         subject: row.subject || null,
         mode: (row.mode as any) || 'online',
         totalPrice: row.total_price ?? null,
-        student: row.student || null,
+        student: row.student_id ? (studentsMap[row.student_id] || null) : null,
         status: row.status,
       }));
     },
