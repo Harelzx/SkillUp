@@ -289,13 +289,22 @@ export default function HomeScreen() {
           justifyContent: 'space-between',
         }}>
           {/* Left side: Price */}
-          <Typography
-            variant="body2"
-            weight="bold"
-            style={{ fontSize: 14, color: colors.blue[500] }}
-          >
-            {`₪${safeRate}/שעה`}
-          </Typography>
+          {safeRate ? (
+            <Typography
+              variant="body2"
+              weight="bold"
+              style={{ fontSize: 14, color: colors.blue[500] }}
+            >
+              {`₪${safeRate}/שעה`}
+            </Typography>
+          ) : (
+            <Typography
+              variant="body2"
+              style={{ fontSize: 14, color: colors.gray[500] }}
+            >
+              ליצירת קשר
+            </Typography>
+          )}
 
           {/* Right side: Location */}
           {safeLocation ? (

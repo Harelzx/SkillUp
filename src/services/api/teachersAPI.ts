@@ -70,9 +70,16 @@ export async function getTeachers(params?: {
   offset?: number;
 }) {
   // Query from teachers table directly to show new teachers
+  // LEFT JOIN with cities to get city name from city_id (nullable)
   let query = supabase
     .from('teachers')
-    .select('*', { count: 'exact' })
+    .select(`
+      *,
+      city:cities!city_id (
+        name_he,
+        name_en
+      )
+    `, { count: 'exact' })
     .eq('is_active', true)
     .order('created_at', { ascending: false });
 
@@ -198,6 +205,11 @@ export async function getFeaturedTeachers(limit: number = 10) {
       avatar_url,
       hourly_rate,
       location,
+      city_id,
+      city:cities!city_id (
+        name_he,
+        name_en
+      ),
       experience_years,
       total_students,
       is_active,

@@ -160,19 +160,34 @@ export default function TeacherOnboardingModal({ teacherId, onComplete }: Teache
     if (!validateStep(1) || !validateStep(2)) return;
     setIsSubmitting(true);
     try {
-      await updateTeacherProfile(teacherId, {
+      // Step 1: Update teacher profile
+      const profileResult = await updateTeacherProfile(teacherId, {
         bio: formData.bio,
         hourlyRate: parseFloat(formData.hourlyRate),
         regionId: formData.regionId,
         cityId: formData.cityId
       });
+
+      if (!profileResult.success) {
+        throw new Error('Failed to update profile');
+      }
+
+      // Step 2: Update subjects
       await updateTeacherSubjects(teacherId, formData.subjects);
-      const { error: updateError } = await supabase.from('teachers').update({ profile_completed: true } as any).eq('id', teacherId);
+
+      // Step 3: Mark profile as completed ONLY if everything succeeded
+      const { error: updateError } = await supabase
+        .from('teachers')
+        .update({ profile_completed: true } as any)
+        .eq('id', teacherId);
+
       if (updateError) throw updateError;
+
       Alert.alert('ברוכים הבאים! 🎉', 'הפרופיל שלך הושלם בהצלחה!', [{ text: 'מעולה!', onPress: onComplete }]);
     } catch (error: any) {
       console.error('Error completing onboarding:', error);
       Alert.alert('שגיאה', 'אירעה שגיאה בשמירת הנתונים. נסה שוב.');
+      // Don't mark as completed if there was an error
     } finally {
       setIsSubmitting(false);
     }

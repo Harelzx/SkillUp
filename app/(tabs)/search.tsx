@@ -438,13 +438,22 @@ export default function SearchScreen() {
             )}
 
             {/* Right side: Price */}
-            <Typography
-              variant="body2"
-              weight="bold"
-              style={{ fontSize: 14, color: colors.blue[500] }}
-            >
-              {`₪${safeRate}/שעה`}
-            </Typography>
+            {safeRate ? (
+              <Typography
+                variant="body2"
+                weight="bold"
+                style={{ fontSize: 14, color: colors.blue[500] }}
+              >
+                {`₪${safeRate}/שעה`}
+              </Typography>
+            ) : (
+              <Typography
+                variant="body2"
+                style={{ fontSize: 14, color: colors.gray[500] }}
+              >
+                ליצירת קשר
+              </Typography>
+            )}
           </View>
         </CardContent>
       </Card>

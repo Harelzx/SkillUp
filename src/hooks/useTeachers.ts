@@ -6,7 +6,7 @@ export type TeacherListItem = {
   displayName: string;
   bio: string;
   avatarUrl?: string;
-  hourlyRate: number;
+  hourlyRate: number | null;
   subjects: string[];
   rating?: number;
   totalReviews?: number;
@@ -27,11 +27,11 @@ function mapApiTeacherToListItem(row: any): TeacherListItem {
     displayName: row.display_name || 'לא ידוע',
     bio: row.bio || '',
     avatarUrl: row.avatar_url,
-    hourlyRate: row.hourly_rate || 0,
+    hourlyRate: row.hourly_rate || null,
     subjects,
     rating: row.avg_rating || row.rating_avg || 0,
     totalReviews: row.review_count || row.reviews_count || 0,
-    location: row.location || '',
+    location: row.city?.name_he || row.location || '',
     experienceYears: row.experience_years || 0,
     totalStudents: row.total_students || 0,
   };
