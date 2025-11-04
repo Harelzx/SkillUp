@@ -21,6 +21,11 @@ export interface TeacherProfile {
   timezone: string;
   teachingStyle?: string;
   location?: string;
+  education?: string[];
+  languages?: string[];
+  experienceYears?: number;
+  regionId?: string;
+  cityId?: string;
 }
 
 export interface AvailabilitySlot {
@@ -59,34 +64,32 @@ export async function updateTeacherProfile(
     timezone?: string;
     teachingStyle?: string;
     location?: string;
+    phone?: string;
+    education?: string[];
+    languages?: string[];
+    experienceYears?: number;
   }
 ): Promise<{ success: boolean; profile: any }> {
   console.log('🔵 [teacherAPI] updateTeacherProfile called with:', { teacherId, updates });
 
-  // Build JSONB object with snake_case column names
-  const updateData: any = {};
-
-  if (updates.displayName !== undefined) updateData.display_name = updates.displayName;
-  if (updates.bio !== undefined) updateData.bio = updates.bio;
-  if (updates.avatarUrl !== undefined) updateData.avatar_url = updates.avatarUrl;
-  if (updates.hourlyRate !== undefined) updateData.hourly_rate = updates.hourlyRate;
-  if (updates.lessonModes !== undefined) updateData.lesson_modes = updates.lessonModes;
-  if (updates.durationOptions !== undefined) updateData.duration_options = updates.durationOptions;
-  if (updates.regions !== undefined) updateData.regions = updates.regions;
-  if (updates.regionId !== undefined) updateData.region_id = updates.regionId;
-  if (updates.cityId !== undefined) updateData.city_id = updates.cityId;
-  if (updates.timezone !== undefined) updateData.timezone = updates.timezone;
-  if (updates.teachingStyle !== undefined) updateData.teaching_style = updates.teachingStyle;
-  if (updates.location !== undefined) updateData.location = updates.location;
-  
-  console.log('🔵 [teacherAPI] Mapped to snake_case for RPC:', updateData);
-  console.log('🔵 [teacherAPI] Calling RPC: update_teacher_profile_simple');
-  
-  // Use simple RPC function that accepts JSONB (bypasses PostgREST cache completely)
-  const { data, error } = await supabase.rpc('update_teacher_profile_simple', {
+  // Use the correct RPC function that updates BOTH teachers and profiles tables
+  // This function is from migration 033 and handles all fields including education, languages, experience
+  const { data, error } = await supabase.rpc('update_teacher_profile', {
     p_teacher_id: teacherId,
-    p_updates: updateData,
-  } as any); // Type assertion to bypass missing function signature
+    p_display_name: updates.displayName ?? null,
+    p_bio: updates.bio ?? null,
+    p_phone_number: updates.phone ?? null,
+    p_hourly_rate: updates.hourlyRate ?? null,
+    p_location: updates.location ?? null,
+    p_region_id: updates.regionId ?? null,
+    p_city_id: updates.cityId ?? null,
+    p_lesson_modes: updates.lessonModes ?? null,
+    p_duration_options: updates.durationOptions ?? null,
+    p_avatar_url: updates.avatarUrl ?? null,
+    p_education: updates.education ?? null,
+    p_languages: updates.languages ?? null,
+    p_experience_years: updates.experienceYears ?? null,
+  } as any);
 
   if (error) {
     console.error('❌ [teacherAPI] Error updating teacher profile:', error);
@@ -97,12 +100,12 @@ export async function updateTeacherProfile(
   }
 
   console.log('✅ [teacherAPI] Profile update successful, result:', data);
-  
+
   const result = data as any;
   if (!result?.success) {
     throw new Error(result?.error || 'Update failed');
   }
-  
+
   return {
     success: true,
     profile: result,
@@ -130,7 +133,12 @@ export async function getTeacherProfile(teacherId: string): Promise<TeacherProfi
         duration_options,
         regions,
         timezone,
-        teaching_style
+        teaching_style,
+        education,
+        languages,
+        experience_years,
+        region_id,
+        city_id
       `)
       .eq('id', teacherId)
       .single();
@@ -144,8 +152,9 @@ export async function getTeacherProfile(teacherId: string): Promise<TeacherProfi
 
     const profileData = data as any;
     console.log('✅ Teacher profile fetched successfully');
+    console.log('📊 [getTeacherProfile] Raw data from DB:', JSON.stringify(profileData, null, 2));
 
-    return {
+    const result = {
       id: profileData.id,
       displayName: profileData.display_name,
       bio: profileData.bio,
@@ -157,7 +166,15 @@ export async function getTeacherProfile(teacherId: string): Promise<TeacherProfi
       timezone: profileData.timezone || 'Asia/Jerusalem',
       teachingStyle: profileData.teaching_style,
       location: profileData.location,
+      education: profileData.education || [],
+      languages: profileData.languages || [],
+      experienceYears: profileData.experience_years,
+      regionId: profileData.region_id,
+      cityId: profileData.city_id,
     };
+
+    console.log('📤 [getTeacherProfile] Returning:', JSON.stringify(result, null, 2));
+    return result;
   } catch (error: any) {
     console.error('❌ Fatal error fetching teacher profile:', error);
     throw error;
@@ -386,5 +403,73 @@ export function subscribeToTeacherProfile(
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+// ============================================
+// Subject Experience Management
+// ============================================
+
+/**
+ * Update teacher's per-subject experience
+ * @param teacherId - Teacher's ID
+ * @param subjectExperience - Object mapping subject IDs to experience years
+ * @returns Success response with counts
+ */
+export async function updateTeacherSubjectExperience(
+  teacherId: string,
+  subjectExperience: { [subjectId: string]: number }
+): Promise<{ success: boolean; inserted: number; updated: number }> {
+  console.log('🔵 [teacherAPI] updateTeacherSubjectExperience called');
+  console.log('   Teacher ID:', teacherId);
+  console.log('   Subject Experience:', JSON.stringify(subjectExperience, null, 2));
+
+  const { data, error } = await supabase.rpc('upsert_teacher_subject_experience', {
+    p_teacher_id: teacherId,
+    p_subject_experience: subjectExperience,
+  } as any);
+
+  if (error) {
+    console.error('❌ [teacherAPI] Error updating subject experience:', error);
+    console.error('   Error code:', error.code);
+    console.error('   Error message:', error.message);
+    throw new Error(error.message);
+  }
+
+  console.log('✅ [teacherAPI] Subject experience updated successfully');
+  console.log('   Response:', data);
+
+  const result = data as any;
+  return {
+    success: result.success,
+    inserted: result.inserted,
+    updated: result.updated,
+  };
+}
+
+/**
+ * Get teacher's per-subject experience
+ * @param teacherId - Teacher's ID
+ * @returns Object mapping subject IDs to experience years
+ */
+export async function getTeacherSubjectExperience(
+  teacherId: string
+): Promise<{ [subjectId: string]: number }> {
+  console.log('🔵 [teacherAPI] getTeacherSubjectExperience called');
+  console.log('   Teacher ID:', teacherId);
+
+  const { data, error } = await supabase.rpc('get_teacher_subject_experience', {
+    p_teacher_id: teacherId,
+  } as any);
+
+  if (error) {
+    console.error('❌ [teacherAPI] Error fetching subject experience:', error);
+    throw new Error(error.message);
+  }
+
+  console.log('✅ [teacherAPI] Subject experience fetched successfully');
+  console.log('   Data:', JSON.stringify(data, null, 2));
+
+  // data is already a JSON object mapping subject IDs to years
+  return (data as any) || {};
 }
 

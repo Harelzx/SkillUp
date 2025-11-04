@@ -19,50 +19,24 @@ export async function getCreditBalance() {
     throw new Error('Not authenticated');
   }
 
-  // Try to check if student exists in students table (migration 021+)
-  // If table doesn't exist yet, we'll catch the error and continue
-  try {
-    const { data: student, error: studentError } = await supabase
-      .from('students')
-      .select('id')
-      .eq('id', user.id)
-      .maybeSingle(); // Use maybeSingle instead of single to avoid throwing on no results
+  // First, check profile role to verify user is a student
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
 
-    // If students table exists but student not found, check profiles table as fallback
-    if (!studentError && !student) {
-      console.log('🔵 [creditsAPI] Student not found in students table, checking profiles...');
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (!profile || profile.role !== 'student') {
-        console.log('🔵 [creditsAPI] User is not a student, returning 0');
-        return 0;
-      }
-    }
-  } catch (studentsTableError: any) {
-    // Students table might not exist yet (before migration 021)
-    // Check profiles table instead
-    console.log('🔵 [creditsAPI] students table not found, using profiles table');
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, role')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (!profile || profile.role !== 'student') {
-      console.log('🔵 [creditsAPI] User is not a student, returning 0');
-      return 0;
-    }
+  if (!profile || profile.role !== 'student') {
+    console.log('🔵 [creditsAPI] User is not a student, returning 0');
+    return 0;
   }
 
+  // Get credit balance
   const { data, error } = await supabase
     .from('student_credits')
     .select('balance')
     .eq('student_id', user.id)
-    .maybeSingle(); // Use maybeSingle to avoid throwing on no results
+    .maybeSingle();
 
   if (error) {
     console.error('❌ [creditsAPI] Error fetching credits:', error);
@@ -74,7 +48,7 @@ export async function getCreditBalance() {
     const { data: newRecord, error: insertError } = await supabase
       .from('student_credits')
       .insert({ student_id: user.id, balance: 0 })
-      .select()
+      .select('balance')
       .maybeSingle();
 
     if (insertError) {

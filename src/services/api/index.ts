@@ -30,6 +30,8 @@ export {
   deleteAvailabilitySlot,
   subscribeToTeacherAvailability,
   subscribeToTeacherProfile,
+  updateTeacherSubjectExperience,
+  getTeacherSubjectExperience,
 } from './teacherAPI';
 
 // Bookings API

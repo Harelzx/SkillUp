@@ -27,6 +27,8 @@ export async function getTeacherById(teacherId: string) {
     throw error;
   }
 
+  console.log('🔍 [getTeacherById] Raw teacher data:', JSON.stringify(teacher, null, 2));
+
   // Get subjects
   const { data: subjectsData } = await supabase
     .from('teacher_subjects')
