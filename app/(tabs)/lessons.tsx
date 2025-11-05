@@ -183,14 +183,18 @@ export default function LessonsScreen() {
       // Cancel booking without refund
       await cancelBooking(selectedLesson.id, 'credits'); // Pass credits as default
 
-      // Refresh bookings
-      queryClient.invalidateQueries({ queryKey: ['myBookings'] });
+      // Refresh both upcoming and past bookings to show cancelled lesson in past
+      await queryClient.invalidateQueries({ queryKey: ['myBookings', 'upcoming'] });
+      await queryClient.invalidateQueries({ queryKey: ['myBookings', 'past'] });
       // Also invalidate teacher's upcoming lessons so they see the cancellation
       if (selectedLesson.teacherId) {
         queryClient.invalidateQueries({ queryKey: ['teacher', selectedLesson.teacherId, 'upcomingLessons'] });
       }
 
-      showToast('השיעור בוטל בהצלחה. ניתן לקבוע שיעור חדש');
+      // Switch to past tab to show the cancelled lesson
+      setActiveTab('past');
+
+      showToast('השיעור בוטל בהצלחה והועבר לשיעורים קודמים');
       setCancelModalVisible(false);
       setSelectedLesson(null);
     } catch (error) {

@@ -29,7 +29,9 @@ export interface StudentProfileUpdate {
   email?: string;
   phone?: string;
   birthDate?: string; // YYYY-MM-DD format
-  city?: string;
+  city?: string; // Legacy field, kept for backward compatibility
+  regionId?: string; // UUID of region
+  cityId?: string; // UUID of city
   bio?: string;
   subjectsInterests?: string[];
   levelCategory?: string;
@@ -89,6 +91,8 @@ export async function updateStudentProfile(
   if (updates.phone !== undefined) payload.phone = normalizePhone(updates.phone) || null;
   if (updates.birthDate !== undefined) payload.birth_date = updates.birthDate || null;
   if (updates.city !== undefined) payload.city = updates.city.trim() || null;
+  if (updates.regionId !== undefined) payload.region_id = updates.regionId || null;
+  if (updates.cityId !== undefined) payload.city_id = updates.cityId || null;
   if (updates.bio !== undefined) payload.bio = updates.bio.trim() || null;
   if (updates.subjectsInterests !== undefined) payload.subjects_interests = updates.subjectsInterests;
   if (updates.levelCategory !== undefined) payload.level_category = updates.levelCategory || null;

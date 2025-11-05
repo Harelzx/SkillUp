@@ -38,7 +38,9 @@ export async function getMyBookings(params?: {
       // For upcoming, include confirmed, pending, and awaiting_payment statuses
       query = query.in('status', ['pending', 'confirmed', 'awaiting_payment']);
     } else {
-      query = query.lt('start_at', new Date().toISOString());
+      // For past: include completed/cancelled lessons OR lessons in the past
+      // This ensures cancelled lessons show up immediately in past, regardless of their original date
+      query = query.or(`status.eq.completed,status.eq.cancelled,start_at.lt.${new Date().toISOString()}`);
     }
   }
 

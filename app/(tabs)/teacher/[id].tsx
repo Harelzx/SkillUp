@@ -23,7 +23,7 @@ import { useQuery } from '@tanstack/react-query';
 import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
-import { getTeacherById, getTeacherReviews } from '@/services/api';
+import { getTeacherById, getTeacherReviews, getTeacherSubjectExperience, getSubjects } from '@/services/api';
 
 export default function TeacherProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -55,7 +55,27 @@ export default function TeacherProfileScreen() {
     enabled: !!id,
   });
 
-  const isLoading = loadingTeacher || loadingReviews;
+  const { data: subjectExperienceData = {}, isLoading: loadingSubjectExperience } = useQuery({
+    queryKey: ['teacherSubjectExperience', id],
+    queryFn: async () => {
+      if (!id) return {};
+      const experience = await getTeacherSubjectExperience(id as string);
+      console.log('📊 Subject experience from API:', JSON.stringify(experience, null, 2));
+      return experience;
+    },
+    enabled: !!id,
+  });
+
+  const { data: allSubjects = [], isLoading: loadingSubjects } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: async () => {
+      const subjects = await getSubjects();
+      console.log('📚 All subjects from API:', JSON.stringify(subjects, null, 2));
+      return subjects;
+    },
+  });
+
+  const isLoading = loadingTeacher || loadingReviews || loadingSubjectExperience || loadingSubjects;
   const error = teacherError;
 
   // Transform API data to match component interface
@@ -458,9 +478,26 @@ export default function TeacherProfileScreen() {
                   <Typography variant="h5" weight="semibold" style={{ marginBottom: spacing[2] }}>
                     {t('teacher.experience')}
                   </Typography>
-                  <Typography variant="body1" color="text">
-                    {String(teacher.experience || '')}
-                  </Typography>
+                  {Object.keys(subjectExperienceData).length > 0 ? (
+                    <View>
+                      {Object.entries(subjectExperienceData).map(([subjectId, years]) => {
+                        const subject = allSubjects.find((s: any) => s.id === subjectId);
+                        if (!subject) return null;
+                        return (
+                          <View key={subjectId} style={[styles.educationItem, { flexDirection: getFlexDirection() }]}>
+                            <CheckCircle size={16} color={colors.primary[600]} />
+                            <Typography variant="body1" color="text" style={{ marginHorizontal: spacing[2], flex: 1 }}>
+                              {subject.name_he}: {years} שנים
+                            </Typography>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ) : (
+                    <Typography variant="body1" color="text">
+                      {String(teacher.experience || '')}
+                    </Typography>
+                  )}
                 </CardContent>
               </Card>
             </View>

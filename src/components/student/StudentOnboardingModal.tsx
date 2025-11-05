@@ -24,6 +24,8 @@ import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { updateStudentProfile, getSubjects } from '@/services/api';
+import { getRegions, getCitiesByRegion } from '@/services/api/regionsAPI';
+import type { Region, City } from '@/types/database';
 
 interface StudentOnboardingModalProps {
   studentId: string;
@@ -32,19 +34,13 @@ interface StudentOnboardingModalProps {
 
 interface FormData {
   birthDate: Date | null;
-  city: string;
+  regionId: string;
+  cityId: string;
   subjectsInterests: string[];
   levelCategory: string;
   levelProficiency: string;
   bio: string;
 }
-
-const CITIES = [
-  'תל אביב-יפו', 'ירושלים', 'חיפה', 'ראשון לציון', 'פתח תקווה',
-  'אשדוד', 'נתניה', 'באר שבע', 'בני ברק', 'חולון', 'רמת גן',
-  'אשקלון', 'רחובות', 'בת ים', 'בית שמש', 'כפר סבא', 'הרצליה',
-  'חדרה', 'מודיעין-מכבים-רעות', 'נצרת', 'רעננה', 'לוד', 'רמלה',
-];
 
 const LEVEL_CATEGORIES = [
   { value: 'elementary', label: 'בית ספר יסודי' },
@@ -67,6 +63,7 @@ export default function StudentOnboardingModal({ studentId, onComplete }: Studen
   const totalSteps = 2;
 
   // Picker states
+  const [showRegionPicker, setShowRegionPicker] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDay, setTempDay] = useState<number | null>(null);
@@ -75,16 +72,20 @@ export default function StudentOnboardingModal({ studentId, onComplete }: Studen
 
   const [formData, setFormData] = useState<FormData>({
     birthDate: null,
-    city: '',
+    regionId: '',
+    cityId: '',
     subjectsInterests: [],
     levelCategory: '',
     levelProficiency: '',
     bio: '',
   });
 
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const [availableSubjects, setAvailableSubjects] = useState<Array<{ id: string; name_he: string }>>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Generate date options
@@ -118,8 +119,26 @@ export default function StudentOnboardingModal({ studentId, onComplete }: Studen
   }, []);
 
   useEffect(() => {
+    loadRegions();
     loadSubjects();
   }, []);
+
+  const loadRegions = async () => {
+    setIsLoading(true);
+    try {
+      const response = await getRegions();
+      if (response.success) {
+        setRegions(response.regions);
+      } else {
+        Alert.alert('שגיאה', 'לא הצלחנו לטעון את רשימת האזורים');
+      }
+    } catch (error: any) {
+      console.error('Error loading regions:', error);
+      Alert.alert('שגיאה', 'לא הצלחנו לטעון את רשימת האזורים');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const loadSubjects = async () => {
     setIsLoading(true);
@@ -134,11 +153,33 @@ export default function StudentOnboardingModal({ studentId, onComplete }: Studen
     }
   };
 
+  const handleRegionChange = async (regionId: string) => {
+    setFormData({ ...formData, regionId, cityId: '' });
+    setCities([]);
+    setShowRegionPicker(false);
+
+    setIsLoadingCities(true);
+    try {
+      const response = await getCitiesByRegion(regionId);
+      if (response.success) {
+        setCities(response.cities);
+      } else {
+        Alert.alert('שגיאה', 'לא הצלחנו לטעון את רשימת הערים');
+      }
+    } catch (error: any) {
+      console.error('Error loading cities:', error);
+      Alert.alert('שגיאה', 'לא הצלחנו לטעון את רשימת הערים');
+    } finally {
+      setIsLoadingCities(false);
+    }
+  };
+
   const validateStep = (step: number): boolean => {
     const newErrors: { [key: string]: string } = {};
 
     if (step === 1) {
-      if (!formData.city) newErrors.city = 'יש לבחור עיר';
+      if (!formData.regionId) newErrors.regionId = 'יש לבחור אזור';
+      if (!formData.cityId) newErrors.cityId = 'יש לבחור עיר';
       if (!formData.birthDate) newErrors.birthDate = 'תאריך לידה הוא שדה חובה';
       if (formData.subjectsInterests.length === 0) newErrors.subjectsInterests = 'יש לבחור לפחות נושא אחד';
     }
@@ -175,7 +216,8 @@ export default function StudentOnboardingModal({ studentId, onComplete }: Studen
       // Update only missing profile fields (name, phone already collected in signup)
       await updateStudentProfile(studentId, {
         birthDate: birthDateString,
-        city: formData.city,
+        regionId: formData.regionId,
+        cityId: formData.cityId,
         subjectsInterests: formData.subjectsInterests,
         levelCategory: formData.levelCategory,
         levelProficiency: formData.levelProficiency,
@@ -313,44 +355,42 @@ export default function StudentOnboardingModal({ studentId, onComplete }: Studen
 
   const renderStep1 = () => (
     <View>
+      {/* Region Selection */}
       <View style={styles.inputGroup}>
         <Typography variant="body1" weight="semibold" style={styles.inputLabel}>
-          באיזו עיר אתה נמצא? *
+          באיזה אזור אתה נמצא? *
         </Typography>
         <Pressable
-          style={[styles.input, errors.city && styles.inputError, { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }]}
-          onPress={() => setShowCityPicker(!showCityPicker)}
+          style={[styles.input, errors.regionId && styles.inputError, { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }]}
+          onPress={() => setShowRegionPicker(!showRegionPicker)}
         >
           <Typography
             variant="body2"
-            style={{ color: formData.city ? colors.gray[900] : colors.gray[400], flex: 1, textAlign: 'right' }}
+            style={{ color: formData.regionId ? colors.gray[900] : colors.gray[400], flex: 1, textAlign: 'right' }}
           >
-            {formData.city || 'בחר עיר...'}
+            {formData.regionId ? regions.find(r => r.id === formData.regionId)?.name_he : 'בחר אזור...'}
           </Typography>
           <Typography variant="body1" style={{ color: colors.gray[400] }}>
-            {showCityPicker ? '▲' : '▼'}
+            {showRegionPicker ? '▲' : '▼'}
           </Typography>
         </Pressable>
-        {errors.city && (
+        {errors.regionId && (
           <Typography variant="caption" color="error" style={styles.errorText}>
-            {errors.city}
+            {errors.regionId}
           </Typography>
         )}
 
-        {showCityPicker && (
+        {showRegionPicker && (
           <View style={styles.pickerContainer}>
             <ScrollView>
-              {CITIES.map((city) => (
+              {regions.map((region) => (
                 <TouchableOpacity
-                  key={city}
+                  key={region.id}
                   style={styles.pickerItem}
-                  onPress={() => {
-                    setFormData({ ...formData, city });
-                    setShowCityPicker(false);
-                  }}
+                  onPress={() => handleRegionChange(region.id)}
                 >
                   <Typography variant="body2" style={{ textAlign: 'right' }}>
-                    {city}
+                    {region.name_he}
                   </Typography>
                 </TouchableOpacity>
               ))}
@@ -358,6 +398,63 @@ export default function StudentOnboardingModal({ studentId, onComplete }: Studen
           </View>
         )}
       </View>
+
+      {/* City Selection - only show if region selected */}
+      {formData.regionId && (
+        <View style={styles.inputGroup}>
+          <Typography variant="body1" weight="semibold" style={styles.inputLabel}>
+            באיזו עיר אתה נמצא? *
+          </Typography>
+          {isLoadingCities ? (
+            <View style={[styles.input, { justifyContent: 'center', alignItems: 'center' }]}>
+              <ActivityIndicator color={colors.primary[600]} />
+            </View>
+          ) : (
+            <>
+              <Pressable
+                style={[styles.input, errors.cityId && styles.inputError, { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }]}
+                onPress={() => setShowCityPicker(!showCityPicker)}
+              >
+                <Typography
+                  variant="body2"
+                  style={{ color: formData.cityId ? colors.gray[900] : colors.gray[400], flex: 1, textAlign: 'right' }}
+                >
+                  {formData.cityId ? cities.find(c => c.id === formData.cityId)?.name_he : 'בחר עיר...'}
+                </Typography>
+                <Typography variant="body1" style={{ color: colors.gray[400] }}>
+                  {showCityPicker ? '▲' : '▼'}
+                </Typography>
+              </Pressable>
+              {errors.cityId && (
+                <Typography variant="caption" color="error" style={styles.errorText}>
+                  {errors.cityId}
+                </Typography>
+              )}
+
+              {showCityPicker && (
+                <View style={styles.pickerContainer}>
+                  <ScrollView>
+                    {cities.map((city) => (
+                      <TouchableOpacity
+                        key={city.id}
+                        style={styles.pickerItem}
+                        onPress={() => {
+                          setFormData({ ...formData, cityId: city.id });
+                          setShowCityPicker(false);
+                        }}
+                      >
+                        <Typography variant="body2" style={{ textAlign: 'right' }}>
+                          {city.name_he}
+                        </Typography>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      )}
 
       <View style={styles.inputGroup}>
         <Typography variant="body1" weight="semibold" style={styles.inputLabel}>

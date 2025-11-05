@@ -30,23 +30,9 @@ import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { useAuth } from '@/features/auth/auth-context';
-import { getTeacherProfile, updateTeacherProfile, getSubjects, getTeacherSubjects, updateTeacherSubjects } from '@/services/api';
-
-const CITIES = [
-  'תל אביב',
-  'רמת גן',
-  'ירושלים',
-  'חיפה',
-  'באר שבע',
-  'פתח תקווה',
-  'נתניה',
-  'רעננה',
-  'הרצליה',
-  'כפר סבא',
-  'ראשון לציון',
-  'חולון',
-  'בת ים',
-];
+import { getTeacherProfile, updateTeacherProfile, getSubjects, getTeacherSubjects, updateTeacherSubjects, getTeacherSubjectExperience, updateTeacherSubjectExperience } from '@/services/api';
+import { getRegions, getCitiesByRegion } from '@/services/api/regionsAPI';
+import type { Region, City } from '@/types/database';
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120];
 
@@ -66,8 +52,13 @@ export default function EditTeacherProfileScreen() {
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [hourlyRate, setHourlyRate] = useState('150');
-  const [location, setLocation] = useState('');
   const [teachingStyle, setTeachingStyle] = useState('');
+
+  // Education, languages, experience
+  const [education, setEducation] = useState<string[]>([]);
+  const [languages, setLanguages] = useState<string[]>([]);
+  const [subjectExperience, setSubjectExperience] = useState<{ [subjectId: string]: string }>({});
+  const [newEducation, setNewEducation] = useState('');
 
   // Lesson modes
   const [lessonModes, setLessonModes] = useState<LessonMode[]>(['online']);
@@ -75,8 +66,11 @@ export default function EditTeacherProfileScreen() {
   // Duration options
   const [durationOptions, setDurationOptions] = useState<number[]>([45, 60, 90]);
 
-  // Regions
-  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+  // Regions and Cities
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
 
   // Subjects
   const [availableSubjects, setAvailableSubjects] = useState<Array<{ id: string; name_he: string }>>([]);
@@ -96,27 +90,91 @@ export default function EditTeacherProfileScreen() {
 
     setLoading(true);
     try {
+      // Load regions
+      const regionsResponse = await getRegions();
+      if (regionsResponse.success) {
+        setRegions(regionsResponse.regions);
+      }
+
       // Load all subjects
       const allSubjects = await getSubjects();
       setAvailableSubjects(allSubjects);
 
       // Load teacher profile
       const teacherProfile = await getTeacherProfile(profile.id);
+      console.log('📥 [edit-teacher-profile] Loaded teacher profile:', JSON.stringify(teacherProfile, null, 2));
+
       if (teacherProfile) {
+        const profileData = teacherProfile as any;
+
         setDisplayName(teacherProfile.displayName || '');
         setBio(teacherProfile.bio || '');
         setAvatarUrl(teacherProfile.avatarUrl || '');
         setHourlyRate(teacherProfile.hourlyRate?.toString() || '150');
-        setLocation(teacherProfile.location || '');
         setTeachingStyle(teacherProfile.teachingStyle || '');
         setLessonModes(teacherProfile.lessonModes || ['online']);
         setDurationOptions(teacherProfile.durationOptions || [45, 60, 90]);
-        setSelectedRegions(teacherProfile.regions || []);
+
+        // Load education, languages, experience
+        console.log('📥 [edit-teacher-profile] Setting education to:', profileData.education);
+        console.log('📥 [edit-teacher-profile] Setting languages to:', profileData.languages);
+        setEducation(profileData.education || []);
+        setLanguages(profileData.languages || []);
+
+        // Set region_id and city_id from profile (new structure)
+        // Note: teacherProfile might have region_id and city_id if migrations ran
+        if (profileData.region_id) {
+          setSelectedRegionId(profileData.region_id);
+          // Load cities for this region BEFORE setting the selected city
+          const citiesResponse = await getCitiesByRegion(profileData.region_id);
+          if (citiesResponse.success) {
+            setCities(citiesResponse.cities);
+            // Now set the selected city after cities are loaded
+            if (profileData.city_id) {
+              setSelectedCityId(profileData.city_id);
+            }
+          }
+        }
       }
 
       // Load teacher subjects
       const teacherSubjects = await getTeacherSubjects(profile.id);
-      setSelectedSubjects(teacherSubjects.map(s => s.id));
+      const subjectIds = teacherSubjects.map(s => s.id);
+      setSelectedSubjects(subjectIds);
+
+      // Load per-subject experience from the new API
+      try {
+        const subjectExperienceData = await getTeacherSubjectExperience(profile.id);
+
+        // Convert numeric values to strings for the form
+        const experienceStrings: { [key: string]: string } = {};
+        Object.entries(subjectExperienceData).forEach(([subjectId, years]) => {
+          experienceStrings[subjectId] = years.toString();
+        });
+
+        setSubjectExperience(experienceStrings);
+
+        // If no per-subject data exists yet, initialize with general experience_years
+        if (Object.keys(experienceStrings).length === 0 && teacherProfile && (teacherProfile as any).experience_years && subjectIds.length > 0) {
+          const initialExperience: { [key: string]: string } = {};
+          const experienceYears = (teacherProfile as any).experience_years.toString();
+          subjectIds.forEach(id => {
+            initialExperience[id] = experienceYears;
+          });
+          setSubjectExperience(initialExperience);
+        }
+      } catch (error) {
+        console.error('Error loading subject experience:', error);
+        // Fallback to general experience_years if the new API fails
+        if (teacherProfile && (teacherProfile as any).experience_years && subjectIds.length > 0) {
+          const initialExperience: { [key: string]: string } = {};
+          const experienceYears = (teacherProfile as any).experience_years.toString();
+          subjectIds.forEach(id => {
+            initialExperience[id] = experienceYears;
+          });
+          setSubjectExperience(initialExperience);
+        }
+      }
     } catch (error: any) {
       console.error('Error loading profile:', error);
       Alert.alert('שגיאה', 'לא הצלחנו לטעון את הפרופיל');
@@ -166,8 +224,19 @@ export default function EditTeacherProfileScreen() {
 
     if (!validate() || !profile) return;
 
+    // Calculate average experience years from per-subject experience
+    const experienceValues = Object.values(subjectExperience)
+      .map(val => parseInt(val))
+      .filter(val => !isNaN(val) && val > 0);
+
+    const averageExperience = experienceValues.length > 0
+      ? Math.round(experienceValues.reduce((sum, val) => sum + val, 0) / experienceValues.length)
+      : undefined;
+
     console.log('🔵 [edit-teacher-profile] handleSave called');
     console.log('🔵 [edit-teacher-profile] Profile ID:', profile.id);
+    console.log('🔵 [edit-teacher-profile] Education state:', education);
+    console.log('🔵 [edit-teacher-profile] Languages state:', languages);
     console.log('🔵 [edit-teacher-profile] Updates:', {
       displayName,
       bio: bio || undefined,
@@ -175,9 +244,12 @@ export default function EditTeacherProfileScreen() {
       hourlyRate: parseFloat(hourlyRate),
       lessonModes,
       durationOptions,
-      regions: selectedRegions.length > 0 ? selectedRegions : undefined,
-      location: location || undefined,
+      regionId: selectedRegionId || undefined,
+      cityId: selectedCityId || undefined,
       teachingStyle: teachingStyle || undefined,
+      education: education.length > 0 ? education : undefined,
+      languages: languages.length > 0 ? languages : undefined,
+      experienceYears: averageExperience,
     });
 
     setSaving(true);
@@ -190,13 +262,27 @@ export default function EditTeacherProfileScreen() {
         hourlyRate: parseFloat(hourlyRate),
         lessonModes,
         durationOptions,
-        regions: selectedRegions.length > 0 ? selectedRegions : undefined,
-        location: location || undefined,
+        regionId: selectedRegionId || undefined,
+        cityId: selectedCityId || undefined,
         teachingStyle: teachingStyle || undefined,
+        education: education.length > 0 ? education : undefined,
+        languages: languages.length > 0 ? languages : undefined,
+        experienceYears: averageExperience,
       });
 
       console.log('🔵 [edit-teacher-profile] Calling updateTeacherSubjects...');
       await updateTeacherSubjects(profile.id, selectedSubjects);
+
+      // Save per-subject experience
+      console.log('🔵 [edit-teacher-profile] Calling updateTeacherSubjectExperience...');
+      const subjectExperienceNumbers: { [key: string]: number } = {};
+      Object.entries(subjectExperience).forEach(([subjectId, yearsStr]) => {
+        const years = parseInt(yearsStr);
+        if (!isNaN(years) && years > 0) {
+          subjectExperienceNumbers[subjectId] = years;
+        }
+      });
+      await updateTeacherSubjectExperience(profile.id, subjectExperienceNumbers);
 
       console.log('✅ [edit-teacher-profile] Save completed successfully');
       Alert.alert('הצלחה', 'הפרופיל עודכן בהצלחה', [
@@ -241,11 +327,40 @@ export default function EditTeacherProfileScreen() {
     }
   };
 
-  const toggleRegion = (region: string) => {
-    if (selectedRegions.includes(region)) {
-      setSelectedRegions(selectedRegions.filter((r) => r !== region));
+  const addEducation = (item: string) => {
+    if (item.trim()) {
+      setEducation([...education, item.trim()]);
+    }
+  };
+
+  const removeEducation = (index: number) => {
+    setEducation(education.filter((_, i) => i !== index));
+  };
+
+  const toggleLanguage = (language: string) => {
+    if (languages.includes(language)) {
+      setLanguages(languages.filter((l) => l !== language));
     } else {
-      setSelectedRegions([...selectedRegions, region]);
+      setLanguages([...languages, language]);
+    }
+  };
+
+  // Common languages in Israel
+  const commonLanguages = ['עברית', 'אנגלית', 'ערבית', 'רוסית', 'צרפתית', 'ספרדית'];
+
+  const handleRegionChange = async (regionId: string) => {
+    setSelectedRegionId(regionId);
+    setSelectedCityId(null); // Reset city when region changes
+    setCities([]); // Clear previous cities
+
+    // Load cities for the selected region
+    try {
+      const citiesResponse = await getCitiesByRegion(regionId);
+      if (citiesResponse.success) {
+        setCities(citiesResponse.cities);
+      }
+    } catch (error) {
+      console.error('Error loading cities:', error);
     }
   };
 
@@ -257,8 +372,23 @@ export default function EditTeacherProfileScreen() {
         return;
       }
       setSelectedSubjects(selectedSubjects.filter((s) => s !== subjectId));
+      // Remove experience for this subject
+      setSubjectExperience(prev => {
+        const updated = { ...prev };
+        delete updated[subjectId];
+        return updated;
+      });
     } else {
       setSelectedSubjects([...selectedSubjects, subjectId]);
+      // Initialize experience for new subject (empty or use average of existing)
+      const existingValues = Object.values(subjectExperience).filter(v => v);
+      const defaultValue = existingValues.length > 0
+        ? existingValues[0] // Use first existing value as default
+        : ''; // Or empty
+      setSubjectExperience(prev => ({
+        ...prev,
+        [subjectId]: defaultValue
+      }));
     }
   };
 
@@ -496,20 +626,6 @@ export default function EditTeacherProfileScreen() {
             </Typography>
             {errors.bio && <Typography style={styles.errorText}>{errors.bio}</Typography>}
           </View>
-
-          {/* Location */}
-          <View style={styles.field}>
-            <Typography variant="body2" weight="semibold" style={styles.label}>
-              מיקום עיקרי
-            </Typography>
-            <TextInput
-              style={styles.input}
-              value={location}
-              onChangeText={setLocation}
-              placeholder="לדוגמה: תל אביב"
-              placeholderTextColor={colors.gray[400]}
-            />
-          </View>
         </View>
 
         {/* Pricing Section */}
@@ -688,33 +804,188 @@ export default function EditTeacherProfileScreen() {
           {errors.durationOptions && <Typography style={styles.errorText}>{errors.durationOptions}</Typography>}
         </View>
 
-        {/* Regions Section */}
+        {/* Per-Subject Experience Years Section */}
+        {selectedSubjects.length > 0 && (
+          <View style={styles.section}>
+            <Typography variant="h6" weight="bold" style={styles.sectionTitle}>
+              שנות ניסיון בהוראה
+            </Typography>
+            <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[3], paddingHorizontal: spacing[1] }}>
+              כמה שנים אתה מלמד כל נושא?
+            </Typography>
+            {selectedSubjects.map((subjectId) => {
+              const subject = availableSubjects.find(s => s.id === subjectId);
+              if (!subject) return null;
+              return (
+                <View key={subjectId} style={{ marginBottom: spacing[3] }}>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: spacing[3] }}>
+                    <Typography variant="body2" style={{ flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
+                      {subject.name_he}:
+                    </Typography>
+                    <View style={{ width: 100 }}>
+                      <TextInput
+                        style={styles.input}
+                        value={subjectExperience[subjectId] || ''}
+                        onChangeText={(text) => setSubjectExperience(prev => ({
+                          ...prev,
+                          [subjectId]: text
+                        }))}
+                        placeholder="0"
+                        placeholderTextColor={colors.gray[400]}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <Typography variant="body2" color="textSecondary">שנים</Typography>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Education Section */}
         <View style={styles.section}>
           <Typography variant="h6" weight="bold" style={styles.sectionTitle}>
-            אזורי הוראה
+            השכלה והכשרות
           </Typography>
           <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], paddingHorizontal: spacing[1] }}>
-            רלוונטי לשיעורים פרונטליים
+            תואר, קורסים, הסמכות
           </Typography>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing[2], marginBottom: spacing[2] }}>
+            <TextInput
+              style={[styles.input, { flex: 1 }]}
+              value={newEducation}
+              onChangeText={setNewEducation}
+              placeholder='לדוגמה: "B.Sc במדעי המחשב"'
+              placeholderTextColor={colors.gray[400]}
+              onSubmitEditing={() => {
+                addEducation(newEducation);
+                setNewEducation('');
+              }}
+            />
+            <TouchableOpacity
+              style={{
+                backgroundColor: colors.primary[600],
+                paddingHorizontal: spacing[4],
+                borderRadius: 12,
+                justifyContent: 'center',
+                minHeight: 56,
+              }}
+              onPress={() => {
+                addEducation(newEducation);
+                setNewEducation('');
+              }}
+            >
+              <Typography variant="body1" weight="semibold" style={{ color: colors.white }}>הוסף</Typography>
+            </TouchableOpacity>
+          </View>
+          {education.map((item, index) => (
+            <View
+              key={index}
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                backgroundColor: colors.primary[50],
+                padding: spacing[3],
+                borderRadius: 8,
+                marginBottom: spacing[2],
+                justifyContent: 'space-between',
+              }}
+            >
+              <Typography variant="body2" style={{ flex: 1, textAlign: isRTL ? 'right' : 'left' }}>✓ {item}</Typography>
+              <TouchableOpacity onPress={() => removeEducation(index)}>
+                <Typography variant="body1" style={{ color: colors.red[500], paddingHorizontal: spacing[2] }}>×</Typography>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
 
+        {/* Languages Section */}
+        <View style={styles.section}>
+          <Typography variant="h6" weight="bold" style={styles.sectionTitle}>
+            שפות
+          </Typography>
+          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], paddingHorizontal: spacing[1] }}>
+            באילו שפות אתה יכול ללמד?
+          </Typography>
           <View style={styles.chipGrid}>
-            {CITIES.map((city) => (
+            {commonLanguages.map((language) => (
               <TouchableOpacity
-                key={city}
-                onPress={() => toggleRegion(city)}
-                style={[styles.chip, selectedRegions.includes(city) && styles.chipSelected]}
+                key={language}
+                onPress={() => toggleLanguage(language)}
+                style={[styles.chip, languages.includes(language) && styles.chipSelected]}
               >
                 <Typography
                   variant="body2"
                   style={{
-                    color: selectedRegions.includes(city) ? colors.white : colors.gray[700],
+                    color: languages.includes(language) ? colors.white : colors.gray[700],
                   }}
                 >
-                  {city}
+                  {language}
                 </Typography>
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+
+        {/* Region & City Section */}
+        <View style={styles.section}>
+          <Typography variant="h6" weight="bold" style={styles.sectionTitle}>
+            אזור ועיר
+          </Typography>
+          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], paddingHorizontal: spacing[1] }}>
+            רלוונטי לשיעורים פרונטליים - בחר אזור ולאחר מכן עיר
+          </Typography>
+
+          {/* Regions */}
+          <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[1], paddingHorizontal: spacing[1] }}>
+            אזור:
+          </Typography>
+          <View style={styles.chipGrid}>
+            {regions.map((region) => (
+              <TouchableOpacity
+                key={region.id}
+                onPress={() => handleRegionChange(region.id)}
+                style={[styles.chip, selectedRegionId === region.id && styles.chipSelected]}
+              >
+                <Typography
+                  variant="body2"
+                  style={{
+                    color: selectedRegionId === region.id ? colors.white : colors.gray[700],
+                  }}
+                >
+                  {region.name_he}
+                </Typography>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Cities - only show if region is selected */}
+          {selectedRegionId && cities.length > 0 && (
+            <>
+              <Typography variant="body2" weight="semibold" style={{ marginTop: spacing[3], marginBottom: spacing[1], paddingHorizontal: spacing[1] }}>
+                עיר:
+              </Typography>
+              <View style={styles.chipGrid}>
+                {cities.map((city) => (
+                  <TouchableOpacity
+                    key={city.id}
+                    onPress={() => setSelectedCityId(city.id)}
+                    style={[styles.chip, selectedCityId === city.id && styles.chipSelected]}
+                  >
+                    <Typography
+                      variant="body2"
+                      style={{
+                        color: selectedCityId === city.id ? colors.white : colors.gray[700],
+                      }}
+                    >
+                      {city.name_he}
+                    </Typography>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
         </View>
 
         {/* Action Buttons */}

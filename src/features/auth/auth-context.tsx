@@ -22,10 +22,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        const profile = await fetchProfile(session.user.id);
+        // If session exists but profile doesn't load after retries, clear the stale session
+        if (!profile) {
+          console.warn('⚠️ [AuthContext] Session exists but profile not found - clearing stale session');
+          await supabase.auth.signOut();
+          setSession(null);
+          setProfile(null);
+        }
       }
       setIsLoading(false);
     });
@@ -184,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (userData.role === 'teacher') {
           // Insert into teachers table
           profileData.display_name = userData.displayName;
-          profileData.phone = userData.phoneNumber || null;
+          profileData.phone_number = userData.phoneNumber || null;
           profileData.is_verified = false;
           profileData.total_students = 0;
 

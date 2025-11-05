@@ -35,11 +35,8 @@ import { useRTL } from '@/context/RTLContext';
 import { useCredits } from '@/context/CreditsContext';
 import { useAuth } from '@/features/auth/auth-context';
 import { getStudentProfile, updateStudentProfile, uploadStudentAvatar, getSubjects, type StudentProfileUpdate } from '@/services/api';
-
-const cities = [
-  'תל אביב', 'רמת גן', 'ירושלים', 'חיפה', 'באר שבע',
-  'פתח תקווה', 'נתניה', 'רעננה', 'הרצליה', 'כפר סבא'
-];
+import { getRegions, getCitiesByRegion } from '@/services/api/regionsAPI';
+import type { Region, City } from '@/types/database';
 
 export default function EditProfileScreen() {
   const { t } = useTranslation();
@@ -55,14 +52,39 @@ export default function EditProfileScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [age, setAge] = useState('');
-  const [city, setCity] = useState('תל אביב');
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   const [bio, setBio] = useState('');
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  
+
   // Validation errors
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  // Fetch regions from database
+  const { data: regionsData = [] } = useQuery({
+    queryKey: ['regions'],
+    queryFn: async () => {
+      const response = await getRegions();
+      return response.success ? response.regions : [];
+    },
+  });
+
+  const regions: Region[] = regionsData;
+
+  // Fetch cities for selected region
+  const { data: citiesData = [] } = useQuery({
+    queryKey: ['cities', selectedRegionId],
+    queryFn: async () => {
+      if (!selectedRegionId) return [];
+      const response = await getCitiesByRegion(selectedRegionId);
+      return response.success ? response.cities : [];
+    },
+    enabled: !!selectedRegionId,
+  });
+
+  const cities: City[] = citiesData;
 
   // Fetch student profile
   const { data: studentData, isLoading: loadingProfile } = useQuery({
@@ -98,7 +120,16 @@ export default function EditProfileScreen() {
       setEmail(studentData.email || '');
       setPhone(studentData.phone || '');
       setAge(calculateAge(studentData.birthDate));
-      setCity(studentData.city || 'תל אביב');
+
+      // Set region_id and city_id from profile (new structure)
+      const profileData = studentData as any;
+      if (profileData.region_id) {
+        setSelectedRegionId(profileData.region_id);
+      }
+      if (profileData.city_id) {
+        setSelectedCityId(profileData.city_id);
+      }
+
       setBio(studentData.bio || '');
       setSelectedSubjects(studentData.subjectsInterests || []);
       setAvatar(studentData.avatarUrl || null);
@@ -140,7 +171,7 @@ export default function EditProfileScreen() {
     if (!phone.trim()) newErrors.phone = 'טלפון הוא שדה חובה';
     else if (!validatePhone(phone)) newErrors.phone = 'מספר טלפון לא תקין';
     if (bio.length > 200) newErrors.bio = 'התיאור ארוך מדי (מקסימום 200 תווים)';
-    if (!city) newErrors.city = 'עיר היא שדה חובה';
+    if (!selectedCityId) newErrors.city = 'עיר היא שדה חובה';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -152,20 +183,30 @@ export default function EditProfileScreen() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const handleRegionChange = (regionId: string) => {
+    setSelectedRegionId(regionId);
+    setSelectedCityId(null); // Reset city when region changes
+  };
+
   const handleSave = async () => {
     if (!validate()) return;
     if (!user) return;
+
+    // Get the selected city object to extract region_id
+    const selectedCity = cities.find(c => c.id === selectedCityId);
 
     updateMutation.mutate({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
       phone,
-      city: city.trim(),
+      city: selectedCity?.name_he || '', // Keep legacy city field for backward compatibility
+      cityId: selectedCityId || undefined,
+      regionId: selectedRegionId || undefined,
       bio: bio.trim(),
       subjectsInterests: selectedSubjects,
       avatarUrl: avatar || undefined,
-    });
+    } as any); // Cast to any since StudentProfileUpdate type may not have cityId/regionId yet
   };
 
   const toggleSubject = (subjectId: string) => {
@@ -467,36 +508,82 @@ export default function EditProfileScreen() {
           />
         </View>
 
-        {/* City */}
+        {/* Region & City */}
         <View style={styles.field}>
           <Typography variant="body2" weight="semibold" style={styles.label}>
-            עיר <Typography style={{ color: colors.red[500] }}>*</Typography>
+            אזור ועיר <Typography style={{ color: colors.red[500] }}>*</Typography>
           </Typography>
-          <View style={[styles.input, { paddingVertical: 0 }]}>
+
+          {/* Region Selection */}
+          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[1], marginTop: spacing[1] }}>
+            בחר קודם אזור:
+          </Typography>
+          <View style={[styles.input, { paddingVertical: 0, marginBottom: spacing[3] }]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing[2], paddingVertical: spacing[2] }}>
-                {cities.map(c => (
+                {regions.map(r => (
                   <TouchableOpacity
-                    key={c}
-                    onPress={() => setCity(c)}
+                    key={r.id}
+                    onPress={() => handleRegionChange(r.id)}
                     style={{
                       paddingHorizontal: spacing[3],
                       paddingVertical: spacing[1],
                       borderRadius: 16,
-                      backgroundColor: city === c ? colors.primary[600] : colors.gray[100],
+                      backgroundColor: selectedRegionId === r.id ? colors.primary[600] : colors.gray[100],
                     }}
                   >
                     <Typography
                       variant="caption"
-                      style={{ color: city === c ? colors.white : colors.gray[700] }}
+                      style={{ color: selectedRegionId === r.id ? colors.white : colors.gray[700] }}
                     >
-                      {c}
+                      {r.name_he}
                     </Typography>
                   </TouchableOpacity>
                 ))}
               </View>
             </ScrollView>
           </View>
+
+          {/* City Selection - only show if region selected */}
+          {selectedRegionId && (
+            <>
+              <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[1] }}>
+                בחר עיר:
+              </Typography>
+              <View style={[styles.input, { paddingVertical: 0 }]}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing[2], paddingVertical: spacing[2] }}>
+                    {cities.length > 0 ? (
+                      cities.map(c => (
+                        <TouchableOpacity
+                          key={c.id}
+                          onPress={() => setSelectedCityId(c.id)}
+                          style={{
+                            paddingHorizontal: spacing[3],
+                            paddingVertical: spacing[1],
+                            borderRadius: 16,
+                            backgroundColor: selectedCityId === c.id ? colors.primary[600] : colors.gray[100],
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            style={{ color: selectedCityId === c.id ? colors.white : colors.gray[700] }}
+                          >
+                            {c.name_he}
+                          </Typography>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <Typography variant="caption" color="textSecondary" style={{ paddingVertical: spacing[2] }}>
+                        טוען ערים...
+                      </Typography>
+                    )}
+                  </View>
+                </ScrollView>
+              </View>
+            </>
+          )}
+
           {errors.city && (
             <Typography style={styles.errorText}>{errors.city}</Typography>
           )}

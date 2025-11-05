@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { View, TouchableOpacity, TextInput, ScrollView, Switch, Platform } from 'react-native';
+import { View, TouchableOpacity, TextInput, ScrollView, Switch, Platform, ActivityIndicator, Alert } from 'react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { BookingData, BookingPricing } from '@/types/booking';
-import { Tag, Info, ChevronDown, ChevronUp, CreditCard, Smartphone, Wallet, CheckCircle2 } from 'lucide-react-native';
+import { Tag, Info, ChevronDown, ChevronUp, CreditCard, Smartphone, Wallet, CheckCircle2, AlertCircle } from 'lucide-react-native';
 import type { TeacherBookingProfile } from '@/hooks/useTeacherBookingData';
+import { redeemCoupon } from '@/services/api/creditsAPI';
 
 export type PaymentMethod = 'apple_pay' | 'google_pay' | 'card' | 'credits' | 'bit';
 
@@ -18,10 +19,10 @@ interface BookingStep5Props {
   errors: Record<string, string>;
 }
 
-export function BookingStep5({ 
-  data, 
-  teacher, 
-  availableCredits, 
+export function BookingStep5({
+  data,
+  teacher,
+  availableCredits,
   onChange,
   selectedPaymentMethod,
   onPaymentMethodSelect,
@@ -29,20 +30,24 @@ export function BookingStep5({
 }: BookingStep5Props) {
   const [couponCode, setCouponCode] = useState(data.couponCode || '');
   const [showCancellationPolicy, setShowCancellationPolicy] = useState(false);
+  const [isCheckingCoupon, setIsCheckingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [appliedCouponCredits, setAppliedCouponCredits] = useState<number>(0);
+  const [appliedCouponDescription, setAppliedCouponDescription] = useState<string | null>(null);
 
   // Calculate pricing with teacher's actual hourly rate
   const pricing: BookingPricing = useMemo(() => {
     const hourlyRate = teacher.hourly_rate || 150;
     const durationHours = data.duration / 60;
     const subtotal = hourlyRate * durationHours;
-    
+
     let creditsUsed = 0;
     if (data.useCredits && availableCredits > 0) {
       creditsUsed = Math.min(availableCredits, subtotal);
     }
 
-    // Mock discount from coupon
-    const discount = couponCode === 'FIRST10' ? subtotal * 0.1 : 0;
+    // Use real coupon credits if applied
+    const discount = appliedCouponCredits;
 
     const total = Math.max(0, subtotal - creditsUsed - discount);
 
@@ -54,7 +59,53 @@ export function BookingStep5({
       discount,
       total,
     };
-  }, [data.duration, data.useCredits, teacher.hourly_rate, availableCredits, couponCode]);
+  }, [data.duration, data.useCredits, teacher.hourly_rate, availableCredits, appliedCouponCredits]);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('אנא הזן קוד קופון');
+      return;
+    }
+
+    setIsCheckingCoupon(true);
+    setCouponError(null);
+
+    try {
+      const result = await redeemCoupon(couponCode);
+
+      if (result.success) {
+        setAppliedCouponCredits(result.credits_awarded);
+        setAppliedCouponDescription(result.description);
+        onChange({ couponCode });
+
+        // Show success message
+        Alert.alert(
+          'קופון מומש בהצלחה!',
+          `נוספו ${result.credits_awarded} ₪ קרדיטים לחשבון שלך.\nהקרדיטים יחולו אוטומטית על תשלום זה.`,
+          [{ text: 'אישור' }]
+        );
+      } else {
+        setCouponError('קוד קופון לא תקף');
+      }
+    } catch (error: any) {
+      console.error('Coupon validation error:', error);
+
+      let errorMsg = 'שגיאה בבדיקת הקופון';
+      if (error.message?.includes('already redeemed')) {
+        errorMsg = 'כבר מימשת את הקופון הזה בעבר';
+      } else if (error.message?.includes('not found')) {
+        errorMsg = 'קוד קופון לא תקף';
+      } else if (error.message?.includes('expired')) {
+        errorMsg = 'הקופון פג תוקף';
+      } else if (error.message?.includes('max uses')) {
+        errorMsg = 'הקופון הגיע למקסימום השימושים';
+      }
+
+      setCouponError(errorMsg);
+    } finally {
+      setIsCheckingCoupon(false);
+    }
+  };
 
   const paymentMethods = [
     {
@@ -161,14 +212,20 @@ export function BookingStep5({
         <View style={{ flexDirection: 'row-reverse' }}>
           <TextInput
             value={couponCode}
-            onChangeText={setCouponCode}
-            placeholder="הזן קוד קופון"
+            onChangeText={(text) => {
+              setCouponCode(text.toUpperCase());
+              setCouponError(null);
+            }}
+            placeholder="WELCOME100"
             placeholderTextColor={colors.gray[400]}
             accessibilityLabel="קוד קופון"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            editable={!isCheckingCoupon}
             style={{
               flex: 1,
               borderWidth: 1,
-              borderColor: colors.gray[300],
+              borderColor: couponError ? colors.error[300] : colors.gray[300],
               borderRadius: 12,
               padding: spacing[3],
               textAlign: 'right',
@@ -180,36 +237,68 @@ export function BookingStep5({
             }}
           />
           <TouchableOpacity
-            onPress={() => onChange({ couponCode })}
+            onPress={handleApplyCoupon}
+            disabled={!couponCode.trim() || isCheckingCoupon}
             accessibilityRole="button"
             accessibilityLabel="החל קוד קופון"
             style={{
               paddingHorizontal: spacing[4],
               paddingVertical: spacing[3],
-              backgroundColor: colors.primary[600],
+              backgroundColor: (!couponCode.trim() || isCheckingCoupon) ? colors.gray[300] : colors.primary[600],
               borderRadius: 12,
               justifyContent: 'center',
+              alignItems: 'center',
               minHeight: 48,
               minWidth: 80,
             }}
           >
-            <Typography variant="body2" color="white" weight="semibold">
-              החל
-            </Typography>
+            {isCheckingCoupon ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <Typography variant="body2" color="white" weight="semibold">
+                החל
+              </Typography>
+            )}
           </TouchableOpacity>
         </View>
-        {couponCode === 'FIRST10' && (
+
+        {/* Success Message */}
+        {appliedCouponCredits > 0 && !couponError && (
           <View style={{
             marginTop: spacing[2],
-            padding: spacing[2],
+            padding: spacing[3],
             backgroundColor: colors.green[50],
             borderRadius: 8,
             flexDirection: 'row-reverse',
             alignItems: 'center',
           }}>
             <Tag size={16} color={colors.green[600]} style={{ marginLeft: spacing[2] }} />
-            <Typography variant="caption" style={{ color: colors.green[700] }}>
-              קוד קופון הוחל בהצלחה! הנחה של 10%
+            <View style={{ flex: 1 }}>
+              <Typography variant="caption" weight="semibold" style={{ color: colors.green[700] }}>
+                קופון מומש בהצלחה! 🎉
+              </Typography>
+              {appliedCouponDescription && (
+                <Typography variant="caption" style={{ color: colors.green[600], marginTop: spacing[1] }}>
+                  {appliedCouponDescription}
+                </Typography>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Error Message */}
+        {couponError && (
+          <View style={{
+            marginTop: spacing[2],
+            padding: spacing[3],
+            backgroundColor: colors.error[50],
+            borderRadius: 8,
+            flexDirection: 'row-reverse',
+            alignItems: 'center',
+          }}>
+            <AlertCircle size={16} color={colors.error[600]} style={{ marginLeft: spacing[2] }} />
+            <Typography variant="caption" style={{ color: colors.error[700], flex: 1 }}>
+              {couponError}
             </Typography>
           </View>
         )}

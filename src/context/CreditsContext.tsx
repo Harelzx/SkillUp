@@ -35,34 +35,29 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     console.log('🔵 [CreditsContext] Fetching credits balance from DB...');
 
     try {
-      // Add timeout to prevent hanging - increased to 15 seconds
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Credits fetch timeout')), 15000);
-      });
+      const balance = await getCreditBalance();
 
-      const balance = await Promise.race([
-        getCreditBalance(),
-        timeoutPromise
-      ]) as number;
-      
       // Check if cancelled before setting state
       if (abortSignal?.aborted) {
         console.log('🔵 [CreditsContext] Fetch cancelled after response');
         return;
       }
-      
+
       console.log('✅ [CreditsContext] Fetched credits balance:', balance);
       setCreditsState(balance);
       lastFetchedUserId.current = session.user.id;
     } catch (error: any) {
-      // Don't log timeout errors if cancelled
+      // Don't log errors if cancelled
       if (abortSignal?.aborted) {
         console.log('🔵 [CreditsContext] Fetch cancelled');
         return;
       }
-      
-      console.error('❌ [CreditsContext] Error fetching credits:', error?.message || error);
-      // If error (e.g., not logged in, timeout, etc.), keep at 0
+
+      // Only log non-authentication errors
+      if (error?.message !== 'Not authenticated') {
+        console.error('❌ [CreditsContext] Error fetching credits:', error?.message || error);
+      }
+      // If error (e.g., not logged in, etc.), keep at 0
       setCreditsState(0);
     } finally {
       if (!abortSignal?.aborted) {
@@ -75,9 +70,12 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const userId = session?.user?.id || null;
 
-    // If no user, reset
+    // If no user, reset and don't fetch
     if (!userId) {
-      console.log('🔵 [CreditsContext] No user session, setting credits to 0');
+      // Only log and reset if we previously had a user
+      if (lastFetchedUserId.current !== null) {
+        console.log('🔵 [CreditsContext] User logged out, resetting credits to 0');
+      }
       setCreditsState(0);
       lastFetchedUserId.current = null;
       return;
@@ -86,7 +84,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     // Only fetch if user ID changed or hasn't been fetched yet
     if (lastFetchedUserId.current !== userId && !isFetching) {
       console.log('🔵 [CreditsContext] User authenticated, fetching credits...');
-      
+
       // Create abort controller for cleanup
       const abortController = new AbortController();
       fetchCredits(abortController.signal);

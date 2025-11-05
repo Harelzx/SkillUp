@@ -15,6 +15,61 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      regions: {
+        Row: {
+          id: string
+          name_he: string
+          name_en: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name_he: string
+          name_en: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name_he?: string
+          name_en?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      cities: {
+        Row: {
+          id: string
+          name_he: string
+          name_en: string
+          region_id: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name_he: string
+          name_en: string
+          region_id: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name_he?: string
+          name_en?: string
+          region_id?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
       students: {
         Row: {
           id: string
@@ -73,13 +128,15 @@ export interface Database {
           id: string
           display_name: string
           email: string | null
-          phone: string | null
+          phone_number: string | null
           bio: string | null
           avatar_url: string | null
           video_url: string | null
           location: string | null
           hourly_rate: number | null
           experience_years: number | null
+          education: string[] | null
+          languages: string[] | null
           total_students: number
           is_verified: boolean
           is_active: boolean
@@ -88,6 +145,8 @@ export interface Database {
           lesson_modes: string[] | null
           duration_options: number[] | null
           regions: string[] | null
+          region_id: string | null
+          city_id: string | null
           timezone: string | null
           teaching_style: string | null
           profile_completed: boolean
@@ -98,13 +157,15 @@ export interface Database {
           id: string
           display_name: string
           email?: string | null
-          phone?: string | null
+          phone_number?: string | null
           bio?: string | null
           avatar_url?: string | null
           video_url?: string | null
           location?: string | null
           hourly_rate?: number | null
           experience_years?: number | null
+          education?: string[] | null
+          languages?: string[] | null
           total_students?: number
           is_verified?: boolean
           is_active?: boolean
@@ -113,6 +174,8 @@ export interface Database {
           lesson_modes?: string[] | null
           duration_options?: number[] | null
           regions?: string[] | null
+          region_id?: string | null
+          city_id?: string | null
           timezone?: string | null
           teaching_style?: string | null
           profile_completed?: boolean
@@ -123,12 +186,14 @@ export interface Database {
           id?: string
           display_name?: string
           email?: string | null
-          phone?: string | null
+          phone_number?: string | null
           bio?: string | null
           avatar_url?: string | null
           video_url?: string | null
           location?: string | null
           hourly_rate?: number | null
+          education?: string[] | null
+          languages?: string[] | null
           experience_years?: number | null
           total_students?: number
           is_verified?: boolean
@@ -138,6 +203,8 @@ export interface Database {
           lesson_modes?: string[] | null
           duration_options?: number[] | null
           regions?: string[] | null
+          region_id?: string | null
+          city_id?: string | null
           timezone?: string | null
           teaching_style?: string | null
           profile_completed?: boolean
@@ -628,3 +695,16 @@ export interface Database {
     }
   }
 }
+
+// ============================================
+// Type Aliases for Convenience
+// ============================================
+
+export type Region = Database['public']['Tables']['regions']['Row']
+export type City = Database['public']['Tables']['cities']['Row']
+
+export type RegionInsert = Database['public']['Tables']['regions']['Insert']
+export type CityInsert = Database['public']['Tables']['cities']['Insert']
+
+export type RegionUpdate = Database['public']['Tables']['regions']['Update']
+export type CityUpdate = Database['public']['Tables']['cities']['Update']

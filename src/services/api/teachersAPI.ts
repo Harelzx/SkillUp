@@ -27,6 +27,8 @@ export async function getTeacherById(teacherId: string) {
     throw error;
   }
 
+  console.log('🔍 [getTeacherById] Raw teacher data:', JSON.stringify(teacher, null, 2));
+
   // Get subjects
   const { data: subjectsData } = await supabase
     .from('teacher_subjects')
@@ -61,6 +63,8 @@ export async function getTeacherById(teacherId: string) {
 export async function getTeachers(params?: {
   subjectIds?: string[];
   location?: string;
+  regionId?: string;
+  cityId?: string;
   minRate?: number;
   maxRate?: number;
   searchQuery?: string;
@@ -68,16 +72,33 @@ export async function getTeachers(params?: {
   offset?: number;
 }) {
   // Query from teachers table directly to show new teachers
+  // LEFT JOIN with cities to get city name from city_id (nullable)
   let query = supabase
     .from('teachers')
-    .select('*', { count: 'exact' })
+    .select(`
+      *,
+      city:cities!city_id (
+        name_he,
+        name_en
+      )
+    `, { count: 'exact' })
     .eq('is_active', true)
     .order('created_at', { ascending: false });
 
   // Filter by subject - will be done after fetching subjects
 
-  // Filter by location
-  if (params?.location) {
+  // Filter by region (new structured approach)
+  if (params?.regionId) {
+    query = query.eq('region_id', params.regionId);
+  }
+
+  // Filter by city (more specific than region)
+  if (params?.cityId) {
+    query = query.eq('city_id', params.cityId);
+  }
+
+  // Filter by location (legacy text-based search, fallback)
+  if (params?.location && !params?.regionId && !params?.cityId) {
     query = query.ilike('location', `%${params.location}%`);
   }
 
@@ -186,6 +207,11 @@ export async function getFeaturedTeachers(limit: number = 10) {
       avatar_url,
       hourly_rate,
       location,
+      city_id,
+      city:cities!city_id (
+        name_he,
+        name_en
+      ),
       experience_years,
       total_students,
       is_active,

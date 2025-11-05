@@ -24,6 +24,8 @@ import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { updateTeacherProfile, getSubjects, updateTeacherSubjects } from '@/services/api';
+import { getRegions, getCitiesByRegion } from '@/services/api/regionsAPI';
+import type { Region, City } from '@/types/database';
 import { supabase } from '@/lib/supabase';
 
 interface TeacherOnboardingModalProps {
@@ -37,13 +39,13 @@ interface FormData {
   bio: string;
   subjects: string[]; // Subject IDs
   hourlyRate: string;
-  location: string;
+  regionId: string;
+  cityId: string;
   lessonModes: ('online' | 'at_teacher' | 'at_student')[];
+  education: string[];
+  languages: string[];
+  subjectExperience: { [subjectId: string]: string }; // Years of experience per subject
 }
-
-const CITIES = [
-  'תל אביב-יפו','ירושלים','חיפה','ראשון לציון','פתח תקווה','אשדוד','נתניה','באר שבע','בני ברק','חולון','רמת גן','אשקלון','רחובות','בת ים','בית שמש','כפר סבא','הרצליה','חדרה','מודיעין-מכבים-רעות','נצרת','רעננה','לוד','רמלה','קריית אתא','קריית גת','קריית מוצקין','קריית ים','קריית שמונה','טבריה','אילת',
-];
 
 export default function TeacherOnboardingModal({ teacherId, onComplete }: TeacherOnboardingModalProps) {
   const { isRTL } = useRTL();
@@ -51,7 +53,8 @@ export default function TeacherOnboardingModal({ teacherId, onComplete }: Teache
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 2;
 
-  // City picker state
+  // Picker states
+  const [showRegionPicker, setShowRegionPicker] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
@@ -60,24 +63,49 @@ export default function TeacherOnboardingModal({ teacherId, onComplete }: Teache
     bio: '',
     subjects: [],
     hourlyRate: '150',
-    location: '',
+    regionId: '',
+    cityId: '',
     lessonModes: ['online'],
+    education: [],
+    languages: [],
+    subjectExperience: {},
   });
 
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const [availableSubjects, setAvailableSubjects] = useState<Array<{ id: string; name_he: string }>>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newEducation, setNewEducation] = useState('');
 
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // Common languages in Israel
+  const commonLanguages = ['עברית', 'אנגלית', 'ערבית', 'רוסית', 'צרפתית', 'ספרדית'];
+
   useEffect(() => {
+    loadRegions();
     loadSubjects();
   }, []);
 
-  useEffect(() => {
-    console.log('🟢 showCityPicker changed:', showCityPicker);
-  }, [showCityPicker]);
+  const loadRegions = async () => {
+    setIsLoading(true);
+    try {
+      const response = await getRegions();
+      if (response.success) {
+        setRegions(response.regions);
+      } else {
+        Alert.alert('שגיאה', 'לא הצלחנו לטעון את רשימת האזורים');
+      }
+    } catch (error: any) {
+      console.error('Error loading regions:', error);
+      Alert.alert('שגיאה', 'לא הצלחנו לטעון את רשימת האזורים');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const loadSubjects = async () => {
     setIsLoading(true);
@@ -92,6 +120,27 @@ export default function TeacherOnboardingModal({ teacherId, onComplete }: Teache
     }
   };
 
+  const handleRegionChange = async (regionId: string) => {
+    setFormData({ ...formData, regionId, cityId: '' });
+    setCities([]);
+    setShowRegionPicker(false);
+
+    setIsLoadingCities(true);
+    try {
+      const response = await getCitiesByRegion(regionId);
+      if (response.success) {
+        setCities(response.cities);
+      } else {
+        Alert.alert('שגיאה', 'לא הצלחנו לטעון את רשימת הערים');
+      }
+    } catch (error: any) {
+      console.error('Error loading cities:', error);
+      Alert.alert('שגיאה', 'לא הצלחנו לטעון את רשימת הערים');
+    } finally {
+      setIsLoadingCities(false);
+    }
+  };
+
   const validateStep = (step: number): boolean => {
     const newErrors: { [key: string]: string } = {};
     if (step === 1) {
@@ -101,8 +150,20 @@ export default function TeacherOnboardingModal({ teacherId, onComplete }: Teache
       if (!formData.hourlyRate || isNaN(rate) || rate <= 0) newErrors.hourlyRate = 'מחיר לשעה חייב להיות מספר חיובי';
     }
     if (step === 2) {
-      if (!formData.location) newErrors.location = 'יש לבחור עיר';
+      if (!formData.regionId) newErrors.regionId = 'יש לבחור אזור';
+      if (!formData.cityId) newErrors.cityId = 'יש לבחור עיר';
       if (formData.lessonModes.length === 0) newErrors.lessonModes = 'יש לבחור לפחות אופן הוראה אחד';
+
+      // Validate per-subject experience years
+      for (const subjectId of formData.subjects) {
+        const years = formData.subjectExperience[subjectId];
+        if (years) {
+          const yearsNum = parseInt(years);
+          if (isNaN(yearsNum) || yearsNum < 0 || yearsNum > 70) {
+            newErrors[`subjectExperience_${subjectId}`] = 'שנות ניסיון חייבות להיות בין 0 ל-70';
+          }
+        }
+      }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -120,14 +181,46 @@ export default function TeacherOnboardingModal({ teacherId, onComplete }: Teache
     if (!validateStep(1) || !validateStep(2)) return;
     setIsSubmitting(true);
     try {
-      await updateTeacherProfile(teacherId, { bio: formData.bio, hourlyRate: parseFloat(formData.hourlyRate), location: formData.location });
+      // Calculate average experience years from per-subject experience
+      const experienceValues = Object.values(formData.subjectExperience)
+        .map(val => parseInt(val))
+        .filter(val => !isNaN(val) && val > 0);
+
+      const averageExperience = experienceValues.length > 0
+        ? Math.round(experienceValues.reduce((sum, val) => sum + val, 0) / experienceValues.length)
+        : undefined;
+
+      // Step 1: Update teacher profile
+      const profileResult = await updateTeacherProfile(teacherId, {
+        bio: formData.bio,
+        hourlyRate: parseFloat(formData.hourlyRate),
+        regionId: formData.regionId,
+        cityId: formData.cityId,
+        education: formData.education.length > 0 ? formData.education : undefined,
+        languages: formData.languages.length > 0 ? formData.languages : undefined,
+        experienceYears: averageExperience,
+      });
+
+      if (!profileResult.success) {
+        throw new Error('Failed to update profile');
+      }
+
+      // Step 2: Update subjects
       await updateTeacherSubjects(teacherId, formData.subjects);
-      const { error: updateError } = await supabase.from('teachers').update({ profile_completed: true } as any).eq('id', teacherId);
+
+      // Step 3: Mark profile as completed ONLY if everything succeeded
+      const { error: updateError } = await supabase
+        .from('teachers')
+        .update({ profile_completed: true } as any)
+        .eq('id', teacherId);
+
       if (updateError) throw updateError;
+
       Alert.alert('ברוכים הבאים! 🎉', 'הפרופיל שלך הושלם בהצלחה!', [{ text: 'מעולה!', onPress: onComplete }]);
     } catch (error: any) {
       console.error('Error completing onboarding:', error);
       Alert.alert('שגיאה', 'אירעה שגיאה בשמירת הנתונים. נסה שוב.');
+      // Don't mark as completed if there was an error
     } finally {
       setIsSubmitting(false);
     }
@@ -139,6 +232,25 @@ export default function TeacherOnboardingModal({ teacherId, onComplete }: Teache
 
   const toggleLessonMode = (mode: 'online' | 'at_teacher' | 'at_student') => {
     setFormData((prev) => ({ ...prev, lessonModes: prev.lessonModes.includes(mode) ? prev.lessonModes.filter((m) => m !== mode) : [...prev.lessonModes, mode] }));
+  };
+
+  const addEducation = (item: string) => {
+    if (item.trim()) {
+      setFormData((prev) => ({ ...prev, education: [...prev.education, item.trim()] }));
+    }
+  };
+
+  const removeEducation = (index: number) => {
+    setFormData((prev) => ({ ...prev, education: prev.education.filter((_, i) => i !== index) }));
+  };
+
+  const toggleLanguage = (language: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      languages: prev.languages.includes(language)
+        ? prev.languages.filter((l) => l !== language)
+        : [...prev.languages, language],
+    }));
   };
 
   const dynamicStyles = useMemo(() => ({
@@ -214,44 +326,204 @@ export default function TeacherOnboardingModal({ teacherId, onComplete }: Teache
         </View>
         {errors.hourlyRate && <Typography variant="caption" color="error" style={styles.errorText}>{errors.hourlyRate}</Typography>}
       </View>
+
+      {/* Education */}
+      <View style={styles.inputGroup}>
+        <Typography variant="body1" weight="semibold" style={styles.inputLabel}>השכלה והכשרות</Typography>
+        <Typography variant="body2" color="textSecondary" style={{ marginBottom: spacing[3], textAlign: isRTL ? 'right' : 'left' }}>תואר, קורסים, הסמכות</Typography>
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing[2], marginBottom: spacing[2] }}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={newEducation}
+            onChangeText={setNewEducation}
+            placeholder='לדוגמה: "B.Sc במדעי המחשב"'
+            placeholderTextColor={colors.gray[400]}
+            onSubmitEditing={() => {
+              addEducation(newEducation);
+              setNewEducation('');
+            }}
+          />
+          <TouchableOpacity
+            style={{
+              backgroundColor: colors.primary[600],
+              paddingHorizontal: spacing[4],
+              borderRadius: 12,
+              justifyContent: 'center',
+              minHeight: 56,
+            }}
+            onPress={() => {
+              addEducation(newEducation);
+              setNewEducation('');
+            }}
+          >
+            <Typography variant="body1" weight="semibold" style={{ color: colors.white }}>הוסף</Typography>
+          </TouchableOpacity>
+        </View>
+        {formData.education.map((item, index) => (
+          <View
+            key={index}
+            style={{
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              backgroundColor: colors.primary[50],
+              padding: spacing[3],
+              borderRadius: 8,
+              marginBottom: spacing[2],
+              justifyContent: 'space-between',
+            }}
+          >
+            <Typography variant="body2" style={{ flex: 1, textAlign: isRTL ? 'right' : 'left' }}>✓ {item}</Typography>
+            <TouchableOpacity onPress={() => removeEducation(index)}>
+              <Typography variant="body1" style={{ color: colors.red[500], paddingHorizontal: spacing[2] }}>×</Typography>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+
+      {/* Languages */}
+      <View style={styles.inputGroup}>
+        <Typography variant="body1" weight="semibold" style={styles.inputLabel}>שפות</Typography>
+        <Typography variant="body2" color="textSecondary" style={{ marginBottom: spacing[3], textAlign: isRTL ? 'right' : 'left' }}>באילו שפות אתה יכול ללמד?</Typography>
+        <View style={styles.gridContainer}>
+          {commonLanguages.map((language) => (
+            <TouchableOpacity
+              key={language}
+              style={[styles.chipButton, formData.languages.includes(language) && styles.chipButtonSelected]}
+              onPress={() => toggleLanguage(language)}
+            >
+              <Typography
+                variant="body2"
+                weight={formData.languages.includes(language) ? 'semibold' : 'normal'}
+                style={{ color: formData.languages.includes(language) ? colors.primary[700] : colors.gray[700] }}
+              >
+                {language}
+              </Typography>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
     </View>
   );
 
   const renderStep2 = () => (
     <View>
+      {/* Region Selection */}
       <View style={styles.inputGroup}>
-        <Typography variant="body1" weight="semibold" style={styles.inputLabel}>באיזו עיר אתה נמצא? *</Typography>
+        <Typography variant="body1" weight="semibold" style={styles.inputLabel}>באיזה אזור אתה נמצא? *</Typography>
         <Pressable
-          style={[styles.input, errors.location && styles.inputError, { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing[4] }]}
-          onPress={() => {
-            console.log('🔵 City picker pressed!');
-            setShowCityPicker(!showCityPicker);
-          }}
+          style={[styles.input, errors.regionId && styles.inputError, { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing[4] }]}
+          onPress={() => setShowRegionPicker(!showRegionPicker)}
         >
-          <Typography variant="body2" style={{ color: formData.location ? colors.gray[900] : colors.gray[400], flex: 1, textAlign: 'right' }}>{formData.location || 'בחר עיר...'}</Typography>
-          <Typography variant="body1" style={{ color: colors.gray[400] }}>{showCityPicker ? '▲' : '▼'}</Typography>
+          <Typography variant="body2" style={{ color: formData.regionId ? colors.gray[900] : colors.gray[400], flex: 1, textAlign: 'right' }}>
+            {formData.regionId ? regions.find(r => r.id === formData.regionId)?.name_he : 'בחר אזור...'}
+          </Typography>
+          <Typography variant="body1" style={{ color: colors.gray[400] }}>{showRegionPicker ? '▲' : '▼'}</Typography>
         </Pressable>
-        {errors.location && <Typography variant="caption" color="error" style={styles.errorText}>{errors.location}</Typography>}
+        {errors.regionId && <Typography variant="caption" color="error" style={styles.errorText}>{errors.regionId}</Typography>}
 
-        {showCityPicker && (
+        {showRegionPicker && (
           <View style={{ backgroundColor: colors.white, borderWidth: 1, borderColor: colors.gray[300], borderRadius: 12, marginTop: spacing[2], maxHeight: 250 }}>
             <ScrollView>
-              {CITIES.map((city) => (
+              {regions.map((region) => (
                 <TouchableOpacity
-                  key={city}
+                  key={region.id}
                   style={{ padding: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.gray[100] }}
-                  onPress={() => {
-                    setFormData({ ...formData, location: city });
-                    setShowCityPicker(false);
-                  }}
+                  onPress={() => handleRegionChange(region.id)}
                 >
-                  <Typography variant="body2" style={{ textAlign: 'right' }}>{city}</Typography>
+                  <Typography variant="body2" style={{ textAlign: 'right' }}>{region.name_he}</Typography>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
         )}
       </View>
+
+      {/* City Selection - only show if region selected */}
+      {formData.regionId && (
+        <View style={styles.inputGroup}>
+          <Typography variant="body1" weight="semibold" style={styles.inputLabel}>באיזו עיר אתה נמצא? *</Typography>
+          {isLoadingCities ? (
+            <View style={[styles.input, { justifyContent: 'center', alignItems: 'center' }]}>
+              <ActivityIndicator color={colors.primary[600]} />
+            </View>
+          ) : (
+            <>
+              <Pressable
+                style={[styles.input, errors.cityId && styles.inputError, { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing[4] }]}
+                onPress={() => setShowCityPicker(!showCityPicker)}
+              >
+                <Typography variant="body2" style={{ color: formData.cityId ? colors.gray[900] : colors.gray[400], flex: 1, textAlign: 'right' }}>
+                  {formData.cityId ? cities.find(c => c.id === formData.cityId)?.name_he : 'בחר עיר...'}
+                </Typography>
+                <Typography variant="body1" style={{ color: colors.gray[400] }}>{showCityPicker ? '▲' : '▼'}</Typography>
+              </Pressable>
+              {errors.cityId && <Typography variant="caption" color="error" style={styles.errorText}>{errors.cityId}</Typography>}
+
+              {showCityPicker && (
+                <View style={{ backgroundColor: colors.white, borderWidth: 1, borderColor: colors.gray[300], borderRadius: 12, marginTop: spacing[2], maxHeight: 250 }}>
+                  <ScrollView>
+                    {cities.map((city) => (
+                      <TouchableOpacity
+                        key={city.id}
+                        style={{ padding: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.gray[100] }}
+                        onPress={() => {
+                          setFormData({ ...formData, cityId: city.id });
+                          setShowCityPicker(false);
+                        }}
+                      >
+                        <Typography variant="body2" style={{ textAlign: 'right' }}>{city.name_he}</Typography>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      )}
+
+      {/* Per-Subject Experience Years */}
+      {formData.subjects.length > 0 && (
+        <View style={styles.inputGroup}>
+          <Typography variant="body1" weight="semibold" style={styles.inputLabel}>שנות ניסיון בהוראה</Typography>
+          <Typography variant="body2" color="textSecondary" style={{ marginBottom: spacing[3], textAlign: isRTL ? 'right' : 'left' }}>כמה שנים אתה מלמד כל נושא?</Typography>
+          {formData.subjects.map((subjectId) => {
+            const subject = availableSubjects.find(s => s.id === subjectId);
+            if (!subject) return null;
+            return (
+              <View key={subjectId} style={{ marginBottom: spacing[3] }}>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: spacing[3] }}>
+                  <Typography variant="body2" style={{ flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
+                    {subject.name_he}:
+                  </Typography>
+                  <View style={{ width: 100 }}>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        errors[`subjectExperience_${subjectId}`] && styles.inputError
+                      ]}
+                      value={formData.subjectExperience[subjectId] || ''}
+                      onChangeText={(text) => setFormData(prev => ({
+                        ...prev,
+                        subjectExperience: { ...prev.subjectExperience, [subjectId]: text }
+                      }))}
+                      placeholder="0"
+                      placeholderTextColor={colors.gray[400]}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <Typography variant="body2" color="textSecondary">שנים</Typography>
+                </View>
+                {errors[`subjectExperience_${subjectId}`] && (
+                  <Typography variant="caption" color="error" style={styles.errorText}>
+                    {errors[`subjectExperience_${subjectId}`]}
+                  </Typography>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       <View style={styles.inputGroup}>
         <Typography variant="body1" weight="semibold" style={styles.inputLabel}>איך אתה מעדיף ללמד? *</Typography>

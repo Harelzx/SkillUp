@@ -15,6 +15,8 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { getSubjects } from '@/services/api';
 import { useSearchTeachers } from '@/hooks/useTeachers';
+import { getRegions } from '@/services/api/regionsAPI';
+import type { Region } from '@/types/database';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -81,7 +83,7 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedCity, setSelectedCity] = useState<string>('הכל');
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<[number, number]>([50, 300]);
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'rating' | 'price_low' | 'price_high' | 'reviews'>('rating');
@@ -104,13 +106,24 @@ export default function SearchScreen() {
     queryFn: getSubjects,
   });
 
+  // Fetch regions from API
+  const { data: regionsData } = useQuery({
+    queryKey: ['regions'],
+    queryFn: async () => {
+      const response = await getRegions();
+      return response.success ? response.regions : [];
+    },
+  });
+
+  const regions: Region[] = regionsData || [];
+
   // Fetch teachers from unified `teachers`
   const { data: teachersData = [], isLoading: loadingTeachers } = useSearchTeachers({
     query: searchQuery,
-    subjects: selectedCategory && selectedCategory !== 'all' 
+    subjects: selectedCategory && selectedCategory !== 'all'
       ? subjects.filter(s => s.name_he === selectedCategory).map(s => s.id)
       : undefined,
-    location: selectedCity !== 'הכל' ? selectedCity : undefined,
+    regionId: selectedRegion || undefined,
     minRate: priceRange[0],
     maxRate: priceRange[1],
     sortBy: sortBy,
@@ -125,23 +138,6 @@ export default function SearchScreen() {
     'פסנתר למתחילים',
   ]);
 
-  const cities = [
-    'הכל',
-    'תל אביב',
-    'ירושלים',
-    'חיפה',
-    'באר שבע',
-    'ראשון לציון',
-    'פתח תקווה',
-    'אשדוד',
-    'נתניה',
-    'בני ברק',
-    'חולון',
-    'רמת גן',
-    'אשקלון',
-    'רחובות',
-    'הרצליה'
-  ];
   const ratings = [4.5, 4.0, 3.5, 3.0];
 
   // Popular subjects - using Hebrew names from database
@@ -181,12 +177,8 @@ export default function SearchScreen() {
       );
     }
 
-    // Filter by city (client-side for performance)
-    if (selectedCity && selectedCity !== 'הכל') {
-      results = results.filter(teacher =>
-        teacher.location === selectedCity
-      );
-    }
+    // Note: Region filtering is now handled server-side via regionId param
+    // No need for client-side city filtering anymore
 
     // Filter by price range (already in server, but keep as safety)
     results = results.filter(teacher =>
@@ -216,11 +208,11 @@ export default function SearchScreen() {
     });
 
     return results;
-  }, [mockTeachers, incomingCategory, selectedCategory, selectedCity, priceRange, selectedRating, sortBy]);
+  }, [mockTeachers, incomingCategory, selectedCategory, selectedRegion, priceRange, selectedRating, sortBy]);
 
   // Check if any filters are active
   const hasActiveFilters = incomingCategory || searchQuery || (selectedCategory && selectedCategory !== 'all') ||
-                          (selectedCity && selectedCity !== 'הכל') ||
+                          selectedRegion ||
                           priceRange[0] > 50 || priceRange[1] < 300 || selectedRating;
 
   // Update isSearching based on API loading state
@@ -240,7 +232,7 @@ export default function SearchScreen() {
   const clearAllFilters = () => {
     setSearchQuery('');
     setSelectedCategory('all');
-    setSelectedCity('הכל');
+    setSelectedRegion(null);
     setPriceRange([50, 300]);
     setSelectedRating(null);
     setSortBy('rating');
@@ -446,13 +438,22 @@ export default function SearchScreen() {
             )}
 
             {/* Right side: Price */}
-            <Typography
-              variant="body2"
-              weight="bold"
-              style={{ fontSize: 14, color: colors.blue[500] }}
-            >
-              {`₪${safeRate}/שעה`}
-            </Typography>
+            {safeRate ? (
+              <Typography
+                variant="body2"
+                weight="bold"
+                style={{ fontSize: 14, color: colors.blue[500] }}
+              >
+                {`₪${safeRate}/שעה`}
+              </Typography>
+            ) : (
+              <Typography
+                variant="body2"
+                style={{ fontSize: 14, color: colors.gray[500] }}
+              >
+                ליצירת קשר
+              </Typography>
+            )}
           </View>
         </CardContent>
       </Card>
@@ -902,38 +903,67 @@ export default function SearchScreen() {
             {/* City Section */}
             <View style={{ marginBottom: spacing[6] }}>
               <Typography variant="h6" weight="bold" style={{ marginBottom: spacing[2], fontSize: 16, color: colors.gray[900] }}>
-                בחר עיר
+                בחר אזור
               </Typography>
-              <View style={{ 
-                flexDirection: 'row-reverse', 
+              <View style={{
+                flexDirection: 'row-reverse',
                 flexWrap: 'wrap',
                 marginHorizontal: -spacing[1]
               }}>
-                {cities.map((city) => (
+                {/* "All" option */}
+                <TouchableOpacity
+                  key="all"
+                  style={{
+                    margin: spacing[1],
+                    paddingHorizontal: spacing[2],
+                    paddingVertical: spacing[1],
+                    backgroundColor: !selectedRegion ? colors.primary[600] : colors.gray[100],
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor: !selectedRegion ? colors.primary[600] : 'transparent',
+                    alignItems: 'center',
+                    minHeight: 36,
+                    justifyContent: 'center',
+                    alignSelf: 'flex-start'
+                  }}
+                  onPress={() => setSelectedRegion(null)}
+                >
+                  <Typography
+                    variant="body2"
+                    weight="semibold"
+                    color={!selectedRegion ? 'white' : 'text'}
+                    style={{ fontSize: 12, textAlign: 'center' }}
+                  >
+                    הכל
+                  </Typography>
+                </TouchableOpacity>
+
+                {/* Region options */}
+                {regions.map((region) => (
                   <TouchableOpacity
-                    key={city}
+                    key={region.id}
                     style={{
                       margin: spacing[1],
                       paddingHorizontal: spacing[2],
                       paddingVertical: spacing[1],
-                      backgroundColor: selectedCity === city ? colors.primary[600] : colors.gray[100],
+                      backgroundColor: selectedRegion === region.id ? colors.primary[600] : colors.gray[100],
                       borderRadius: 8,
                       borderWidth: 2,
-                      borderColor: selectedCity === city ? colors.primary[600] : 'transparent',
+                      borderColor: selectedRegion === region.id ? colors.primary[600] : 'transparent',
                       alignItems: 'center',
                       minHeight: 36,
                       justifyContent: 'center',
                       alignSelf: 'flex-start'
                     }}
-                    onPress={() => setSelectedCity(city)}
+                    onPress={() => setSelectedRegion(region.id)}
                   >
-                    <Typography 
-                      variant="body2" 
+                    <Typography
+                      variant="body2"
                       weight="semibold"
-                      color={selectedCity === city ? 'white' : 'text'}
+                      color={selectedRegion === region.id ? 'white' : 'text'}
                       style={{ fontSize: 12, textAlign: 'center' }}
                     >
-                      {String(city)}
+                      {region.name_he}
                     </Typography>
                   </TouchableOpacity>
                 ))}

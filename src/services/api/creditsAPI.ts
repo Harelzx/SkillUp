@@ -10,53 +10,55 @@ import type { CreditTransaction } from '@/types/api';
  */
 export async function getCreditBalance() {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError) {
     throw new Error('Authentication error: ' + authError.message);
   }
-  
+
   if (!user) {
     throw new Error('Not authenticated');
   }
 
-  // Check if student exists in students table
-  const { data: student, error: studentError } = await supabase
-    .from('students')
-    .select('id')
+  // First, check profile role to verify user is a student
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (studentError || !student) {
-    console.log('🔵 [creditsAPI] Student not found, returning 0');
+  if (!profile || profile.role !== 'student') {
+    console.log('🔵 [creditsAPI] User is not a student, returning 0');
     return 0;
   }
 
+  // Get credit balance
   const { data, error } = await supabase
     .from('student_credits')
     .select('balance')
     .eq('student_id', user.id)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    // If no record exists, create one with 0 balance
-    if (error.code === 'PGRST116') {
-      const { data: newRecord, error: insertError } = await supabase
-        .from('student_credits')
-        .insert({ student_id: user.id, balance: 0 })
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('❌ [creditsAPI] Error creating credit record:', insertError);
-        throw insertError;
-      }
-      return newRecord.balance;
-    }
     console.error('❌ [creditsAPI] Error fetching credits:', error);
     throw error;
   }
 
-  return data.balance;
+  // If no record exists, create one with 0 balance
+  if (!data) {
+    const { data: newRecord, error: insertError } = await supabase
+      .from('student_credits')
+      .insert({ student_id: user.id, balance: 0 })
+      .select('balance')
+      .maybeSingle();
+
+    if (insertError) {
+      console.error('❌ [creditsAPI] Error creating credit record:', insertError);
+      throw insertError;
+    }
+    return newRecord?.balance ?? 0;
+  }
+
+  return data.balance ?? 0;
 }
 
 /**
