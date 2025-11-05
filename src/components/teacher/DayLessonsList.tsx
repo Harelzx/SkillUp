@@ -87,6 +87,47 @@ const formatDate = (date: Date): string => {
   });
 };
 
+// Helper component for the edit button to avoid code duplication
+const EditDayButton: React.FC<{
+  onPress: () => void;
+  date: Date;
+}> = ({ onPress, date }) => {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      accessibilityLabel={`עריכת היום ${formatDate(date)}`}
+      accessibilityRole="button"
+      style={{
+        minHeight: 28,
+        height: 32,
+        paddingHorizontal: spacing[3],
+        borderRadius: 999,
+        backgroundColor: colors.primary[50],
+        borderWidth: 1,
+        borderColor: colors.primary[200],
+        flexDirection: 'row-reverse',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing[1],
+      }}
+    >
+      <Edit size={16} color={colors.primary[700]} strokeWidth={1.5} />
+      <Typography 
+        variant="caption" 
+        style={{ 
+          color: colors.primary[700],
+          fontSize: 12,
+          fontWeight: '600',
+        }}
+      >
+        עריכת יום
+      </Typography>
+    </TouchableOpacity>
+  );
+};
+
 export const DayLessonsList: React.FC<DayLessonsListProps> = ({ 
   bookings, 
   isLoading, 
@@ -130,14 +171,7 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
             </Typography>
           </View>
           {shouldShowEditButton && (
-            <TouchableOpacity
-              onPress={onManageAvailability}
-              style={{
-                padding: spacing[1],
-              }}
-            >
-              <Edit size={20} color={colors.primary[600]} />
-            </TouchableOpacity>
+            <EditDayButton onPress={onManageAvailability} date={selectedDate} />
           )}
         </View>
         
@@ -219,14 +253,7 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
             </Typography>
           </View>
           {shouldShowEditButton && (
-            <TouchableOpacity
-              onPress={onManageAvailability}
-              style={{
-                padding: spacing[1],
-              }}
-            >
-              <Edit size={20} color={colors.primary[600]} />
-            </TouchableOpacity>
+            <EditDayButton onPress={onManageAvailability} date={selectedDate} />
           )}
         </View>
         
@@ -274,11 +301,35 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
         {shouldShowEditButton && (
           <TouchableOpacity
             onPress={onManageAvailability}
+            activeOpacity={0.8}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel={`עריכת היום ${formatDate(selectedDate)}`}
+            accessibilityRole="button"
             style={{
-              padding: spacing[1],
+              minHeight: 28,
+              height: 32,
+              paddingHorizontal: spacing[3],
+              borderRadius: 999,
+              backgroundColor: colors.primary[50],
+              borderWidth: 1,
+              borderColor: colors.primary[200],
+              flexDirection: 'row-reverse',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing[1],
             }}
           >
-            <Edit size={20} color={colors.primary[600]} />
+            <Edit size={16} color={colors.primary[700]} strokeWidth={1.5} />
+            <Typography 
+              variant="caption" 
+              style={{ 
+                color: colors.primary[700],
+                fontSize: 12,
+                fontWeight: '600',
+              }}
+            >
+              עריכת יום
+            </Typography>
           </TouchableOpacity>
         )}
       </View>

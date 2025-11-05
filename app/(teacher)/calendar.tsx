@@ -15,6 +15,7 @@ import {
   Clock,
   MapPin,
   X,
+  Info,
 } from 'lucide-react-native';
 import { Typography } from '@/ui/Typography';
 import { Card } from '@/ui/Card';
@@ -508,6 +509,10 @@ export default function TeacherCalendarScreen() {
       queryClient.invalidateQueries({ queryKey: ['teacher-day-lessons'] });
       queryClient.invalidateQueries({ queryKey: ['teacher-month-bookings', profile?.id] });
       queryClient.invalidateQueries({ queryKey: ['teacher-availability-slots', profile?.id] });
+      // Invalidate teacher's upcoming lessons on home screen
+      if (profile?.id) {
+        queryClient.invalidateQueries({ queryKey: ['teacher', profile.id, 'upcomingLessons'] });
+      }
       setRefreshKey(prev => prev + 1);
     } catch (error: any) {
       console.error('Error cancelling booking:', error);
@@ -886,47 +891,71 @@ export default function TeacherCalendarScreen() {
             style={{
               backgroundColor: colors.white,
               borderRadius: 12,
-              padding: spacing[3],
+              padding: 12,
+              borderWidth: 1,
+              borderColor: colors.gray[200],
             }}
           >
-            <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[2] }}>
+            <Typography 
+              variant="caption" 
+              weight="semibold" 
+              style={{ 
+                marginBottom: spacing[2],
+                fontSize: 14,
+              }}
+            >
               מקרא
             </Typography>
-            <View style={{ gap: spacing[2] }}>
+            <View 
+              style={{ 
+                flexDirection: 'row-reverse',
+                flexWrap: 'wrap',
+                gap: spacing[3],
+                rowGap: spacing[2],
+              }}
+            >
               <View
                 style={{
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: 'row-reverse',
                   alignItems: 'center',
                   gap: spacing[2],
+                  minHeight: 18,
                 }}
               >
                 <View
                   style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 6,
-                    backgroundColor: colors.primary[100],
+                    width: 9,
+                    height: 9,
+                    borderRadius: 4.5,
+                    backgroundColor: colors.gray[100],
                     borderWidth: 2,
-                    borderColor: colors.primary[600],
+                    borderColor: colors.gray[400],
                   }}
                 />
-                <Typography variant="caption" color="textSecondary">
+                <Typography 
+                  variant="caption" 
+                  style={{ 
+                    fontSize: 12,
+                    color: colors.gray[600],
+                  }}
+                >
                   היום
                 </Typography>
               </View>
               
               <View
                 style={{
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: 'row-reverse',
                   alignItems: 'center',
                   gap: spacing[2],
+                  minHeight: 18,
                 }}
               >
                 <View
                   style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 6,
+                    width: 9,
+                    height: 9,
+                    borderRadius: 4.5,
                     backgroundColor: colors.blue[50],
                     justifyContent: 'center',
                     alignItems: 'center',
@@ -941,23 +970,30 @@ export default function TeacherCalendarScreen() {
                     }}
                   />
                 </View>
-                <Typography variant="caption" color="textSecondary">
+                <Typography 
+                  variant="caption" 
+                  style={{ 
+                    fontSize: 12,
+                    color: colors.gray[600],
+                  }}
+                >
                   יום עם שיעורים
                 </Typography>
               </View>
               
               <View
                 style={{
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: 'row-reverse',
                   alignItems: 'center',
                   gap: spacing[2],
+                  minHeight: 18,
                 }}
               >
                 <View
                   style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 6,
+                    width: 9,
+                    height: 9,
+                    borderRadius: 4.5,
                     backgroundColor: colors.white,
                     borderWidth: 1.5,
                     borderColor: colors.green[300],
@@ -974,7 +1010,13 @@ export default function TeacherCalendarScreen() {
                     }}
                   />
                 </View>
-                <Typography variant="caption" color="textSecondary">
+                <Typography 
+                  variant="caption" 
+                  style={{ 
+                    fontSize: 12,
+                    color: colors.gray[600],
+                  }}
+                >
                   יום פתוח להזמנות
                 </Typography>
               </View>
@@ -982,14 +1024,21 @@ export default function TeacherCalendarScreen() {
             
             <View
               style={{
-                marginTop: spacing[3],
-                paddingTop: spacing[3],
-                borderTopWidth: 1,
-                borderTopColor: colors.gray[200],
+                marginTop: spacing[2],
+                flexDirection: 'row-reverse',
+                alignItems: 'center',
+                gap: spacing[1],
               }}
             >
-              <Typography variant="caption" color="textSecondary">
-                💡 לחץ על תאריך ולאחר מכן על סמל העיפרון כדי לנהל זמינות (פתיחת/סגירת שעות או סגירת יום עבודה)
+              <Info size={12} color={colors.gray[600]} strokeWidth={1.5} />
+              <Typography 
+                variant="caption" 
+                style={{ 
+                  fontSize: 12,
+                  color: colors.gray[600],
+                }}
+              >
+                לחץ על תאריך ולאחר מכן על "עריכת יום" כדי לנהל זמינות
               </Typography>
             </View>
           </Card>

@@ -185,6 +185,10 @@ export default function LessonsScreen() {
 
       // Refresh bookings
       queryClient.invalidateQueries({ queryKey: ['myBookings'] });
+      // Also invalidate teacher's upcoming lessons so they see the cancellation
+      if (selectedLesson.teacherId) {
+        queryClient.invalidateQueries({ queryKey: ['teacher', selectedLesson.teacherId, 'upcomingLessons'] });
+      }
 
       showToast('השיעור בוטל בהצלחה. ניתן לקבוע שיעור חדש');
       setCancelModalVisible(false);

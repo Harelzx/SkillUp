@@ -19,6 +19,10 @@ export function useTeacherUpcomingLessons(teacherId: string | undefined, opts?: 
     queryKey: ['teacher', teacherId, 'upcomingLessons', { limit }],
     enabled: Boolean(teacherId),
     queryFn: async (): Promise<UpcomingLesson[]> => {
+      if (!teacherId) {
+        return [];
+      }
+
       const nowIso = new Date().toISOString();
 
       // Step 1: Fetch bookings with student_id explicitly
@@ -40,7 +44,10 @@ export function useTeacherUpcomingLessons(teacherId: string | undefined, opts?: 
         .order('start_at', { ascending: true })
         .limit(limit);
 
-      if (bookingsError) throw bookingsError;
+      if (bookingsError) {
+        console.error('[useTeacherUpcomingLessons] Error fetching bookings:', bookingsError);
+        throw bookingsError;
+      }
 
       const safeBookings = (bookings || []) as any[];
 
@@ -79,7 +86,7 @@ export function useTeacherUpcomingLessons(teacherId: string | undefined, opts?: 
       }
 
       // Step 5: Merge student data back into bookings
-      return safeBookings.map((row) => ({
+      const result = safeBookings.map((row) => ({
         id: row.id,
         startAt: row.start_at,
         endAt: row.end_at,
@@ -89,10 +96,13 @@ export function useTeacherUpcomingLessons(teacherId: string | undefined, opts?: 
         student: row.student_id ? (studentsMap[row.student_id] || null) : null,
         status: row.status,
       }));
+
+      return result;
     },
-    staleTime: 1000 * 60, // 1 min
-    gcTime: 1000 * 60 * 5,
-    refetchOnWindowFocus: false,
+    staleTime: 0, // Always consider data stale - fetch fresh data on mount and focus
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: true, // Refetch when user returns to the app/tab
+    refetchOnMount: true, // Always refetch when component mounts
   });
 }
 

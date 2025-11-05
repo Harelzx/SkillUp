@@ -208,7 +208,7 @@ const MonthlyChart: React.FC<MonthlyChartProps> = ({ data }) => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{
               flexDirection: isRTL ? 'row-reverse' : 'row',
-              alignItems: 'flex-end',
+              alignItems: 'flex-start',
               paddingHorizontal: spacing[2],
               gap: spacing[2],
             }}
@@ -319,82 +319,98 @@ export default function TeacherHomeScreen() {
         autoRotateInterval={10000}
       />
 
-      {/* Upcoming Lessons - new top container */}
-      <View style={{ paddingHorizontal: spacing[4], marginTop: spacing[2], marginBottom: spacing[2] }}>
-        <Typography variant="h5" weight="semibold" style={{ textAlign: 'right', marginBottom: spacing[2] }}>
-          שיעורים קרובים
-        </Typography>
-
-        {loadingUpcoming ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: isRTL ? 'row' : 'row-reverse', gap: spacing[3] }}>
-            {[...Array(4)].map((_, i) => (
-              <View key={i} style={{ width: 280, height: 130, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: colors.white }} />
-            ))}
-          </ScrollView>
-        ) : upcomingError ? (
-          <View style={{ paddingVertical: spacing[3] }}>
-            <Typography variant="body1" color="error" style={{ textAlign: 'right' }}>
-              שגיאה בטעינת שיעורים
-            </Typography>
-          </View>
-        ) : upcoming.length === 0 ? (
-          <View style={{ paddingVertical: spacing[3] }}>
-            <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right' }}>
-              אין שיעורים קרובים
-            </Typography>
-          </View>
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: isRTL ? 'row' : 'row-reverse', gap: spacing[3] }}>
-            {upcoming.map(lesson => (
-              <Card key={lesson.id} variant="elevated" style={{ width: 280, maxWidth: 300, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: spacing[3], backgroundColor: colors.white }}>
-                <View style={{ gap: 6 }}>
-                  {/* Top row: student name | mode chip */}
-                  <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="body1" weight="semibold" numberOfLines={1} style={{ fontSize: 16, textAlign: 'right' }}>
-                      {`${lesson.student?.first_name || ''} ${lesson.student?.last_name || ''}`.trim() || 'תלמיד/ה'}
-                    </Typography>
-                    <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, borderWidth: 1, borderColor: colors.gray[200], backgroundColor: colors.gray[50] }}>
-                      <Typography variant="caption" style={{ fontSize: 12 }}>
-                        {lesson.mode === 'online' ? 'Online' : lesson.mode === 'at_student' || lesson.mode === 'student_location' ? 'אצל התלמיד' : 'אצל המורה'}
-                      </Typography>
-                    </View>
-                  </View>
-
-                  {/* Subject and time */}
-                  <View>
-                    <Typography variant="body2" weight="semibold" style={{ textAlign: 'right' }}>
-                      {lesson.subject?.name_he || lesson.subject?.name || 'שיעור'}
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary" style={{ textAlign: 'right', marginTop: 2 }}>
-                      {formatLessonTimeRange(lesson.startAt, lesson.endAt)}
-                    </Typography>
-                  </View>
-
-                  {/* Bottom row: status | price */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="caption" style={{ color: getStatusColor(lesson.status) }}>
-                      {lesson.status === 'confirmed' ? 'מאושר' : lesson.status === 'awaiting_payment' ? 'ממתין לתשלום' : 'ממתין לאישור'}
-                    </Typography>
-                    {typeof lesson.totalPrice === 'number' ? (
-                      <Typography variant="body2" weight="bold">
-                        {`₪${lesson.totalPrice}/שיעור`}
-                      </Typography>
-                    ) : (
-                      <View />
-                    )}
-                  </View>
-                </View>
-              </Card>
-            ))}
-          </ScrollView>
-        )}
-      </View>
-      
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Upcoming Lessons - now inside ScrollView */}
+        <View style={{ marginTop: spacing[2], marginBottom: spacing[2] }}>
+          <Typography variant="h5" weight="semibold" style={{ textAlign: 'right', marginBottom: spacing[2], paddingHorizontal: spacing[4] }}>
+            שיעורים קרובים
+          </Typography>
+
+          {loadingUpcoming ? (
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              contentContainerStyle={{ 
+                flexDirection: 'row-reverse', 
+                gap: spacing[3],
+                paddingHorizontal: spacing[4],
+              }}
+            >
+              {[...Array(4)].map((_, i) => (
+                <View key={i} style={{ width: 280, height: 130, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', backgroundColor: colors.white }} />
+              ))}
+            </ScrollView>
+          ) : upcomingError ? (
+            <View style={{ paddingVertical: spacing[3], paddingHorizontal: spacing[4] }}>
+              <Typography variant="body1" color="error" style={{ textAlign: 'right' }}>
+                שגיאה בטעינת שיעורים
+              </Typography>
+            </View>
+          ) : upcoming.length === 0 ? (
+            <View style={{ paddingVertical: spacing[3], paddingHorizontal: spacing[4] }}>
+              <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right' }}>
+                אין שיעורים קרובים
+              </Typography>
+            </View>
+          ) : (
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={{ direction: 'rtl' }}
+              contentContainerStyle={{ 
+                flexDirection: 'row-reverse', 
+                gap: spacing[3],
+                paddingHorizontal: spacing[4],
+              }}
+            >
+              {upcoming.map(lesson => (
+                <Card key={lesson.id} variant="elevated" style={{ width: 280, maxWidth: 300, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: spacing[3], backgroundColor: colors.white }}>
+                  <View style={{ gap: 6 }}>
+                    {/* Top row: student name | mode chip */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="body1" weight="semibold" numberOfLines={1} style={{ fontSize: 16, textAlign: 'right' }}>
+                        {`${lesson.student?.first_name || ''} ${lesson.student?.last_name || ''}`.trim() || 'תלמיד/ה'}
+                      </Typography>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, borderWidth: 1, borderColor: colors.gray[200], backgroundColor: colors.gray[50] }}>
+                        <Typography variant="caption" style={{ fontSize: 12 }}>
+                          {lesson.mode === 'online' ? 'Online' : lesson.mode === 'at_student' || lesson.mode === 'student_location' ? 'אצל התלמיד' : 'אצל המורה'}
+                        </Typography>
+                      </View>
+                    </View>
+
+                    {/* Subject and time */}
+                    <View>
+                      <Typography variant="body2" weight="semibold" style={{ textAlign: 'left' }}>
+                        {lesson.subject?.name_he || lesson.subject?.name || 'שיעור'}
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary" style={{ textAlign: 'left', marginTop: 2 }}>
+                        {formatLessonTimeRange(lesson.startAt, lesson.endAt)}
+                      </Typography>
+                    </View>
+
+                    {/* Bottom row: status | price */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="caption" style={{ color: getStatusColor(lesson.status) }}>
+                        {lesson.status === 'confirmed' ? 'מאושר' : lesson.status === 'awaiting_payment' ? 'ממתין לתשלום' : 'ממתין לאישור'}
+                      </Typography>
+                      {typeof lesson.totalPrice === 'number' ? (
+                        <Typography variant="body2" color='primary' weight="bold">
+                          {`₪${lesson.totalPrice}/שיעור`}
+                        </Typography>
+                      ) : (
+                        <View />
+                      )}
+                    </View>
+                  </View>
+                </Card>
+              ))}
+            </ScrollView>
+          )}
+        </View>
         {/* Stats Cards - Horizontal Scroll */}
         <View style={{ marginTop: spacing[2] }}>
           <Typography

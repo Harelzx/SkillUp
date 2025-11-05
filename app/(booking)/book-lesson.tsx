@@ -320,6 +320,8 @@ export default function BookLessonScreen() {
       queryClient.invalidateQueries({ queryKey: ['teacher-availability', teacherId] });
       queryClient.invalidateQueries({ queryKey: ['student-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['credits'] });
+      // Invalidate teacher's upcoming lessons so they appear immediately
+      queryClient.invalidateQueries({ queryKey: ['teacher', teacherId, 'upcomingLessons'] });
 
       // Refetch credits from DB to update the balance
       console.log('🔄 [Booking] Refetching credits after booking...');
