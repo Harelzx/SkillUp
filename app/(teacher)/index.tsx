@@ -208,9 +208,10 @@ const MonthlyChart: React.FC<MonthlyChartProps> = ({ data }) => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{
               flexDirection: isRTL ? 'row-reverse' : 'row',
-              alignItems: 'flex-start',
+              alignItems: 'flex-end',
               paddingHorizontal: spacing[2],
               gap: spacing[2],
+              height: chartHeight + chartPadding,
             }}
           >
             {data.map((item, index) => {
@@ -221,14 +222,15 @@ const MonthlyChart: React.FC<MonthlyChartProps> = ({ data }) => {
                 <View
                   key={index}
                   style={{
+                    height: chartHeight + chartPadding,
                     alignItems: 'center',
-                    gap: spacing[1],
+                    justifyContent: 'flex-start',
                   }}
                 >
                   <Typography
                     variant="caption"
                     color="textSecondary"
-                    style={{ fontSize: 11 }}
+                    style={{ fontSize: 11, marginBottom: spacing[1] }}
                   >
                     {viewMode === 'revenue' 
                       ? `₪${(value / 1000).toFixed(1)}K` 
@@ -238,18 +240,27 @@ const MonthlyChart: React.FC<MonthlyChartProps> = ({ data }) => {
                   
                   <View
                     style={{
+                      flex: 1,
+                      justifyContent: 'flex-end',
+                      alignItems: 'center',
                       width: barWidth,
-                      height: Math.max(barHeight, 4),
-                      backgroundColor: colors.primary[500],
-                      borderRadius: 4,
-                      opacity: 0.8 + (index / data.length) * 0.2,
                     }}
-                  />
+                  >
+                    <View
+                      style={{
+                        width: barWidth,
+                        height: Math.max(barHeight, 4),
+                        backgroundColor: colors.primary[500],
+                        borderRadius: 4,
+                        opacity: 0.8 + (index / data.length) * 0.2,
+                      }}
+                    />
+                  </View>
                   
                   <Typography
                     variant="caption"
                     color="textSecondary"
-                    style={{ fontSize: 10 }}
+                    style={{ fontSize: 10, marginTop: spacing[1] }}
                   >
                     {item.month}
                   </Typography>
