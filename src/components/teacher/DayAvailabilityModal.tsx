@@ -3,7 +3,7 @@
  * Allows teachers to manage availability slots for a specific day
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -23,7 +23,7 @@ import {
   upsertAvailabilitySlots,
   closeDay,
   openDay,
-  type AvailabilitySlot,
+  deleteAvailabilitySlot,
   type SlotInput,
 } from '@/services/api/teacherAPI';
 
@@ -42,6 +42,35 @@ interface TimeSlot {
   isBooked: boolean;
   bookingId?: string;
 }
+
+// Helper functions for efficient time calculations
+const timeToMinutes = (time: string): number => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const minutesToTime = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+};
+
+const findLatestSlot = (slots: TimeSlot[]): TimeSlot | null => {
+  if (slots.length === 0) return null;
+  
+  let latest = slots[0];
+  let latestEndMinutes = timeToMinutes(latest.endTime);
+  
+  for (let i = 1; i < slots.length; i++) {
+    const endMinutes = timeToMinutes(slots[i].endTime);
+    if (endMinutes > latestEndMinutes) {
+      latest = slots[i];
+      latestEndMinutes = endMinutes;
+    }
+  }
+  
+  return latest;
+};
 
 export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
   visible,
@@ -65,6 +94,13 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
 
   const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
 
+  // Cache the latest slot calculation with useMemo for performance
+  // Only consider saved slots (not temporary ones) for next time calculation
+  const latestSlot = useMemo(() => {
+    const savedSlots = slots.filter(s => !s.id.startsWith('temp-'));
+    return findLatestSlot(savedSlots);
+  }, [slots]);
+
   // Load existing slots
   useEffect(() => {
     if (visible && teacherId) {
@@ -75,27 +111,47 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
   const loadSlots = async () => {
     setLoading(true);
     try {
+      console.log('🔄 [DayAvailabilityModal] Loading slots from database...');
+      console.log('   Teacher ID:', teacherId);
+      console.log('   Date:', dateKey);
+      
       const existingSlots = await getTeacherAvailabilitySlots(
         teacherId,
         dateKey,
         dateKey
       );
 
+      console.log('✅ [DayAvailabilityModal] Loaded', existingSlots.length, 'slots from database');
+      
       const timeSlots: TimeSlot[] = existingSlots.map((slot) => {
         const start = new Date(slot.startAt);
         const end = new Date(slot.endAt);
+        const startTime = `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`;
+        const endTime = `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
+        
+        console.log(`   Slot: ${slot.id} - ${startTime} to ${endTime} (booked: ${slot.isBooked})`);
+        
         return {
           id: slot.id,
-          startTime: `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`,
-          endTime: `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`,
+          startTime,
+          endTime,
           isBooked: slot.isBooked,
           bookingId: slot.bookingId,
         };
       });
 
       setSlots(timeSlots);
+      
+      // Log latest slot after loading
+      const savedSlots = timeSlots.filter(s => !s.id.startsWith('temp-'));
+      if (savedSlots.length > 0) {
+        const latest = findLatestSlot(savedSlots);
+        console.log('🔵 [DayAvailabilityModal] Latest slot after load:', latest ? `${latest.startTime}-${latest.endTime}` : 'none');
+      } else {
+        console.log('🔵 [DayAvailabilityModal] No saved slots found in database');
+      }
     } catch (error: any) {
-      console.error('Error loading slots:', error);
+      console.error('❌ [DayAvailabilityModal] Error loading slots:', error);
       Alert.alert('שגיאה', 'לא הצלחנו לטעון את המשבצות');
     } finally {
       setLoading(false);
@@ -103,23 +159,110 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
   };
 
   const handleAddSlot = () => {
-    // Add a new empty slot (default 09:00-10:00)
+    console.log('🔵 [DayAvailabilityModal] handleAddSlot called');
+    console.log('   Current slots count:', slots.length);
+    
+    const WORK_END_MINUTES = 23 * 60; // 23:00
+    const SLOT_DURATION = 60; // 1 hour
+
+    let nextStartTime = '09:00';
+    let nextEndTime = '10:00';
+
+    // Calculate latest slot from ALL current slots (including temporary ones)
+    // This ensures that when adding consecutive slots, each one is placed after the previous one
+    const currentLatestSlot = findLatestSlot(slots);
+    
+    console.log('   Latest slot from all slots (including temp):', currentLatestSlot ? `${currentLatestSlot.startTime}-${currentLatestSlot.endTime}` : 'null');
+    console.log('   Latest slot from cache (saved only):', latestSlot ? `${latestSlot.startTime}-${latestSlot.endTime}` : 'null');
+    
+    if (currentLatestSlot) {
+      const latestEndMinutes = timeToMinutes(currentLatestSlot.endTime);
+      console.log('   Latest slot end time (minutes):', latestEndMinutes);
+      console.log('   Latest slot end time (HH:MM):', currentLatestSlot.endTime);
+      
+      // If latest slot ends before 23:00, add after it
+      if (latestEndMinutes < WORK_END_MINUTES) {
+        const nextStartMinutes = latestEndMinutes;
+        const nextEndMinutes = Math.min(nextStartMinutes + SLOT_DURATION, WORK_END_MINUTES);
+        
+        console.log('   Next start minutes:', nextStartMinutes);
+        console.log('   Next end minutes:', nextEndMinutes);
+        
+        // Only add if we have space for at least 30 minutes
+        if (nextEndMinutes - nextStartMinutes >= 30) {
+          nextStartTime = minutesToTime(nextStartMinutes);
+          nextEndTime = minutesToTime(nextEndMinutes);
+          console.log('   ✅ Calculated next slot:', `${nextStartTime}-${nextEndTime}`);
+        } else {
+          console.log('   ⚠️ Not enough space, using default 09:00-10:00');
+        }
+      } else {
+        console.log('   ⚠️ Latest slot ends at or after 23:00, using default 09:00-10:00');
+      }
+    } else {
+      console.log('   ℹ️ No latest slot found, using default 09:00-10:00');
+    }
+
+    console.log('   Final slot to add:', `${nextStartTime}-${nextEndTime}`);
+
+    // Optimistic update - add to UI immediately
     const newSlot: TimeSlot = {
       id: `temp-${Date.now()}`,
-      startTime: '09:00',
-      endTime: '10:00',
+      startTime: nextStartTime,
+      endTime: nextEndTime,
       isBooked: false,
     };
-    setSlots([...slots, newSlot]);
+    
+    // Use functional update for better performance
+    setSlots(prevSlots => {
+      console.log('   Adding slot to UI, new total:', prevSlots.length + 1);
+      return [...prevSlots, newSlot];
+    });
   };
 
-  const handleRemoveSlot = (slotId: string) => {
+  const handleRemoveSlot = async (slotId: string) => {
+    console.log('🔵 [DayAvailabilityModal] handleRemoveSlot called for slot:', slotId);
+    
     const slot = slots.find((s) => s.id === slotId);
-    if (slot?.isBooked) {
+    
+    if (!slot) {
+      console.log('   ⚠️ Slot not found');
+      return;
+    }
+
+    console.log('   Slot to remove:', `${slot.startTime}-${slot.endTime} (booked: ${slot.isBooked})`);
+
+    // Check if slot is booked
+    if (slot.isBooked) {
       Alert.alert('שגיאה', 'לא ניתן למחוק משבצת עם הזמנה קיימת');
       return;
     }
-    setSlots(slots.filter((s) => s.id !== slotId));
+
+    // If it's a temporary slot (starts with 'temp-'), just remove from UI
+    if (slot.id.startsWith('temp-')) {
+      console.log('   Removing temporary slot from UI only');
+      setSlots(slots.filter((s) => s.id !== slotId));
+      return;
+    }
+
+    // For existing slots, delete from database immediately
+    console.log('   Deleting slot from database...');
+    setSaving(true);
+    try {
+      await deleteAvailabilitySlot(slot.id);
+      console.log('   ✅ Slot deleted from database successfully');
+      
+      // Reload slots from database to ensure consistency
+      await loadSlots();
+      
+      // Notify parent to refresh
+      onSlotsUpdated?.();
+    } catch (error: any) {
+      console.error('❌ [DayAvailabilityModal] Error deleting slot:', error);
+      Alert.alert('שגיאה', error.message || 'לא הצלחנו למחוק את המשבצת');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleTimeChange = (slotId: string, field: 'startTime' | 'endTime', value: string) => {
@@ -129,6 +272,9 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
   };
 
   const handleSaveSlots = async () => {
+    console.log('🔵 [DayAvailabilityModal] handleSaveSlots called');
+    console.log('   Total slots to save:', slots.length);
+    
     // Validate slots
     for (const slot of slots) {
       if (slot.startTime >= slot.endTime) {
@@ -146,13 +292,23 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
           end_time: s.endTime,
         }));
 
+      console.log('   Saving to database:', JSON.stringify(slotInputs, null, 2));
+      console.log('   Teacher ID:', teacherId);
+      console.log('   Date:', dateKey);
+
       await upsertAvailabilitySlots(teacherId, dateKey, slotInputs);
+      
+      console.log('   ✅ Slots saved to database successfully');
+      
+      // Reload slots from database to ensure we have the latest data with correct IDs
+      console.log('   Reloading slots from database...');
+      await loadSlots();
       
       Alert.alert('הצלחה', 'המשבצות נשמרו בהצלחה');
       onSlotsUpdated?.();
       onClose();
     } catch (error: any) {
-      console.error('Error saving slots:', error);
+      console.error('❌ [DayAvailabilityModal] Error saving slots:', error);
       Alert.alert('שגיאה', error.message || 'לא הצלחנו לשמור את המשבצות');
     } finally {
       setSaving(false);
@@ -160,6 +316,8 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
   };
 
   const handleCloseDay = async () => {
+    console.log('🔵 [DayAvailabilityModal] handleCloseDay called');
+    
     const bookedCount = slots.filter(s => s.isBooked).length;
     if (bookedCount > 0) {
       Alert.alert('שגיאה', 'לא ניתן לסגור יום עם הזמנות קיימות');
@@ -175,13 +333,20 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
           text: 'סגור יום',
           style: 'destructive',
           onPress: async () => {
+            console.log('   Closing day in database...');
             setSaving(true);
             try {
               await closeDay(teacherId, dateKey);
+              console.log('   ✅ Day closed in database successfully');
+              
+              // Reload slots from database (should be empty now)
+              await loadSlots();
+              
               Alert.alert('הצלחה', 'היום נסגר בהצלחה');
               onSlotsUpdated?.();
               onClose();
             } catch (error: any) {
+              console.error('❌ [DayAvailabilityModal] Error closing day:', error);
               Alert.alert('שגיאה', error.message || 'לא הצלחנו לסגור את היום');
             } finally {
               setSaving(false);
@@ -193,6 +358,8 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
   };
 
   const handleOpenDay = async () => {
+    console.log('🔵 [DayAvailabilityModal] handleOpenDay called');
+    
     Alert.alert(
       'פתיחת יום',
       'האם אתה רוצה לפתוח את היום עם משבצות ברירת מחדל? (09:00-17:00, משבצות של שעה)',
@@ -201,17 +368,28 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
         {
           text: 'פתח יום',
           onPress: async () => {
+            console.log('   Opening day in database...');
+            console.log('   Teacher ID:', teacherId);
+            console.log('   Date:', dateKey);
+            
             setSaving(true);
             try {
-              await openDay(teacherId, dateKey, {
+              const result = await openDay(teacherId, dateKey, {
                 defaultStartTime: '09:00',
                 defaultEndTime: '17:00',
                 slotDuration: 60,
               });
+              
+              console.log('   ✅ Day opened in database successfully');
+              console.log('   Slots created:', result.slotsCreated);
+              
+              // Reload slots from database to show new slots
+              await loadSlots();
+              
               Alert.alert('הצלחה', 'היום נפתח בהצלחה');
-              await loadSlots(); // Reload to show new slots
               onSlotsUpdated?.();
             } catch (error: any) {
+              console.error('❌ [DayAvailabilityModal] Error opening day:', error);
               Alert.alert('שגיאה', error.message || 'לא הצלחנו לפתוח את היום');
             } finally {
               setSaving(false);
@@ -368,7 +546,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
                   </View>
                 ) : (
                   <View style={{ gap: spacing[2] }}>
-                    {slots.map((slot, index) => (
+                    {slots.map((slot) => (
                       <View
                         key={slot.id}
                         style={{

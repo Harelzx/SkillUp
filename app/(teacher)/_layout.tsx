@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Tabs, useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { View, ActivityIndicator } from 'react-native';
-import { Home, Calendar, User } from 'lucide-react-native';
+import { Home, Calendar, User, FileText } from 'lucide-react-native';
 import { colors } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/auth-context';
 import { Typography } from '@/ui/Typography';
@@ -101,6 +101,16 @@ export default function TeacherLayout() {
           ),
           tabBarAccessibilityLabel: t('teacher.tabs.profile', 'פרופיל'),
         }}
+      />
+      <Tabs.Screen
+        name="tracking"
+        options={{
+          title: t('teacher.tabs.tracking', 'מעקב'),
+          tabBarIcon: ({ color, size }) => (
+            <FileText size={26} color={color} />
+          ),
+          tabBarAccessibilityLabel: t('teacher.tabs.tracking', 'מעקב'),
+        }}  
       />
       <Tabs.Screen
         name="calendar"

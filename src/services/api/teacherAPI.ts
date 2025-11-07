@@ -234,11 +234,21 @@ export async function upsertAvailabilitySlots(
   } as any);
 
   if (error) {
-    console.error('❌ [teacherAPI] Error upserting availability slots:', error);
-    console.error('   Error code:', error.code);
-    console.error('   Error message:', error.message);
-    console.error('   Error details:', error.details);
-    console.error('   Error hint:', error.hint);
+    // Safe error logging - avoid passing error object directly to console.error
+    const errorCode = error.code || 'UNKNOWN';
+    const errorMessage = error.message || 'Unknown error occurred';
+    const errorDetails = error.details || null;
+    const errorHint = error.hint || null;
+
+    console.error('❌ [teacherAPI] Error upserting availability slots');
+    console.error('   Error code:', errorCode);
+    console.error('   Error message:', errorMessage);
+    if (errorDetails) {
+      console.error('   Error details:', errorDetails);
+    }
+    if (errorHint) {
+      console.error('   Error hint:', errorHint);
+    }
 
     // Provide user-friendly error messages
     if (error.code === '23505') {
@@ -247,9 +257,13 @@ export async function upsertAvailabilitySlots(
       throw new Error('ערכי זמן לא תקינים. אנא בדוק שהשעות נכונות');
     } else if (error.code === '42883') {
       throw new Error('הפונקציה upsert_availability_slots לא קיימת. הרץ migration 014');
+    } else if (error.code === '42P01') {
+      throw new Error('שגיאת מסד נתונים: הטבלה הנדרשת לא קיימת. אנא הרץ migration 035');
     }
 
-    throw new Error(error.message);
+    // Ensure we have a valid error message
+    const safeErrorMessage = errorMessage || 'שגיאה לא ידועה בעת שמירת המשבצות';
+    throw new Error(safeErrorMessage);
   }
 
   console.log('✅ [teacherAPI] upsert_availability_slots succeeded');
@@ -275,13 +289,31 @@ export async function closeDay(
   } as any);
 
   if (error) {
-    console.error('❌ Error closing day:', error);
+    // Safe error logging - avoid passing error object directly to console.error
+    const errorCode = error.code || 'UNKNOWN';
+    const errorMessage = error.message || 'Unknown error occurred';
+    const errorDetails = error.details || null;
+    const errorHint = error.hint || null;
+
+    console.error('❌ [teacherAPI] Error closing day');
+    console.error('   Error code:', errorCode);
+    console.error('   Error message:', errorMessage);
+    if (errorDetails) {
+      console.error('   Error details:', errorDetails);
+    }
+    if (errorHint) {
+      console.error('   Error hint:', errorHint);
+    }
     
     if (error.code === '23505') {
       throw new Error('לא ניתן לסגור יום עם הזמנות קיימות. אנא בטל את ההזמנות תחילה');
+    } else if (error.code === '42P01') {
+      throw new Error('שגיאת מסד נתונים: הטבלה הנדרשת לא קיימת. אנא הרץ migration 035');
     }
     
-    throw new Error(error.message);
+    // Ensure we have a valid error message
+    const safeErrorMessage = errorMessage || 'שגיאה לא ידועה בעת סגירת היום';
+    throw new Error(safeErrorMessage);
   }
 
   const result = data as any;
@@ -317,16 +349,34 @@ export async function openDay(
   } as any);
 
   if (error) {
-    console.error('❌ [teacherAPI] Error opening day:', error);
-    console.error('   Error code:', error.code);
-    console.error('   Error message:', error.message);
-    console.error('   Error details:', error.details);
+    // Safe error logging - avoid passing error object directly to console.error
+    const errorCode = error.code || 'UNKNOWN';
+    const errorMessage = error.message || 'Unknown error occurred';
+    const errorDetails = error.details || null;
+    const errorHint = error.hint || null;
 
+    console.error('❌ [teacherAPI] Error opening day');
+    console.error('   Error code:', errorCode);
+    console.error('   Error message:', errorMessage);
+    if (errorDetails) {
+      console.error('   Error details:', errorDetails);
+    }
+    if (errorHint) {
+      console.error('   Error hint:', errorHint);
+    }
+
+    // Handle specific error codes
     if (error.code === '42883') {
       throw new Error('הפונקציה open_day לא קיימת. הרץ migration 014');
     }
 
-    throw new Error(error.message);
+    if (error.code === '42P01') {
+      throw new Error('שגיאת מסד נתונים: הטבלה הנדרשת לא קיימת. אנא הרץ migration 035');
+    }
+
+    // Ensure we have a valid error message
+    const safeErrorMessage = errorMessage || 'שגיאה לא ידועה בעת פתיחת היום';
+    throw new Error(safeErrorMessage);
   }
 
   console.log('✅ [teacherAPI] open_day succeeded');
@@ -350,8 +400,25 @@ export async function deleteAvailabilitySlot(slotId: string): Promise<void> {
     .eq('is_booked', false);
 
   if (error) {
-    console.error('❌ Error deleting availability slot:', error);
-    throw new Error(error.message);
+    // Safe error logging - avoid passing error object directly to console.error
+    const errorCode = error.code || 'UNKNOWN';
+    const errorMessage = error.message || 'Unknown error occurred';
+    const errorDetails = error.details || null;
+    const errorHint = error.hint || null;
+
+    console.error('❌ [teacherAPI] Error deleting availability slot');
+    console.error('   Error code:', errorCode);
+    console.error('   Error message:', errorMessage);
+    if (errorDetails) {
+      console.error('   Error details:', errorDetails);
+    }
+    if (errorHint) {
+      console.error('   Error hint:', errorHint);
+    }
+
+    // Ensure we have a valid error message
+    const safeErrorMessage = errorMessage || 'שגיאה לא ידועה בעת מחיקת המשבצת';
+    throw new Error(safeErrorMessage);
   }
 }
 
