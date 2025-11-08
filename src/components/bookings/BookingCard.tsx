@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
-import { Calendar, Clock, MapPin, User, XCircle } from 'lucide-react-native';
+import { Calendar, Clock, MapPin, User, XCircle, MessageCircle } from 'lucide-react-native';
 import { cancelBooking } from '@/services/api/bookingsAPI';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { getBookingStatuses, getOrCreateConversation } from '@/services/api';
+import { useRouter } from 'expo-router';
 
 interface BookingCardProps {
   booking: {
     id: string;
+    teacher_id?: string;
+    student_id?: string;
     start_at: string;
     end_at: string;
     status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
@@ -16,8 +20,8 @@ interface BookingCardProps {
     location?: string;
     notes?: string;
     subject?: { name_he: string };
-    teacher?: { display_name: string; avatar_url?: string };
-    student?: { display_name: string; avatar_url?: string };
+    teacher?: { id: string; display_name: string; avatar_url?: string };
+    student?: { id: string; display_name: string; avatar_url?: string };
   };
   userRole: 'student' | 'teacher';
   onCancelled?: () => void;
@@ -25,7 +29,15 @@ interface BookingCardProps {
 
 export function BookingCard({ booking, userRole, onCancelled }: BookingCardProps) {
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const queryClient = useQueryClient();
+  const router = useRouter();
+
+  // Fetch booking statuses from database
+  const { data: bookingStatuses = [] } = useQuery({
+    queryKey: ['booking-statuses'],
+    queryFn: getBookingStatuses,
+  });
 
   const canCancel = booking.status === 'pending' || booking.status === 'confirmed';
   const isPast = new Date(booking.start_at) < new Date();
@@ -100,34 +112,15 @@ export function BookingCard({ booking, userRole, onCancelled }: BookingCardProps
     }
   };
 
+  // Get status info from database
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return colors.green[600];
-      case 'pending':
-        return colors.yellow[600];
-      case 'cancelled':
-        return colors.red[600];
-      case 'completed':
-        return colors.blue[600];
-      default:
-        return colors.gray[600];
-    }
+    const statusData = bookingStatuses.find(s => s.value === status);
+    return statusData?.color_hex || colors.gray[600];
   };
 
   const getStatusText = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return 'אושר';
-      case 'pending':
-        return 'ממתין';
-      case 'cancelled':
-        return 'בוטל';
-      case 'completed':
-        return 'הושלם';
-      default:
-        return status;
-    }
+    const statusData = bookingStatuses.find(s => s.value === status);
+    return statusData?.label_he || status;
   };
 
   const formatDate = (dateString: string) => {
@@ -136,6 +129,37 @@ export function BookingCard({ booking, userRole, onCancelled }: BookingCardProps
       timeStyle: 'short',
       timeZone: 'Asia/Jerusalem',
     });
+  };
+
+  const handleSendMessage = async () => {
+    setIsCreatingConversation(true);
+
+    try {
+      // Get teacher_id and student_id
+      const teacherId = booking.teacher_id || booking.teacher?.id;
+      const studentId = booking.student_id || booking.student?.id;
+
+      if (!teacherId || !studentId) {
+        Alert.alert('שגיאה', 'לא ניתן ליצור שיחה - חסרים פרטים');
+        return;
+      }
+
+      // Create or get existing conversation
+      const conversation = await getOrCreateConversation({
+        teacherId,
+        studentId,
+        bookingId: booking.id,
+      });
+
+      // Navigate to conversation
+      const baseRoute = userRole === 'teacher' ? '/(teacher)' : '/(tabs)';
+      router.push(`${baseRoute}/messages/${conversation.id}`);
+    } catch (error: any) {
+      console.error('[BookingCard] Failed to create conversation:', error);
+      Alert.alert('שגיאה', error?.message || 'אירעה שגיאה ביצירת השיחה');
+    } finally {
+      setIsCreatingConversation(false);
+    }
   };
 
   const otherPerson = userRole === 'student' ? booking.teacher : booking.student;
@@ -271,39 +295,74 @@ export function BookingCard({ booking, userRole, onCancelled }: BookingCardProps
       </View>
 
       {/* Actions */}
-      {canCancel && !isPast && (
+      <View style={{ marginTop: spacing[3], gap: spacing[2] }}>
+        {/* Send Message Button */}
         <TouchableOpacity
-          onPress={handleCancel}
-          disabled={isCancelling}
+          onPress={handleSendMessage}
+          disabled={isCreatingConversation}
           style={{
-            marginTop: spacing[3],
             paddingVertical: spacing[2],
             paddingHorizontal: spacing[3],
             borderRadius: 8,
             borderWidth: 1,
-            borderColor: colors.red[600],
+            borderColor: colors.primary[600],
+            backgroundColor: colors.white,
             flexDirection: 'row-reverse',
             alignItems: 'center',
             justifyContent: 'center',
-            opacity: isCancelling ? 0.5 : 1,
+            opacity: isCreatingConversation ? 0.5 : 1,
           }}
         >
-          {isCancelling ? (
-            <ActivityIndicator color={colors.red[600]} size="small" />
+          {isCreatingConversation ? (
+            <ActivityIndicator color={colors.primary[600]} size="small" />
           ) : (
             <>
-              <XCircle size={16} color={colors.red[600]} />
+              <MessageCircle size={16} color={colors.primary[600]} />
               <Typography
                 variant="body2"
                 weight="semibold"
-                style={{ color: colors.red[600], marginRight: spacing[2] }}
+                style={{ color: colors.primary[600], marginRight: spacing[2] }}
               >
-                בטל שיעור
+                {userRole === 'student' ? 'שלח הודעה למורה' : 'שלח הודעה לתלמיד'}
               </Typography>
             </>
           )}
         </TouchableOpacity>
-      )}
+
+        {/* Cancel Button */}
+        {canCancel && !isPast && (
+          <TouchableOpacity
+            onPress={handleCancel}
+            disabled={isCancelling}
+            style={{
+              paddingVertical: spacing[2],
+              paddingHorizontal: spacing[3],
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: colors.red[600],
+              flexDirection: 'row-reverse',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: isCancelling ? 0.5 : 1,
+            }}
+          >
+            {isCancelling ? (
+              <ActivityIndicator color={colors.red[600]} size="small" />
+            ) : (
+              <>
+                <XCircle size={16} color={colors.red[600]} />
+                <Typography
+                  variant="body2"
+                  weight="semibold"
+                  style={{ color: colors.red[600], marginRight: spacing[2] }}
+                >
+                  בטל שיעור
+                </Typography>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }

@@ -3,9 +3,9 @@ import {
   View,
   TouchableOpacity,
 } from 'react-native';
-import { 
-  Clock, 
-  Globe, 
+import {
+  Clock,
+  Globe,
   MapPin,
   CheckCircle,
   AlertCircle,
@@ -16,6 +16,8 @@ import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { useRTL } from '@/context/RTLContext';
 import { BookingWithDetails } from '@/types/api';
+import { useQuery } from '@tanstack/react-query';
+import { getBookingStatuses } from '@/services/api';
 
 interface DayLessonsListProps {
   bookings: BookingWithDetails[];
@@ -32,31 +34,14 @@ interface LessonStatusConfig {
   label: string;
 }
 
-const STATUS_CONFIG: Record<string, LessonStatusConfig> = {
-  confirmed: {
-    color: colors.green[700],
-    bgColor: colors.green[50],
-    icon: CheckCircle,
-    label: 'מאושר',
-  },
-  awaiting_payment: {
-    color: colors.orange[700],
-    bgColor: colors.orange[50],
-    icon: AlertCircle,
-    label: 'ממתין לתשלום',
-  },
-  pending: {
-    color: colors.warning[700],
-    bgColor: colors.warning[50],
-    icon: Clock,
-    label: 'ממתין',
-  },
-  cancelled: {
-    color: colors.gray[600],
-    bgColor: colors.gray[100],
-    icon: AlertCircle,
-    label: 'בוטל',
-  },
+// Icon mapping for statuses (fallbacks if icon_name not provided)
+const STATUS_ICONS: Record<string, typeof CheckCircle> = {
+  confirmed: CheckCircle,
+  awaiting_payment: AlertCircle,
+  pending: Clock,
+  cancelled: AlertCircle,
+  completed: CheckCircle,
+  refunded: AlertCircle,
 };
 
 const getModeIcon = (isOnline: boolean, _location?: string | null) => {
@@ -128,15 +113,41 @@ const EditDayButton: React.FC<{
   );
 };
 
-export const DayLessonsList: React.FC<DayLessonsListProps> = ({ 
-  bookings, 
-  isLoading, 
+export const DayLessonsList: React.FC<DayLessonsListProps> = ({
+  bookings,
+  isLoading,
   selectedDate,
   onManageAvailability,
   onCancelLesson,
 }) => {
   const { isRTL } = useRTL();
-  
+
+  // Fetch booking statuses from database
+  const { data: bookingStatuses = [] } = useQuery({
+    queryKey: ['booking-statuses'],
+    queryFn: getBookingStatuses,
+  });
+
+  // Helper function to get status config from database data
+  const getStatusConfig = (status: string): LessonStatusConfig => {
+    const statusData = bookingStatuses.find(s => s.value === status);
+    if (statusData) {
+      return {
+        color: statusData.color_hex,
+        bgColor: statusData.bg_color_hex,
+        icon: STATUS_ICONS[status] || AlertCircle,
+        label: statusData.label_he,
+      };
+    }
+    // Fallback if status not found
+    return {
+      color: colors.gray[600],
+      bgColor: colors.gray[100],
+      icon: AlertCircle,
+      label: status,
+    };
+  };
+
   // Check if selected date is today or future
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -337,10 +348,10 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
       {/* Lessons List */}
       <View style={{ gap: spacing[2] }}>
         {bookings.map((booking) => {
-          const statusConfig = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
+          const statusConfig = getStatusConfig(booking.status);
           const StatusIcon = statusConfig.icon;
           const ModeIcon = getModeIcon(booking.is_online, booking.location);
-          const studentName = booking.student 
+          const studentName = booking.student
             ? `${booking.student.first_name} ${booking.student.last_name}`.trim()
             : 'תלמיד לא זוהה';
           

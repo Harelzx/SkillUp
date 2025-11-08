@@ -6,18 +6,21 @@ import {
   Search,
   BookOpen,
   User,
+  MessageCircle,
 } from 'lucide-react-native';
 import { colors } from '@/theme/tokens';
 import { useRTL } from '@/context/RTLContext';
 import { useAuth } from '@/features/auth/auth-context';
 import StudentOnboardingModal from '@/components/student/StudentOnboardingModal';
 import { CustomTabBar } from '@/components/navigation/CustomTabBar';
+import { useUnreadCount } from '@/hooks/useUnreadCount';
 
 export default function TabLayout() {
   const { t } = useTranslation();
   const { isRTL } = useRTL();
   const { profile } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const { data: unreadCount = 0 } = useUnreadCount();
 
   // Check if student needs onboarding
   useEffect(() => {
@@ -70,6 +73,17 @@ export default function TabLayout() {
               <BookOpen size={26} color={color} />
             ),
             tabBarAccessibilityLabel: t('tabs.lessons'),
+          }}
+        />
+        <Tabs.Screen
+          name="messages"
+          options={{
+            title: t('tabs.messages', 'הודעות'),
+            tabBarIcon: ({ color, size }) => (
+              <MessageCircle size={26} color={color} />
+            ),
+            tabBarAccessibilityLabel: t('tabs.messages', 'הודעות'),
+            tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
           }}
         />
         <Tabs.Screen

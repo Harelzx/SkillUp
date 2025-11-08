@@ -2,18 +2,20 @@ import { useEffect, useState, useCallback } from 'react';
 import { Tabs, useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { View, ActivityIndicator } from 'react-native';
-import { Home, Calendar, User, FileText } from 'lucide-react-native';
+import { Home, Calendar, User, FileText, MessageCircle } from 'lucide-react-native';
 import { colors } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/auth-context';
 import { Typography } from '@/ui/Typography';
 import TeacherOnboardingModal from '@/components/teacher/TeacherOnboardingModal';
 import { CustomTabBar } from '@/components/navigation/CustomTabBar';
+import { useUnreadCount } from '@/hooks/useUnreadCount';
 
 export default function TeacherLayout() {
   const { t } = useTranslation();
   const { profile, isLoading } = useAuth();
   const router = useRouter();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const { data: unreadCount = 0 } = useUnreadCount();
 
   // Guard: Redirect if not a teacher
   useEffect(() => {
@@ -110,7 +112,18 @@ export default function TeacherLayout() {
             <FileText size={26} color={color} />
           ),
           tabBarAccessibilityLabel: t('teacher.tabs.tracking', 'מעקב'),
-        }}  
+        }}
+      />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: t('teacher.tabs.messages', 'הודעות'),
+          tabBarIcon: ({ color, size }) => (
+            <MessageCircle size={26} color={color} />
+          ),
+          tabBarAccessibilityLabel: t('teacher.tabs.messages', 'הודעות'),
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+        }}
       />
       <Tabs.Screen
         name="calendar"
@@ -164,12 +177,6 @@ export default function TeacherLayout() {
       />
       <Tabs.Screen
         name="reviews"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="README"
         options={{
           href: null, // Hide from tab bar
         }}

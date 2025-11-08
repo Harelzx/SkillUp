@@ -437,3 +437,57 @@ export interface SubscriptionCallback<T> {
 export interface RealtimeSubscription {
   unsubscribe: () => void;
 }
+
+// ============================================
+// MESSAGING
+// ============================================
+
+export interface Conversation {
+  id: string;
+  teacher_id: string;
+  student_id: string;
+  booking_id: string | null;
+  last_message_at: string;
+  last_message_preview: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationWithDetails extends Conversation {
+  teacher: {
+    id: string;
+    display_name: string;
+    avatar_url: string | null;
+    phone?: string | null;
+  };
+  student: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    avatar_url: string | null;
+    phone?: string | null;
+  };
+  unread_count: number;
+}
+
+export type MessageSenderType = 'teacher' | 'student';
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_type: MessageSenderType;
+  content: string;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TypingIndicator {
+  id: string;
+  conversation_id: string;
+  user_id: string;
+  expires_at: string;
+  created_at: string;
+}

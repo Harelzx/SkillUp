@@ -19,14 +19,14 @@ export async function getCreditBalance() {
     throw new Error('Not authenticated');
   }
 
-  // First, check profile role to verify user is a student
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
+  // Check if user is a student by checking if they exist in students table
+  const { data: studentRecord } = await supabase
+    .from('students')
+    .select('id')
     .eq('id', user.id)
     .maybeSingle();
 
-  if (!profile || profile.role !== 'student') {
+  if (!studentRecord) {
     console.log('🔵 [creditsAPI] User is not a student, returning 0');
     return 0;
   }

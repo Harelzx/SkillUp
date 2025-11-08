@@ -30,11 +30,20 @@ import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { useAuth } from '@/features/auth/auth-context';
-import { getTeacherProfile, updateTeacherProfile, getSubjects, getTeacherSubjects, updateTeacherSubjects, getTeacherSubjectExperience, updateTeacherSubjectExperience } from '@/services/api';
+import {
+  getTeacherProfile,
+  updateTeacherProfile,
+  getSubjects,
+  getTeacherSubjects,
+  updateTeacherSubjects,
+  getTeacherSubjectExperience,
+  updateTeacherSubjectExperience,
+  getLanguages,
+  getLessonDurations,
+} from '@/services/api';
 import { getRegions, getCitiesByRegion } from '@/services/api/regionsAPI';
 import type { Region, City } from '@/types/database';
-
-const DURATION_OPTIONS = [30, 45, 60, 90, 120];
+import { useQuery } from '@tanstack/react-query';
 
 type LessonMode = 'online' | 'at_teacher' | 'at_student';
 
@@ -337,6 +346,21 @@ export default function EditTeacherProfileScreen() {
     setEducation(education.filter((_, i) => i !== index));
   };
 
+  // Fetch static data from database
+  const { data: languagesData = [], isLoading: loadingLanguages } = useQuery({
+    queryKey: ['languages', true], // true = only common languages
+    queryFn: () => getLanguages(true),
+  });
+
+  const { data: durationsData = [], isLoading: loadingDurations } = useQuery({
+    queryKey: ['lesson-durations'],
+    queryFn: () => getLessonDurations(false), // false = all durations
+  });
+
+  // Convert to arrays for display
+  const commonLanguages = languagesData.map(lang => lang.name_he);
+  const DURATION_OPTIONS = durationsData.map(d => d.duration_minutes);
+
   const toggleLanguage = (language: string) => {
     if (languages.includes(language)) {
       setLanguages(languages.filter((l) => l !== language));
@@ -344,9 +368,6 @@ export default function EditTeacherProfileScreen() {
       setLanguages([...languages, language]);
     }
   };
-
-  // Common languages in Israel
-  const commonLanguages = ['עברית', 'אנגלית', 'ערבית', 'רוסית', 'צרפתית', 'ספרדית'];
 
   const handleRegionChange = async (regionId: string) => {
     setSelectedRegionId(regionId);
@@ -782,24 +803,30 @@ export default function EditTeacherProfileScreen() {
             בחר את משכי השיעורים שאתה מציע
           </Typography>
 
-          <View style={styles.chipGrid}>
-            {DURATION_OPTIONS.map((duration) => (
-              <TouchableOpacity
-                key={duration}
-                onPress={() => toggleDuration(duration)}
-                style={[styles.chip, durationOptions.includes(duration) && styles.chipSelected]}
-              >
-                <Typography
-                  variant="body2"
-                  style={{
-                    color: durationOptions.includes(duration) ? colors.white : colors.gray[700],
-                  }}
+          {loadingDurations ? (
+            <View style={{ padding: spacing[4], alignItems: 'center' }}>
+              <ActivityIndicator color={colors.primary[600]} />
+            </View>
+          ) : (
+            <View style={styles.chipGrid}>
+              {DURATION_OPTIONS.map((duration) => (
+                <TouchableOpacity
+                  key={duration}
+                  onPress={() => toggleDuration(duration)}
+                  style={[styles.chip, durationOptions.includes(duration) && styles.chipSelected]}
                 >
-                  {duration} דקות
-                </Typography>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <Typography
+                    variant="body2"
+                    style={{
+                      color: durationOptions.includes(duration) ? colors.white : colors.gray[700],
+                    }}
+                  >
+                    {duration} דקות
+                  </Typography>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           {errors.durationOptions && <Typography style={styles.errorText}>{errors.durationOptions}</Typography>}
         </View>
@@ -908,24 +935,30 @@ export default function EditTeacherProfileScreen() {
           <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], paddingHorizontal: spacing[1] }}>
             באילו שפות אתה יכול ללמד?
           </Typography>
-          <View style={styles.chipGrid}>
-            {commonLanguages.map((language) => (
-              <TouchableOpacity
-                key={language}
-                onPress={() => toggleLanguage(language)}
-                style={[styles.chip, languages.includes(language) && styles.chipSelected]}
-              >
-                <Typography
-                  variant="body2"
-                  style={{
-                    color: languages.includes(language) ? colors.white : colors.gray[700],
-                  }}
+          {loadingLanguages ? (
+            <View style={{ padding: spacing[4], alignItems: 'center' }}>
+              <ActivityIndicator color={colors.primary[600]} />
+            </View>
+          ) : (
+            <View style={styles.chipGrid}>
+              {commonLanguages.map((language) => (
+                <TouchableOpacity
+                  key={language}
+                  onPress={() => toggleLanguage(language)}
+                  style={[styles.chip, languages.includes(language) && styles.chipSelected]}
                 >
-                  {language}
-                </Typography>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <Typography
+                    variant="body2"
+                    style={{
+                      color: languages.includes(language) ? colors.white : colors.gray[700],
+                    }}
+                  >
+                    {language}
+                  </Typography>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Region & City Section */}

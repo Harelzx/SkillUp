@@ -23,10 +23,11 @@ import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
-import { updateTeacherProfile, getSubjects, updateTeacherSubjects } from '@/services/api';
+import { updateTeacherProfile, getSubjects, updateTeacherSubjects, getLanguages, languagesToOptions } from '@/services/api';
 import { getRegions, getCitiesByRegion } from '@/services/api/regionsAPI';
 import type { Region, City } from '@/types/database';
 import { supabase } from '@/lib/supabase';
+import { useQuery } from '@tanstack/react-query';
 
 interface TeacherOnboardingModalProps {
   teacherId: string;
@@ -82,8 +83,14 @@ export default function TeacherOnboardingModal({ teacherId, onComplete }: Teache
 
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Common languages in Israel
-  const commonLanguages = ['עברית', 'אנגלית', 'ערבית', 'רוסית', 'צרפתית', 'ספרדית'];
+  // Fetch common languages from database
+  const { data: languages = [], isLoading: loadingLanguages } = useQuery({
+    queryKey: ['languages', true], // true = only common languages
+    queryFn: () => getLanguages(true),
+  });
+
+  // Convert to array of language names for display
+  const commonLanguages = languages.map(lang => lang.name_he);
 
   useEffect(() => {
     loadRegions();
@@ -384,23 +391,29 @@ export default function TeacherOnboardingModal({ teacherId, onComplete }: Teache
       <View style={styles.inputGroup}>
         <Typography variant="body1" weight="semibold" style={styles.inputLabel}>שפות</Typography>
         <Typography variant="body2" color="textSecondary" style={{ marginBottom: spacing[3], textAlign: isRTL ? 'right' : 'left' }}>באילו שפות אתה יכול ללמד?</Typography>
-        <View style={styles.gridContainer}>
-          {commonLanguages.map((language) => (
-            <TouchableOpacity
-              key={language}
-              style={[styles.chipButton, formData.languages.includes(language) && styles.chipButtonSelected]}
-              onPress={() => toggleLanguage(language)}
-            >
-              <Typography
-                variant="body2"
-                weight={formData.languages.includes(language) ? 'semibold' : 'normal'}
-                style={{ color: formData.languages.includes(language) ? colors.primary[700] : colors.gray[700] }}
+        {loadingLanguages ? (
+          <View style={{ padding: spacing[4], alignItems: 'center' }}>
+            <ActivityIndicator color={colors.primary[600]} />
+          </View>
+        ) : (
+          <View style={styles.gridContainer}>
+            {commonLanguages.map((language) => (
+              <TouchableOpacity
+                key={language}
+                style={[styles.chipButton, formData.languages.includes(language) && styles.chipButtonSelected]}
+                onPress={() => toggleLanguage(language)}
               >
-                {language}
-              </Typography>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <Typography
+                  variant="body2"
+                  weight={formData.languages.includes(language) ? 'semibold' : 'normal'}
+                  style={{ color: formData.languages.includes(language) ? colors.primary[700] : colors.gray[700] }}
+                >
+                  {language}
+                </Typography>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
     </View>
   );

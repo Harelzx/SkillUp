@@ -4,6 +4,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -15,6 +17,7 @@ import {
   CheckCircle,
   Play,
   ArrowRight,
+  MessageCircle,
 } from 'lucide-react-native';
 import { Card, CardContent } from '@/ui/Card';
 import { Typography } from '@/ui/Typography';
@@ -23,7 +26,8 @@ import { useQuery } from '@tanstack/react-query';
 import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
-import { getTeacherById, getTeacherReviews, getTeacherSubjectExperience, getSubjects } from '@/services/api';
+import { getTeacherById, getTeacherReviews, getTeacherSubjectExperience, getSubjects, getOrCreateConversation } from '@/services/api';
+import { useAuth } from '@/features/auth/auth-context';
 
 export default function TeacherProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,6 +36,8 @@ export default function TeacherProfileScreen() {
   const { isRTL, getFlexDirection } = useRTL();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'about' | 'availability' | 'reviews'>('about');
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  const { user } = useAuth();
 
   const { data: teacherData, isLoading: loadingTeacher, error: teacherError } = useQuery({
     queryKey: ['teacher', id],
@@ -153,6 +159,36 @@ export default function TeacherProfileScreen() {
       pathname: '/(booking)/book-lesson' as any,
       params: { teacherId: teacher.id },
     });
+  };
+
+  const handleSendMessage = async () => {
+    if (!user) {
+      Alert.alert('שגיאה', 'יש להתחבר כדי לשלוח הודעה');
+      return;
+    }
+
+    if (!id) {
+      Alert.alert('שגיאה', 'לא נמצא מזהה מורה');
+      return;
+    }
+
+    setIsCreatingConversation(true);
+
+    try {
+      // Create or get existing conversation
+      const conversation = await getOrCreateConversation({
+        teacherId: id as string,
+        studentId: user.id,
+      });
+
+      // Navigate to conversation
+      router.push(`/(tabs)/messages/${conversation.id}`);
+    } catch (error: any) {
+      console.error('[TeacherProfile] Failed to create conversation:', error);
+      Alert.alert('שגיאה', error?.message || 'אירעה שגיאה ביצירת השיחה');
+    } finally {
+      setIsCreatingConversation(false);
+    }
   };
 
   const priceText = `₪${teacher.hourlyRate} לשעה`;
@@ -558,23 +594,65 @@ export default function TeacherProfileScreen() {
 
       {/* Bottom Action */}
       <View style={[styles.bottomAction, { bottom: insets.bottom + 68 }]}>
-        <Button
-          onPress={handleBooking}
-          style={{
-            width: '100%',
-            height: 54,
-            paddingHorizontal: spacing[4],
-            paddingVertical: spacing[2],
-            backgroundColor: '#007AFF',
-            borderRadius: 8,
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}
-        >
-          <ButtonText style={{ color: 'white', fontSize: 18, fontWeight: '600' }}>
-            {`${t('teacher.bookNow')} - ${priceText}`}
-          </ButtonText>
-        </Button>
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing[2] }}>
+          {/* Send Message Button */}
+          <TouchableOpacity
+            onPress={handleSendMessage}
+            disabled={isCreatingConversation}
+            style={{
+              flex: 1,
+              height: 54,
+              paddingHorizontal: spacing[3],
+              paddingVertical: spacing[2],
+              backgroundColor: colors.white,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: colors.primary[600],
+              justifyContent: 'center',
+              alignItems: 'center',
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              opacity: isCreatingConversation ? 0.5 : 1,
+            }}
+          >
+            {isCreatingConversation ? (
+              <ActivityIndicator color={colors.primary[600]} size="small" />
+            ) : (
+              <>
+                <MessageCircle size={20} color={colors.primary[600]} />
+                <Typography
+                  variant="body1"
+                  weight="semibold"
+                  style={{
+                    color: colors.primary[600],
+                    marginLeft: isRTL ? 0 : spacing[2],
+                    marginRight: isRTL ? spacing[2] : 0,
+                  }}
+                >
+                  שלח הודעה
+                </Typography>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Book Now Button */}
+          <Button
+            onPress={handleBooking}
+            style={{
+              flex: 2,
+              height: 54,
+              paddingHorizontal: spacing[4],
+              paddingVertical: spacing[2],
+              backgroundColor: '#007AFF',
+              borderRadius: 8,
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}
+          >
+            <ButtonText style={{ color: 'white', fontSize: 18, fontWeight: '600' }}>
+              {`${t('teacher.bookNow')} - ${priceText}`}
+            </ButtonText>
+          </Button>
+        </View>
       </View>
     </SafeAreaView>
   );

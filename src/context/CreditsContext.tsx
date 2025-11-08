@@ -98,13 +98,14 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
       return cleanup;
     }
 
+    // Wait for auth to finish loading before doing anything
+    if (authLoading) {
+      cleanup();
+      return cleanup;
+    }
+
     // Only fetch if user ID changed or hasn't been fetched yet
     if (lastFetchedUserId.current !== userId && !isFetching) {
-      // Wait for auth to finish loading before proceeding
-      if (authLoading) {
-        console.log('🔵 [CreditsContext] Auth still loading, waiting...');
-        return cleanup;
-      }
 
       // Check if user is a student - only students need credits
       // If profile is loaded and user is not a student, skip credits fetch

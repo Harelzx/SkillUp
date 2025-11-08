@@ -23,9 +23,10 @@ import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
-import { updateStudentProfile, getSubjects } from '@/services/api';
+import { updateStudentProfile, getSubjects, getStudentLevelCategories, getStudentLevelProficiencies, toOptions } from '@/services/api';
 import { getRegions, getCitiesByRegion } from '@/services/api/regionsAPI';
 import type { Region, City } from '@/types/database';
+import { useQuery } from '@tanstack/react-query';
 
 interface StudentOnboardingModalProps {
   studentId: string;
@@ -42,21 +43,21 @@ interface FormData {
   bio: string;
 }
 
-const LEVEL_CATEGORIES = [
-  { value: 'elementary', label: 'בית ספר יסודי' },
-  { value: 'middle', label: 'חטיבת ביניים' },
-  { value: 'high', label: 'תיכון' },
-  { value: 'academic', label: 'אקדמי' },
-  { value: 'adult', label: 'מבוגר' },
-];
-
-const LEVEL_PROFICIENCIES = [
-  { value: 'beginner', label: 'מתחיל' },
-  { value: 'intermediate', label: 'בינוני' },
-  { value: 'advanced', label: 'מתקדם' },
-];
-
 export default function StudentOnboardingModal({ studentId, onComplete }: StudentOnboardingModalProps) {
+  // Fetch static data from database
+  const { data: levelCategories = [], isLoading: loadingCategories } = useQuery({
+    queryKey: ['student-level-categories'],
+    queryFn: getStudentLevelCategories,
+  });
+
+  const { data: levelProficiencies = [], isLoading: loadingProficiencies } = useQuery({
+    queryKey: ['student-level-proficiencies'],
+    queryFn: getStudentLevelProficiencies,
+  });
+
+  // Convert to options format
+  const LEVEL_CATEGORIES = toOptions(levelCategories);
+  const LEVEL_PROFICIENCIES = toOptions(levelProficiencies);
   const { isRTL } = useRTL();
   const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(1);
@@ -629,25 +630,31 @@ export default function StudentOnboardingModal({ studentId, onComplete }: Studen
         <Typography variant="body1" weight="semibold" style={styles.inputLabel}>
           באיזו רמה אתה לומד? *
         </Typography>
-        <View style={styles.gridContainer}>
-          {LEVEL_CATEGORIES.map((level) => (
-            <TouchableOpacity
-              key={level.value}
-              style={[styles.chipButton, formData.levelCategory === level.value && styles.chipButtonSelected]}
-              onPress={() => setFormData({ ...formData, levelCategory: level.value })}
-            >
-              <Typography
-                variant="body2"
-                weight={formData.levelCategory === level.value ? 'semibold' : 'normal'}
-                style={{
-                  color: formData.levelCategory === level.value ? colors.primary[700] : colors.gray[700],
-                }}
+        {loadingCategories ? (
+          <View style={{ padding: spacing[4], alignItems: 'center' }}>
+            <ActivityIndicator color={colors.primary[600]} />
+          </View>
+        ) : (
+          <View style={styles.gridContainer}>
+            {LEVEL_CATEGORIES.map((level) => (
+              <TouchableOpacity
+                key={level.value}
+                style={[styles.chipButton, formData.levelCategory === level.value && styles.chipButtonSelected]}
+                onPress={() => setFormData({ ...formData, levelCategory: level.value })}
               >
-                {level.label}
-              </Typography>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <Typography
+                  variant="body2"
+                  weight={formData.levelCategory === level.value ? 'semibold' : 'normal'}
+                  style={{
+                    color: formData.levelCategory === level.value ? colors.primary[700] : colors.gray[700],
+                  }}
+                >
+                  {level.label}
+                </Typography>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         {errors.levelCategory && (
           <Typography variant="caption" color="error" style={styles.errorText}>
             {errors.levelCategory}
@@ -659,25 +666,31 @@ export default function StudentOnboardingModal({ studentId, onComplete }: Studen
         <Typography variant="body1" weight="semibold" style={styles.inputLabel}>
           מה רמת השליטה שלך? *
         </Typography>
-        <View style={styles.gridContainer}>
-          {LEVEL_PROFICIENCIES.map((level) => (
-            <TouchableOpacity
-              key={level.value}
-              style={[styles.chipButton, formData.levelProficiency === level.value && styles.chipButtonSelected]}
-              onPress={() => setFormData({ ...formData, levelProficiency: level.value })}
-            >
-              <Typography
-                variant="body2"
-                weight={formData.levelProficiency === level.value ? 'semibold' : 'normal'}
-                style={{
-                  color: formData.levelProficiency === level.value ? colors.primary[700] : colors.gray[700],
-                }}
+        {loadingProficiencies ? (
+          <View style={{ padding: spacing[4], alignItems: 'center' }}>
+            <ActivityIndicator color={colors.primary[600]} />
+          </View>
+        ) : (
+          <View style={styles.gridContainer}>
+            {LEVEL_PROFICIENCIES.map((level) => (
+              <TouchableOpacity
+                key={level.value}
+                style={[styles.chipButton, formData.levelProficiency === level.value && styles.chipButtonSelected]}
+                onPress={() => setFormData({ ...formData, levelProficiency: level.value })}
               >
-                {level.label}
-              </Typography>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <Typography
+                  variant="body2"
+                  weight={formData.levelProficiency === level.value ? 'semibold' : 'normal'}
+                  style={{
+                    color: formData.levelProficiency === level.value ? colors.primary[700] : colors.gray[700],
+                  }}
+                >
+                  {level.label}
+                </Typography>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         {errors.levelProficiency && (
           <Typography variant="caption" color="error" style={styles.errorText}>
             {errors.levelProficiency}

@@ -56,6 +56,12 @@ export * from './paymentsAPI';
 // Notifications API
 export * from './notificationsAPI';
 
+// Conversations API
+export * from './conversationsAPI';
+
+// Messages API
+export * from './messagesAPI';
+
 // Lesson Tracking API
 export {
   getTeacherCompletedLessons,
@@ -67,6 +73,31 @@ export {
   type LessonTrackingFilters,
   type LessonTrackingResponse,
 } from './lessonTrackingAPI';
+
+// Static Data API
+export {
+  getLanguages,
+  getLanguageByCode,
+  getStudentLevelCategories,
+  getStudentLevelCategoryByValue,
+  getStudentLevelProficiencies,
+  getStudentLevelProficiencyByValue,
+  getLessonModes,
+  getLessonModeByValue,
+  getLessonDurations,
+  getLessonDurationByMinutes,
+  getBookingStatuses,
+  getBookingStatusByValue,
+  toOptions,
+  durationsToOptions,
+  languagesToOptions,
+  type Language,
+  type StudentLevelCategory,
+  type StudentLevelProficiency,
+  type LessonMode,
+  type LessonDuration,
+  type BookingStatus,
+} from './staticDataAPI';
 
 // Re-export all types
 export * from '@/types/api';

@@ -1,9 +1,18 @@
-import { View, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, TouchableOpacity, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { BookingData, LessonType } from '@/types/booking';
 import { Wifi, Home, School } from 'lucide-react-native';
 import type { BookingMode } from '@/hooks/useTeacherBookingData';
+import { useQuery } from '@tanstack/react-query';
+import {
+  getLessonModes,
+  getStudentLevelCategories,
+  getStudentLevelProficiencies,
+  getLessonDurations,
+  toOptions,
+  durationsToOptions,
+} from '@/services/api';
 
 interface BookingStep1Props {
   data: BookingData;
@@ -14,37 +23,64 @@ interface BookingStep1Props {
   errors: Record<string, string>;
 }
 
-const LESSON_TYPES: { value: LessonType; label: string; icon: any; description: string }[] = [
-  { value: 'online', label: 'אונליין', icon: Wifi, description: 'באמצעות Zoom/Teams' },
-  { value: 'student_location', label: 'אצל התלמיד', icon: Home, description: 'המורה יגיע אליך' },
-  { value: 'teacher_location', label: 'אצל המורה', icon: School, description: 'תגיע למורה' },
-];
-
-const STUDENT_LEVEL_CATEGORIES: { value: any; label: string }[] = [
-  { value: 'elementary', label: 'יסודי' },
-  { value: 'middle_school', label: 'חט״ב' },
-  { value: 'high_school', label: 'תיכון' },
-  { value: 'student', label: 'סטודנט' },
-  { value: 'adult', label: 'מבוגר' },
-  { value: 'other', label: 'אחר' },
-];
-
-const STUDENT_LEVEL_PROFICIENCIES: { value: any; label: string }[] = [
-  { value: 'beginner', label: 'מתחיל' },
-  { value: 'basic', label: 'בסיסי' },
-  { value: 'intermediate', label: 'בינוני' },
-  { value: 'advanced', label: 'מתקדם' },
-  { value: 'competitive', label: 'תחרותי/מקצועי' },
-];
+// Icon mapping for lesson modes
+const LESSON_TYPE_ICONS: Record<string, any> = {
+  online: Wifi,
+  at_student: Home,
+  at_teacher: School,
+  student_location: Home, // Legacy value
+  teacher_location: School, // Legacy value
+};
 
 export function BookingStep1({ data, availableSubjects, availableModes, availableDurations, onChange, errors }: BookingStep1Props) {
+  // Fetch static data from database
+  const { data: lessonModesData = [], isLoading: loadingModes } = useQuery({
+    queryKey: ['lesson-modes'],
+    queryFn: getLessonModes,
+  });
+
+  const { data: levelCategories = [], isLoading: loadingCategories } = useQuery({
+    queryKey: ['student-level-categories'],
+    queryFn: getStudentLevelCategories,
+  });
+
+  const { data: levelProficiencies = [], isLoading: loadingProficiencies } = useQuery({
+    queryKey: ['student-level-proficiencies'],
+    queryFn: getStudentLevelProficiencies,
+  });
+
+  const { data: lessonDurationsData = [], isLoading: loadingDurations } = useQuery({
+    queryKey: ['lesson-durations', true], // true = only default durations
+    queryFn: () => getLessonDurations(true),
+  });
+
+  // Convert to options format
+  const STUDENT_LEVEL_CATEGORIES = toOptions(levelCategories);
+  const STUDENT_LEVEL_PROFICIENCIES = toOptions(levelProficiencies);
+
+  // Map lesson modes to lesson types with icons
+  // Note: Database uses 'at_teacher' and 'at_student' but code may use 'teacher_location' and 'student_location'
+  const LESSON_TYPES = lessonModesData.map(mode => {
+    // Map database values to code values for backward compatibility
+    let value = mode.value;
+    if (value === 'at_teacher') value = 'teacher_location';
+    if (value === 'at_student') value = 'student_location';
+
+    return {
+      value: value as LessonType,
+      label: mode.label_he,
+      icon: LESSON_TYPE_ICONS[mode.value] || School,
+      description: mode.description_he || '',
+    };
+  });
+
   // Filter lesson types based on available modes
-  const lessonTypes = LESSON_TYPES.filter(type => 
+  const lessonTypes = LESSON_TYPES.filter(type =>
     !availableModes || availableModes.includes(type.value as BookingMode)
   );
-  
-  // Use available durations or default to [45, 60, 90]
-  const durations = availableDurations || [45, 60, 90];
+
+  // Use available durations from teacher or default to database durations
+  const durations = availableDurations || lessonDurationsData.map(d => d.duration_minutes);
   return (
     <ScrollView 
       style={{ flex: 1 }}
@@ -104,38 +140,44 @@ export function BookingStep1({ data, availableSubjects, availableModes, availabl
         <Typography variant="body1" weight="semibold" style={{ textAlign: 'right', marginBottom: spacing[2] }}>
           סוג שיעור <Typography color="error">*</Typography>
         </Typography>
-        <View>
-          {lessonTypes.map((type) => {
-            const Icon = type.icon;
-            const isSelected = data.lessonType === type.value;
-            return (
-              <TouchableOpacity
-                key={type.value}
-                onPress={() => onChange({ lessonType: type.value })}
-                style={{
-                  flexDirection: 'row-reverse',
-                  alignItems: 'center',
-                  padding: spacing[3],
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: isSelected ? colors.primary[600] : colors.gray[300],
-                  backgroundColor: isSelected ? colors.primary[50] : colors.white,
-                  marginBottom: spacing[2],
-                }}
-              >
-                <Icon size={24} color={isSelected ? colors.primary[600] : colors.gray[600]} style={{ marginRight: spacing[3] }} />
-                <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                  <Typography variant="body1" weight="semibold">
-                    {type.label}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    {type.description}
-                  </Typography>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {loadingModes ? (
+          <View style={{ padding: spacing[4], alignItems: 'center' }}>
+            <ActivityIndicator color={colors.primary[600]} />
+          </View>
+        ) : (
+          <View>
+            {lessonTypes.map((type) => {
+              const Icon = type.icon;
+              const isSelected = data.lessonType === type.value;
+              return (
+                <TouchableOpacity
+                  key={type.value}
+                  onPress={() => onChange({ lessonType: type.value })}
+                  style={{
+                    flexDirection: 'row-reverse',
+                    alignItems: 'center',
+                    padding: spacing[3],
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: isSelected ? colors.primary[600] : colors.gray[300],
+                    backgroundColor: isSelected ? colors.primary[50] : colors.white,
+                    marginBottom: spacing[2],
+                  }}
+                >
+                  <Icon size={24} color={isSelected ? colors.primary[600] : colors.gray[600]} style={{ marginRight: spacing[3] }} />
+                  <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                    <Typography variant="body1" weight="semibold">
+                      {type.label}
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      {type.description}
+                    </Typography>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
         {errors.lessonType && (
           <Typography variant="caption" color="error" style={{ marginTop: spacing[1], textAlign: 'right' }}>
             {errors.lessonType}
@@ -192,31 +234,37 @@ export function BookingStep1({ data, availableSubjects, availableModes, availabl
         <Typography variant="body1" weight="semibold" style={{ textAlign: 'right', marginBottom: spacing[2] }}>
           קטגוריית גיל <Typography color="error">*</Typography>
         </Typography>
-        <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap' }}>
-          {STUDENT_LEVEL_CATEGORIES.map((level) => (
-            <TouchableOpacity
-              key={level.value}
-              onPress={() => onChange({ studentLevelCategory: level.value })}
-              style={{
-                paddingHorizontal: spacing[4],
-                paddingVertical: spacing[2],
-                borderRadius: 20,
-                borderWidth: 1,
-                borderColor: data.studentLevelCategory === level.value ? colors.primary[600] : colors.gray[300],
-                backgroundColor: data.studentLevelCategory === level.value ? colors.primary[50] : colors.white,
-                marginLeft: spacing[2],
-                marginBottom: spacing[2],
-              }}
-            >
-              <Typography
-                variant="body2"
-                color={data.studentLevelCategory === level.value ? 'primary' : 'text'}
+        {loadingCategories ? (
+          <View style={{ padding: spacing[4], alignItems: 'center' }}>
+            <ActivityIndicator color={colors.primary[600]} />
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap' }}>
+            {STUDENT_LEVEL_CATEGORIES.map((level) => (
+              <TouchableOpacity
+                key={level.value}
+                onPress={() => onChange({ studentLevelCategory: level.value })}
+                style={{
+                  paddingHorizontal: spacing[4],
+                  paddingVertical: spacing[2],
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: data.studentLevelCategory === level.value ? colors.primary[600] : colors.gray[300],
+                  backgroundColor: data.studentLevelCategory === level.value ? colors.primary[50] : colors.white,
+                  marginLeft: spacing[2],
+                  marginBottom: spacing[2],
+                }}
               >
-                {level.label}
-              </Typography>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <Typography
+                  variant="body2"
+                  color={data.studentLevelCategory === level.value ? 'primary' : 'text'}
+                >
+                  {level.label}
+                </Typography>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         {errors.studentLevelCategory && (
           <Typography variant="caption" color="error" style={{ marginTop: spacing[1], textAlign: 'right' }}>
             {errors.studentLevelCategory}
@@ -229,31 +277,37 @@ export function BookingStep1({ data, availableSubjects, availableModes, availabl
         <Typography variant="body1" weight="semibold" style={{ textAlign: 'right', marginBottom: spacing[2] }}>
           רמת מיומנות <Typography color="error">*</Typography>
         </Typography>
-        <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap' }}>
-          {STUDENT_LEVEL_PROFICIENCIES.map((level) => (
-            <TouchableOpacity
-              key={level.value}
-              onPress={() => onChange({ studentLevelProficiency: level.value })}
-              style={{
-                paddingHorizontal: spacing[4],
-                paddingVertical: spacing[2],
-                borderRadius: 20,
-                borderWidth: 1,
-                borderColor: data.studentLevelProficiency === level.value ? colors.primary[600] : colors.gray[300],
-                backgroundColor: data.studentLevelProficiency === level.value ? colors.primary[50] : colors.white,
-                marginLeft: spacing[2],
-                marginBottom: spacing[2],
-              }}
-            >
-              <Typography
-                variant="body2"
-                color={data.studentLevelProficiency === level.value ? 'primary' : 'text'}
+        {loadingProficiencies ? (
+          <View style={{ padding: spacing[4], alignItems: 'center' }}>
+            <ActivityIndicator color={colors.primary[600]} />
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap' }}>
+            {STUDENT_LEVEL_PROFICIENCIES.map((level) => (
+              <TouchableOpacity
+                key={level.value}
+                onPress={() => onChange({ studentLevelProficiency: level.value })}
+                style={{
+                  paddingHorizontal: spacing[4],
+                  paddingVertical: spacing[2],
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: data.studentLevelProficiency === level.value ? colors.primary[600] : colors.gray[300],
+                  backgroundColor: data.studentLevelProficiency === level.value ? colors.primary[50] : colors.white,
+                  marginLeft: spacing[2],
+                  marginBottom: spacing[2],
+                }}
               >
-                {level.label}
-              </Typography>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <Typography
+                  variant="body2"
+                  color={data.studentLevelProficiency === level.value ? 'primary' : 'text'}
+                >
+                  {level.label}
+                </Typography>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         {errors.studentLevelProficiency && (
           <Typography variant="caption" color="error" style={{ marginTop: spacing[1], textAlign: 'right' }}>
             {errors.studentLevelProficiency}
