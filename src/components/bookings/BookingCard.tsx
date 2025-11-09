@@ -208,7 +208,10 @@ export function BookingCard({ booking, userRole, onCancelled }: BookingCardProps
                 style={{ marginRight: spacing[1] }}
               >
                 {userRole === 'student' ? 'מורה: ' : 'תלמיד: '}
-                {otherPerson.display_name}
+                {otherPerson?.display_name || 
+                 (otherPerson?.first_name && otherPerson?.last_name 
+                   ? `${otherPerson.first_name} ${otherPerson.last_name}` 
+                   : userRole === 'student' ? 'מורה' : 'תלמיד')}
               </Typography>
             </View>
           )}

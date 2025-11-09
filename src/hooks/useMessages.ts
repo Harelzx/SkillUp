@@ -41,20 +41,42 @@ export function useMessages(options: UseMessagesOptions) {
   useEffect(() => {
     if (!enabled || !conversationId) return;
 
-    console.log(`📡 Setting up realtime subscription for messages: ${conversationId}`);
+    console.log(`📡 [useMessages] Setting up realtime subscription for messages: ${conversationId}`);
 
     const unsubscribe = subscribeToMessages(conversationId, (newMessage) => {
-      console.log('📡 Realtime: New message received', newMessage);
+      console.log('📡 [useMessages] Realtime: New message received', {
+        messageId: newMessage.id,
+        conversationId,
+        senderId: newMessage.sender_id,
+        contentPreview: newMessage.content?.substring(0, 50),
+        fullMessage: newMessage,
+      });
 
       // Add new message to cache
       queryClient.setQueryData(
         ['messages', conversationId],
         (old: { messages: Message[]; total: number; hasMore: boolean } | undefined) => {
-          if (!old) return old;
+          if (!old) {
+            console.warn('[useMessages] No cache found when adding new message, creating new cache');
+            return {
+              messages: [newMessage],
+              total: 1,
+              hasMore: false,
+            };
+          }
 
           // Check if message already exists (prevent duplicates)
           const exists = old.messages.some((msg) => msg.id === newMessage.id);
-          if (exists) return old;
+          if (exists) {
+            console.log('[useMessages] Message already exists in cache, skipping duplicate:', newMessage.id);
+            return old;
+          }
+
+          console.log('[useMessages] Adding new message to cache:', {
+            messageId: newMessage.id,
+            currentMessageCount: old.messages.length,
+            newMessageCount: old.messages.length + 1,
+          });
 
           return {
             messages: [...old.messages, newMessage],
@@ -71,7 +93,7 @@ export function useMessages(options: UseMessagesOptions) {
     });
 
     return () => {
-      console.log(`📡 Cleaning up messages realtime subscription: ${conversationId}`);
+      console.log(`📡 [useMessages] Cleaning up messages realtime subscription: ${conversationId}`);
       unsubscribe();
     };
   }, [enabled, conversationId, queryClient]);
@@ -118,9 +140,52 @@ export function useSendMessage() {
 
   return useMutation({
     mutationFn: sendMessage,
-    onSuccess: (newMessage) => {
-      // Message will be added via real-time subscription
-      // But we can optimistically update for faster UI
+    onSuccess: (newMessage, variables) => {
+      const conversationId = variables.conversationId;
+
+      console.log('[useSendMessage] Adding message optimistically to cache:', {
+        messageId: newMessage.id,
+        conversationId,
+      });
+
+      // Optimistically add the message to cache for immediate UI update
+      queryClient.setQueryData(
+        ['messages', conversationId],
+        (old: { messages: Message[]; total: number; hasMore: boolean } | undefined) => {
+          if (!old) {
+            // If no cache exists, create a new one
+            return {
+              messages: [newMessage],
+              total: 1,
+              hasMore: false,
+            };
+          }
+
+          // Check if message already exists (prevent duplicates)
+          const exists = old.messages.some((msg) => msg.id === newMessage.id);
+          if (exists) {
+            console.log('[useSendMessage] Message already exists in cache, skipping');
+            return old;
+          }
+
+          // Add new message to the end of the list
+          const updatedMessages = [...old.messages, newMessage];
+          
+          console.log('[useSendMessage] Updated cache:', {
+            oldCount: old.messages.length,
+            newCount: updatedMessages.length,
+            lastMessage: updatedMessages[updatedMessages.length - 1],
+          });
+
+          return {
+            ...old,
+            messages: updatedMessages,
+            total: old.total + 1,
+          };
+        }
+      );
+
+      // Invalidate conversations to update preview and last message
       queryClient.invalidateQueries({
         queryKey: ['conversations'],
       });
@@ -154,10 +219,23 @@ export function useMarkAsRead() {
         }
       );
 
-      // Invalidate conversations to update unread count
-      queryClient.invalidateQueries({
-        queryKey: ['conversations'],
-      });
+      // Update conversation in cache to reset unread count
+      queryClient.setQueryData(
+        ['conversations'],
+        (old: any[] | undefined) => {
+          if (!old) return old;
+
+          return old.map((conv) => {
+            if (conv.id === conversationId) {
+              return {
+                ...conv,
+                unread_count: 0,
+              };
+            }
+            return conv;
+          });
+        }
+      );
 
       // Invalidate unread count
       queryClient.invalidateQueries({

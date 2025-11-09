@@ -50,7 +50,7 @@ const getPopularSubjects = (t: any) => [
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { isRTL, direction } = useRTL();
+  const { isRTL, direction, getFlexDirection, getMarginStart, getMarginEnd } = useRTL();
   const { profile } = useAuth();
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
@@ -117,8 +117,7 @@ export default function HomeScreen() {
       variant="elevated"
       style={{
         marginBottom: spacing[2],
-        marginRight: isRTL ? 0 : spacing[2],
-        marginLeft: isRTL ? spacing[2] : 0,
+        ...getMarginStart(spacing[2]),
         width: 260,
         maxWidth: 280,
         borderRadius: 16,
@@ -134,14 +133,14 @@ export default function HomeScreen() {
       >
         {/* Top Row: Avatar + Name (left) | Rating (right) */}
         <View style={{
-          flexDirection: 'row-reverse',
+          flexDirection: getFlexDirection(),
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: spacing[2],
         }}>
           {/* Left side: Avatar + Name */}
           <View style={{
-            flexDirection: 'row-reverse',
+            flexDirection: getFlexDirection(),
             alignItems: 'center',
             flex: 1,
           }}>
@@ -175,7 +174,7 @@ export default function HomeScreen() {
               variant="body1"
               weight="semibold"
               numberOfLines={1}
-              style={{ flex: 1, fontSize: 16, textAlign: 'right', marginRight: spacing[2] }}
+              style={{ flex: 1, fontSize: 16, ...getMarginStart(spacing[2]) }}
             >
               {safeName}
             </Typography>
@@ -183,7 +182,7 @@ export default function HomeScreen() {
 
           {/* Right side: Rating */}
           <View style={{
-            flexDirection: 'row-reverse',
+            flexDirection: getFlexDirection(),
             alignItems: 'center',
           }}>
             <Star size={13} color={colors.warning[500]} fill={colors.warning[500]} />
@@ -192,7 +191,7 @@ export default function HomeScreen() {
                 <Typography
                   variant="caption"
                   weight="bold"
-                  style={{ fontSize: 13, marginHorizontal: 4 }}
+                  style={{ fontSize: 13, ...getMarginStart(4) }}
                 >
                   {safeRating.toFixed(1)}
                 </Typography>
@@ -208,7 +207,7 @@ export default function HomeScreen() {
               <Typography
                 variant="caption"
                 color="textSecondary"
-                style={{ fontSize: 12, marginLeft: 4 }}
+                style={{ fontSize: 12, ...getMarginStart(4) }}
               >
                 חדש
               </Typography>
@@ -223,7 +222,7 @@ export default function HomeScreen() {
               variant="body2"
               color="textSecondary"
               numberOfLines={2}
-              style={{ fontSize: 13, textAlign: 'right' }}
+              style={{ fontSize: 13 }}
             >
               {safeBio}
             </Typography>
@@ -233,7 +232,7 @@ export default function HomeScreen() {
         {/* Subjects Chips - row-reverse aligned */}
         {safeSubjects.length > 0 && (
           <View style={{
-            flexDirection: 'row-reverse',
+            flexDirection: getFlexDirection(),
             flexWrap: 'wrap',
             justifyContent: 'flex-start',
             marginBottom: spacing[2],
@@ -248,7 +247,7 @@ export default function HomeScreen() {
                   borderRadius: 6,
                   borderWidth: 1,
                   borderColor: colors.gray[200],
-                  marginHorizontal: 3,
+                  ...getMarginEnd(3),
                   marginVertical: 2,
                 }}
               >
@@ -284,7 +283,7 @@ export default function HomeScreen() {
 
         {/* Bottom Row: Price (left) | Location (right) */}
         <View style={{
-          flexDirection: 'row',
+          flexDirection: getFlexDirection(),
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
@@ -309,12 +308,12 @@ export default function HomeScreen() {
           {/* Right side: Location */}
           {safeLocation ? (
             <View style={{
-              flexDirection: 'row',
+              flexDirection: getFlexDirection(),
               alignItems: 'center',
             }}>
               <Typography
                 variant="caption"
-                style={{ fontSize: 14, fontWeight: 'light', textAlign: 'right', marginRight: 4 }}
+                style={{ fontSize: 14, fontWeight: 'light', ...getMarginStart(4) }}
               >
                 {safeLocation}
               </Typography>
@@ -345,14 +344,13 @@ export default function HomeScreen() {
     },
 
     headerContent: {
-      flexDirection: 'row-reverse',
+      flexDirection: getFlexDirection(),
       alignItems: 'center',
       justifyContent: 'space-between',
     },
 
     greetingContainer: {
       flex: 1,
-      alignItems: 'flex-end',
     },
 
     userAvatar: {
@@ -401,14 +399,7 @@ export default function HomeScreen() {
       paddingVertical: spacing[2],
       borderRadius: 20,
       borderWidth: 1,
-    },
-
-    subjectChipLTR: {
-      marginRight: spacing[2],
-    },
-
-    subjectChipRTL: {
-      marginLeft: spacing[2],
+      marginStart: spacing[2],
     },
 
     subjectChipSelected: {
@@ -511,7 +502,7 @@ export default function HomeScreen() {
   });
 
   return (
-    <SafeAreaView style={[styles.container, { direction }]}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
       <ScrollView
@@ -522,11 +513,11 @@ export default function HomeScreen() {
         {/* Header with greeting */}
         <View style={styles.headerSection}>
           <View style={styles.headerContent}>
-            <View style={styles.greetingContainer}>
-              <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right', fontSize: 14 }}>
+            <View style={[styles.greetingContainer, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+              <Typography variant="body2" color="textSecondary" style={{ fontSize: 14 }}>
                 {new Date().getHours() < 12 ? 'בוקר טוב' : new Date().getHours() < 18 ? 'צהריים טובים' : 'ערב טוב'}
               </Typography>
-              <Typography variant="h3" weight="bold" style={{ textAlign: 'right', color: colors.gray[900], marginTop: spacing[1] }}>
+              <Typography variant="h3" weight="bold" style={{ color: colors.gray[900], marginTop: spacing[1] }}>
                 {profile?.displayName || 'אורח'}
               </Typography>
             </View>
@@ -571,7 +562,6 @@ export default function HomeScreen() {
                   )}
                   style={[
                     styles.subjectChip,
-                    isRTL ? styles.subjectChipRTL : styles.subjectChipLTR,
                     selectedSubject === subject.key ? styles.subjectChipSelected : styles.subjectChipDefault
                   ]}
                 >

@@ -1,9 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, I18nManager, Keyboard } from 'react-native';
+import { View, TextInput, TouchableOpacity, Keyboard } from 'react-native';
 import { colors, spacing } from '@/theme/tokens';
 import { Send } from 'lucide-react-native';
-
-const isRTL = I18nManager.isRTL;
+import { useRTL } from '@/context/RTLContext';
 
 interface MessageInputProps {
   onSend: (message: string) => void;
@@ -18,6 +17,7 @@ export function MessageInput({
   placeholder = 'הקלד הודעה...',
   disabled = false,
 }: MessageInputProps) {
+  const { isRTL, getFlexDirection, getMarginEnd, getTextAlign, direction } = useRTL();
   const [message, setMessage] = useState('');
   const [height, setHeight] = useState(40);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -26,7 +26,7 @@ export function MessageInput({
     const trimmedMessage = message.trim();
     if (!trimmedMessage || disabled) return;
 
-    onSend(trimmedMessage);
+    // Clear message immediately for better UX
     setMessage('');
     setHeight(40);
 
@@ -39,6 +39,14 @@ export function MessageInput({
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
+
+    // Send message - don't await to avoid blocking UI
+    // The parent component handles errors
+    onSend(trimmedMessage).catch((error) => {
+      // If send fails, restore the message
+      setMessage(trimmedMessage);
+      console.error('[MessageInput] Failed to send message:', error);
+    });
   }, [message, onSend, onTyping, disabled]);
 
   const handleChangeText = useCallback(
@@ -84,7 +92,7 @@ export function MessageInput({
   return (
     <View
       style={{
-        flexDirection: isRTL ? 'row-reverse' : 'row',
+        flexDirection: getFlexDirection(),
         alignItems: 'flex-end',
         paddingHorizontal: spacing[4],
         paddingVertical: spacing[3],
@@ -103,8 +111,7 @@ export function MessageInput({
           borderColor: colors.gray[200],
           paddingHorizontal: spacing[4],
           paddingVertical: spacing[2],
-          marginLeft: isRTL ? 0 : spacing[2],
-          marginRight: isRTL ? spacing[2] : 0,
+          ...getMarginEnd(spacing[2]),
           maxHeight: 120,
         }}
       >
@@ -115,7 +122,7 @@ export function MessageInput({
           placeholderTextColor={colors.gray[400]}
           multiline
           textAlignVertical="center"
-          textAlign={isRTL ? 'right' : 'left'}
+          textAlign={getTextAlign()}
           editable={!disabled}
           style={{
             fontSize: 16,
@@ -123,7 +130,7 @@ export function MessageInput({
             minHeight: 40,
             maxHeight: 120,
             paddingVertical: 8,
-            writingDirection: isRTL ? 'rtl' : 'ltr',
+            writingDirection: direction,
           }}
           onContentSizeChange={(event) => {
             setHeight(Math.max(40, Math.min(120, event.nativeEvent.contentSize.height)));

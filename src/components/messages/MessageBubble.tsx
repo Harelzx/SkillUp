@@ -1,12 +1,11 @@
 import React from 'react';
-import { View, I18nManager } from 'react-native';
+import { View } from 'react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { Check, CheckCheck } from 'lucide-react-native';
 import type { Message } from '@/types/api';
 import { format } from 'date-fns';
-
-const isRTL = I18nManager.isRTL;
+import { useRTL } from '@/context/RTLContext';
 
 interface MessageBubbleProps {
   message: Message;
@@ -19,6 +18,8 @@ export function MessageBubble({
   isOwnMessage,
   showTimestamp = true,
 }: MessageBubbleProps) {
+  const { isRTL, getFlexDirection, getMarginEnd } = useRTL();
+
   const formatTime = (dateString: string) => {
     return format(new Date(dateString), 'HH:mm');
   };
@@ -26,7 +27,7 @@ export function MessageBubble({
   return (
     <View
       style={{
-        flexDirection: isRTL ? 'row-reverse' : 'row',
+        flexDirection: getFlexDirection(),
         justifyContent: isOwnMessage ? (isRTL ? 'flex-start' : 'flex-end') : (isRTL ? 'flex-end' : 'flex-start'),
         marginBottom: spacing[2],
         paddingHorizontal: spacing[4],
@@ -58,7 +59,7 @@ export function MessageBubble({
         {showTimestamp && (
           <View
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection(),
               alignItems: 'center',
               marginTop: spacing[1],
               justifyContent: isRTL ? 'flex-start' : 'flex-end',
@@ -68,8 +69,7 @@ export function MessageBubble({
               size="xs"
               style={{
                 color: isOwnMessage ? colors.primary[100] : colors.gray[500],
-                marginLeft: isRTL ? 0 : spacing[1],
-                marginRight: isRTL ? spacing[1] : 0,
+                ...getMarginEnd(spacing[1]),
               }}
             >
               {formatTime(message.created_at)}

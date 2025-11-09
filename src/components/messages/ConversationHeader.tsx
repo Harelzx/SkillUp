@@ -1,11 +1,10 @@
 import React from 'react';
-import { View, TouchableOpacity, Image, I18nManager } from 'react-native';
+import { View, TouchableOpacity, Image } from 'react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { ChevronRight, ChevronLeft, User } from 'lucide-react-native';
 import type { ConversationWithDetails } from '@/types/api';
-
-const isRTL = I18nManager.isRTL;
+import { useRTL } from '@/context/RTLContext';
 
 interface ConversationHeaderProps {
   conversation: ConversationWithDetails;
@@ -20,12 +19,17 @@ export function ConversationHeader({
   isTyping = false,
   onBack,
 }: ConversationHeaderProps) {
+  const { isRTL, getFlexDirection, getMarginStart, getMarginEnd } = useRTL();
+
   // Get the other participant's details
   const otherPerson = userRole === 'student' ? conversation.teacher : conversation.student;
-  const displayName =
-    userRole === 'student'
-      ? otherPerson.display_name
-      : `${otherPerson.first_name} ${otherPerson.last_name}`;
+  
+  // Safely get display name with fallback
+  const displayName = otherPerson
+    ? userRole === 'student'
+      ? otherPerson.display_name || 'מורה'
+      : `${otherPerson.first_name || ''} ${otherPerson.last_name || ''}`.trim() || 'תלמיד'
+    : userRole === 'student' ? 'מורה' : 'תלמיד';
 
   return (
     <View
@@ -40,7 +44,7 @@ export function ConversationHeader({
     >
       <View
         style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: getFlexDirection(),
           alignItems: 'center',
         }}
       >
@@ -49,8 +53,8 @@ export function ConversationHeader({
           onPress={onBack}
           activeOpacity={0.7}
           style={{
-            marginLeft: isRTL ? 0 : -8,
-            marginRight: isRTL ? -8 : spacing[3],
+            ...getMarginStart(-8),
+            ...getMarginEnd(spacing[3]),
             padding: spacing[2],
           }}
         >
@@ -70,12 +74,11 @@ export function ConversationHeader({
             backgroundColor: colors.gray[100],
             justifyContent: 'center',
             alignItems: 'center',
-            marginLeft: isRTL ? 0 : spacing[3],
-            marginRight: isRTL ? spacing[3] : 0,
+            ...getMarginEnd(spacing[3]),
             overflow: 'hidden',
           }}
         >
-          {otherPerson.avatar_url ? (
+          {otherPerson?.avatar_url ? (
             <Image
               source={{ uri: otherPerson.avatar_url }}
               style={{ width: 40, height: 40 }}

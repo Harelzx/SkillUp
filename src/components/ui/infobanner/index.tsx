@@ -415,7 +415,7 @@ export const InfoBanner: React.FC<InfoBannerProps> = ({
                 justifyContent: 'center',
                 flexWrap: 'wrap',
               }}>
-                <Typography style={{ fontSize: 18, lineHeight: 24, marginRight: 8 }}>
+                <Typography style={{ fontSize: 18, lineHeight: 24, marginStart: 8 }}>
                   {emoji}
                 </Typography>
                 <Typography

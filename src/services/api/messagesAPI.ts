@@ -149,6 +149,12 @@ export async function sendMessage(params: {
     senderType === 'teacher' ? conversation.student_id : conversation.teacher_id;
 
   // Get sender name for notification
+  console.log('[sendMessage] Getting sender name for notification:', {
+    senderType,
+    userId: user.id,
+    conversationId: params.conversationId,
+  });
+
   let senderName = '';
   if (senderType === 'teacher') {
     const { data: teacher } = await supabase
@@ -157,6 +163,7 @@ export async function sendMessage(params: {
       .eq('id', user.id)
       .single();
     senderName = teacher?.display_name || 'מורה';
+    console.log('[sendMessage] Teacher sender name:', { senderName, teacherId: user.id });
   } else {
     const { data: student } = await supabase
       .from('students')
@@ -164,9 +171,18 @@ export async function sendMessage(params: {
       .eq('id', user.id)
       .single();
     senderName = student ? `${student.first_name} ${student.last_name}` : 'תלמיד';
+    console.log('[sendMessage] Student sender name:', { senderName, studentId: user.id });
   }
 
   // Create notification for recipient
+  console.log('[sendMessage] Creating notification for recipient:', {
+    recipientId,
+    senderName,
+    conversationId: params.conversationId,
+    messageId: data.id,
+    contentPreview: content.substring(0, 50),
+  });
+
   try {
     await createNotification({
       userId: recipientId,
@@ -178,9 +194,19 @@ export async function sendMessage(params: {
         message_id: data.id,
       },
     });
-  } catch (notifError) {
+    console.log('[sendMessage] Notification created successfully for recipient:', recipientId);
+  } catch (notifError: any) {
     // Don't fail message send if notification fails
-    console.error('Failed to create notification:', notifError);
+    console.error('[sendMessage] Failed to create notification (non-fatal):', {
+      error: notifError,
+      code: notifError?.code,
+      message: notifError?.message,
+      details: notifError?.details,
+      hint: notifError?.hint,
+      recipientId,
+      conversationId: params.conversationId,
+      messageId: data.id,
+    });
   }
 
   return data as Message;
@@ -304,6 +330,8 @@ export function subscribeToMessages(
   conversationId: string,
   callback: (message: Message) => void
 ) {
+  console.log(`[subscribeToMessages] Setting up subscription for conversation: ${conversationId}`);
+
   const channel = supabase
     .channel(`messages:${conversationId}`)
     .on(
@@ -315,12 +343,30 @@ export function subscribeToMessages(
         filter: `conversation_id=eq.${conversationId}`,
       },
       (payload) => {
+        console.log('[subscribeToMessages] Received INSERT event:', {
+          conversationId,
+          messageId: payload.new?.id,
+          senderId: payload.new?.sender_id,
+          payload: payload,
+        });
         callback(payload.new as Message);
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log(`[subscribeToMessages] Subscription status for ${conversationId}:`, status);
+      if (status === 'SUBSCRIBED') {
+        console.log(`[subscribeToMessages] Successfully subscribed to messages for conversation: ${conversationId}`);
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error(`[subscribeToMessages] Channel error for conversation: ${conversationId}`);
+      } else if (status === 'TIMED_OUT') {
+        console.error(`[subscribeToMessages] Subscription timed out for conversation: ${conversationId}`);
+      } else if (status === 'CLOSED') {
+        console.log(`[subscribeToMessages] Subscription closed for conversation: ${conversationId}`);
+      }
+    });
 
   return () => {
+    console.log(`[subscribeToMessages] Cleaning up subscription for conversation: ${conversationId}`);
     supabase.removeChannel(channel);
   };
 }

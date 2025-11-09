@@ -193,21 +193,58 @@ export async function createNotification(params: {
   subtitle?: string;
   data?: any;
 }) {
-  const { data, error } = await supabase
-    .from('notifications')
-    .insert({
-      user_id: params.userId,
-      type: params.type,
-      title: params.title,
-      subtitle: params.subtitle,
-      data: params.data,
-      is_read: false,
-    })
-    .select()
-    .single();
+  console.log('[createNotification] Starting notification creation:', {
+    userId: params.userId,
+    type: params.type,
+    title: params.title.substring(0, 50),
+    hasSubtitle: !!params.subtitle,
+    hasData: !!params.data,
+  });
 
-  if (error) throw error;
-  return data as Notification;
+  try {
+    // Use RPC function with SECURITY DEFINER to bypass RLS
+    // The function now returns the full notification record
+    const { data, error } = await supabase.rpc('create_notification', {
+      p_user_id: params.userId,
+      p_type: params.type,
+      p_title: params.title,
+      p_subtitle: params.subtitle || null,
+      p_data: params.data || null,
+    }).single();
+
+    if (error) {
+      console.error('[createNotification] RPC call failed:', {
+        error: error,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        params: {
+          userId: params.userId,
+          type: params.type,
+        },
+      });
+      throw error;
+    }
+
+    console.log('[createNotification] Notification created successfully:', {
+      notificationId: data?.id,
+      userId: data?.user_id,
+      type: data?.type,
+    });
+
+    return data as Notification;
+  } catch (err) {
+    console.error('[createNotification] Unexpected error:', {
+      error: err,
+      params: {
+        userId: params.userId,
+        type: params.type,
+        title: params.title.substring(0, 50),
+      },
+    });
+    throw err;
+  }
 }
 
 // ============================================
@@ -221,6 +258,8 @@ export function subscribeToNotifications(
   userId: string,
   callback: (notification: Notification) => void
 ) {
+  console.log('[subscribeToNotifications] Creating channel for user:', userId);
+
   const channel = supabase
     .channel(`notifications:${userId}`)
     .on(
@@ -232,12 +271,27 @@ export function subscribeToNotifications(
         filter: `user_id=eq.${userId}`,
       },
       (payload) => {
+        console.log('[subscribeToNotifications] 📨 Received realtime event:', {
+          type: payload.eventType,
+          table: payload.table,
+          new: payload.new,
+        });
         callback(payload.new as Notification);
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log('[subscribeToNotifications] Channel status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[subscribeToNotifications] ✅ Successfully subscribed to notifications');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('[subscribeToNotifications] ❌ Channel error');
+      } else if (status === 'TIMED_OUT') {
+        console.error('[subscribeToNotifications] ⏱️ Subscription timed out');
+      }
+    });
 
   return () => {
+    console.log('[subscribeToNotifications] Unsubscribing from channel');
     supabase.removeChannel(channel);
   };
 }

@@ -85,40 +85,95 @@ export default function MessagesInboxScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50] }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: colors.gray[50] }}>
       <Stack.Screen
         options={{
           title: 'הודעות',
           headerShown: true,
+          headerStyle: {
+            backgroundColor: colors.white,
+            elevation: 0,
+            shadowOpacity: 0,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.gray[200],
+          },
+          headerTitleStyle: {
+            fontWeight: '600',
+            fontSize: 18,
+          },
         }}
       />
 
       {conversations && conversations.length > 0 ? (
-        <FlatList
-          data={conversations}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ConversationCard
-              conversation={item}
-              userRole="student"
-              onPress={() => handleConversationPress(item.id)}
-            />
-          )}
-          contentContainerStyle={{
-            padding: spacing[4],
-          }}
-          refreshControl={
-            <RefreshControl
-              refreshing={isLoading}
-              onRefresh={refetch}
-              colors={[colors.primary[600]]}
-              tintColor={colors.primary[600]}
-            />
-          }
-        />
+        <>
+          {/* Section Header */}
+          <View
+            style={{
+              backgroundColor: colors.white,
+              paddingHorizontal: spacing[4],
+              paddingTop: spacing[4],
+              paddingBottom: spacing[3],
+              borderBottomWidth: 1,
+              borderBottomColor: colors.gray[200],
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 2,
+            }}
+          >
+            <Typography
+              variant="h3"
+              weight="bold"
+              style={{
+                color: colors.gray[900],
+                fontSize: 20,
+                letterSpacing: -0.3,
+              }}
+            >
+              שיחות עם מורים
+            </Typography>
+            <Typography
+              variant="body2"
+              style={{
+                color: colors.gray[600],
+                marginTop: spacing[1],
+                fontSize: 14,
+                lineHeight: 20,
+              }}
+            >
+              בחר מורה כדי להתחיל שיחה או להמשיך שיחה קיימת
+            </Typography>
+          </View>
+
+          <FlatList
+            data={conversations}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <ConversationCard
+                conversation={item}
+                userRole="student"
+                onPress={() => handleConversationPress(item.id)}
+              />
+            )}
+            contentContainerStyle={{
+              paddingTop: spacing[3],
+              paddingBottom: spacing[6],
+            }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isLoading}
+                onRefresh={refetch}
+                colors={[colors.primary[600]]}
+                tintColor={colors.primary[600]}
+              />
+            }
+          />
+        </>
       ) : (
         <EmptyConversations userRole="student" />
       )}
-    </SafeAreaView>
+    </View>
   );
 }

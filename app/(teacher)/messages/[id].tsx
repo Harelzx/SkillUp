@@ -1,13 +1,14 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import {
   View,
   FlatList,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { ConversationHeader } from '@/components/messages/ConversationHeader';
@@ -27,6 +28,23 @@ export default function TeacherConversationScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const flatListRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  // Listen to keyboard show/hide events
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   // Fetch conversation details
   const { data: conversation, isLoading: conversationLoading, error: conversationError } = useQuery({
@@ -243,11 +261,17 @@ export default function TeacherConversationScreen() {
         </View>
 
         {/* Message Input */}
-        <MessageInput
-          onSend={handleSend}
-          onTyping={setIsTyping}
-          disabled={sendMessageMutation.isPending}
-        />
+        <View style={{ 
+          paddingBottom: isKeyboardVisible 
+            ? insets.bottom 
+            : Math.max(insets.bottom, 7) + 56 
+        }}>
+          <MessageInput
+            onSend={handleSend}
+            onTyping={setIsTyping}
+            disabled={sendMessageMutation.isPending}
+          />
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

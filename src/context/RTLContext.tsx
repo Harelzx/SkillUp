@@ -28,7 +28,7 @@ export const RTLProvider: React.FC<RTLProviderProps> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
 
   const isRTL = language === 'he';
-  const direction: 'ltr' | 'rtl' = isRTL ? 'ltr' : 'rtl';
+  const direction: 'ltr' | 'rtl' = isRTL ? 'rtl' : 'ltr';
 
   useEffect(() => {
     const initializeLanguage = async () => {
@@ -40,6 +40,13 @@ export const RTLProvider: React.FC<RTLProviderProps> = ({ children }) => {
           // Default to Hebrew for Israeli market
           await AsyncStorage.setItem(LANGUAGE_KEY, 'he');
           setLanguageState('he');
+        }
+
+        // Set RTL for React Native on initial load
+        const shouldBeRTL = savedLanguage === 'he' || !savedLanguage;
+        if (I18nManager.isRTL !== shouldBeRTL) {
+          I18nManager.forceRTL(shouldBeRTL);
+          I18nManager.allowRTL(shouldBeRTL);
         }
       } catch (error) {
         console.error('Failed to load language:', error);
@@ -71,7 +78,7 @@ export const RTLProvider: React.FC<RTLProviderProps> = ({ children }) => {
 
   const getFlexDirection = (defaultDirection: 'row' | 'column' = 'row'): 'row' | 'row-reverse' | 'column' => {
     if (defaultDirection === 'column') return 'column';
-    return isRTL ? 'row-reverse' : 'column';
+    return isRTL ? 'row-reverse' : 'row';
   };
 
   const getMarginStart = (value: number) => {
@@ -106,7 +113,7 @@ export const RTLProvider: React.FC<RTLProviderProps> = ({ children }) => {
   // Provide safe defaults during initialization
   const defaultValue: RTLContextValue = {
     isRTL: true, // Default to Hebrew RTL
-    direction: 'ltr',
+    direction: 'rtl',
     language: 'he',
     setLanguage,
     getTextAlign,

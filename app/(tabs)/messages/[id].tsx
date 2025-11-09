@@ -1,13 +1,14 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import {
   View,
   FlatList,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { ConversationHeader } from '@/components/messages/ConversationHeader';
@@ -27,6 +28,23 @@ export default function ConversationScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const flatListRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  // Listen to keyboard show/hide events
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   // Fetch conversation details
   const { data: conversation, isLoading: conversationLoading, error: conversationError } = useQuery({
@@ -77,9 +95,14 @@ export default function ConversationScreen() {
     if (!id) return;
 
     try {
-      await sendMessageMutation.mutateAsync({
+      const sentMessage = await sendMessageMutation.mutateAsync({
         conversationId: id,
         content: message,
+      });
+
+      console.log('[ConversationScreen] Message sent successfully:', {
+        messageId: sentMessage.id,
+        conversationId: id,
       });
 
       // Scroll to bottom after sending
@@ -87,7 +110,9 @@ export default function ConversationScreen() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('[ConversationScreen] Failed to send message:', error);
+      // Re-throw to allow MessageInput to handle it
+      throw error;
     }
   };
 
@@ -173,12 +198,12 @@ export default function ConversationScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }} edges={['top', 'left', 'right']}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         {/* Header */}
@@ -243,11 +268,17 @@ export default function ConversationScreen() {
         </View>
 
         {/* Message Input */}
-        <MessageInput
-          onSend={handleSend}
-          onTyping={setIsTyping}
-          disabled={sendMessageMutation.isPending}
-        />
+        <View style={{ 
+          paddingBottom: isKeyboardVisible 
+            ? 0
+            : Math.max(insets.bottom, 7) + 56 
+        }}>
+          <MessageInput
+            onSend={handleSend}
+            onTyping={setIsTyping}
+            disabled={sendMessageMutation.isPending}
+          />
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

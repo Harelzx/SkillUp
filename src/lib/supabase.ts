@@ -7,6 +7,21 @@ import { EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY } from '@env';
 const supabaseUrl = EXPO_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co';
 const supabaseAnonKey = EXPO_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key';
 
+// Debug: Log configuration (only in development)
+if (__DEV__) {
+  console.log('🔧 Supabase Config:', {
+    url: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'MISSING',
+    hasAnonKey: !!supabaseAnonKey && supabaseAnonKey !== 'your-anon-key',
+  });
+  
+  if (!EXPO_PUBLIC_SUPABASE_URL || EXPO_PUBLIC_SUPABASE_ANON_KEY === 'your-anon-key') {
+    console.warn('⚠️ Supabase environment variables not loaded! Make sure:');
+    console.warn('1. .env file exists in project root');
+    console.warn('2. Metro bundler was restarted after creating .env');
+    console.warn('3. Variables are prefixed with EXPO_PUBLIC_');
+  }
+}
+
 // Create Supabase client with type safety
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {

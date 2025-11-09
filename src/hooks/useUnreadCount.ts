@@ -1,34 +1,27 @@
 /**
- * Hook to fetch total unread message count for badge display
+ * Hook to get unread message count using real-time notifications
+ * Now powered by NotificationContext for instant updates
  */
 
-import { useQuery } from '@tanstack/react-query';
-import { getUnreadMessageCount } from '@/services/api';
-import { useAuth } from '@/features/auth/auth-context';
+import { useNotifications } from '@/context/NotificationContext';
 
 interface UseUnreadCountOptions {
   enabled?: boolean;
-  refetchInterval?: number;
 }
 
 /**
  * Hook to get total unread message count
  * Used for displaying badge on Messages tab
+ *
+ * Now uses real-time notifications instead of polling!
  */
 export function useUnreadCount(options: UseUnreadCountOptions = {}) {
-  const { enabled = true, refetchInterval = 30000 } = options; // Default: refetch every 30 seconds
-  const { user } = useAuth();
+  const { enabled = true } = options;
+  const { unreadCount, isLoading } = useNotifications();
 
-  return useQuery({
-    queryKey: ['unread-count'],
-    queryFn: getUnreadMessageCount,
-    enabled: enabled && !!user,
-    refetchInterval,
-    staleTime: 10000, // 10 seconds
-    retry: false, // Don't retry if migration not run yet
-    onError: (error) => {
-      // Silently handle error if tables don't exist yet
-      console.log('Unread count fetch failed (migration may not be run yet):', error);
-    },
-  });
+  return {
+    data: enabled ? unreadCount : 0,
+    isLoading,
+    error: null,
+  };
 }

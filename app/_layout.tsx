@@ -7,6 +7,8 @@ import { initI18n } from '@/lib/i18n';
 import { Text, View } from 'react-native';
 import { RTLProvider } from '@/context/RTLContext';
 import { CreditsProvider } from '@/context/CreditsContext';
+import { NotificationProvider } from '@/context/NotificationContext';
+import { NotificationToast } from '@/components/notifications/NotificationToast';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { GluestackUIProvider } from '../components/ui/gluestack-ui-provider';
 import '../global.css';
@@ -51,12 +53,14 @@ export default function RootLayout() {
           <RTLProvider>
             <QueryClientProvider client={queryClient}>
               <AuthProvider>
-                <CreditsProvider>
-                  <Stack>
-                    <Stack.Screen
-                      name="(auth)"
-                      options={{ headerShown: false }}
-                    />
+                <NotificationProvider>
+                  <CreditsProvider>
+                    <>
+                      <Stack>
+                        <Stack.Screen
+                          name="(auth)"
+                          options={{ headerShown: false }}
+                        />
                     <Stack.Screen
                       name="(tabs)"
                       options={{ headerShown: false }}
@@ -69,12 +73,17 @@ export default function RootLayout() {
                       name="(teacher)"
                       options={{ headerShown: false }}
                     />
-                    <Stack.Screen
-                      name="(profile)"
-                      options={{ headerShown: false }}
-                    />
-                  </Stack>
-                </CreditsProvider>
+                        <Stack.Screen
+                          name="(profile)"
+                          options={{ headerShown: false }}
+                        />
+                      </Stack>
+
+                      {/* Global notification toast */}
+                      <NotificationToast />
+                    </>
+                  </CreditsProvider>
+                </NotificationProvider>
               </AuthProvider>
             </QueryClientProvider>
           </RTLProvider>
