@@ -53,6 +53,9 @@ export * from './creditsAPI';
 // Payments API
 export * from './paymentsAPI';
 
+// Teacher Students API
+export * from './teacherStudentsAPI';
+
 // Notifications API
 export * from './notificationsAPI';
 

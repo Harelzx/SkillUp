@@ -154,6 +154,35 @@ CREATE POLICY "Booking parties can update"
   USING (auth.uid() = teacher_id OR auth.uid() = student_id);
 
 -- -------------------------------------------
+-- Table: teacher_student_summary
+-- Aggregated relationship stats for teachers and students
+-- -------------------------------------------
+CREATE TABLE teacher_student_summary (
+  teacher_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  first_lesson_at TIMESTAMPTZ,
+  last_lesson_at TIMESTAMPTZ,
+  completed_count INTEGER NOT NULL DEFAULT 0 CHECK (completed_count >= 0),
+  cancelled_count INTEGER NOT NULL DEFAULT 0 CHECK (cancelled_count >= 0),
+  primary_subject_id UUID,
+  primary_subject_name TEXT,
+  primary_subject_name_he TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (teacher_id, student_id)
+);
+
+ALTER TABLE teacher_student_summary ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Teachers can view own student summaries"
+  ON teacher_student_summary FOR SELECT
+  USING (auth.uid() = teacher_id);
+
+CREATE TRIGGER update_teacher_student_summary_updated_at BEFORE UPDATE ON teacher_student_summary
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- -------------------------------------------
 -- Table: reviews
 -- Reviews for completed lessons
 -- -------------------------------------------
@@ -342,6 +371,10 @@ CREATE INDEX idx_bookings_status ON bookings(status);
 CREATE INDEX idx_bookings_start_at ON bookings(start_at);
 CREATE INDEX idx_bookings_date_range ON bookings(start_at, end_at);
 
+-- Teacher/Student summary
+CREATE INDEX idx_teacher_student_summary_teacher ON teacher_student_summary(teacher_id);
+CREATE INDEX idx_teacher_student_summary_updated_at ON teacher_student_summary(updated_at DESC);
+
 -- Reviews
 CREATE INDEX idx_reviews_teacher ON reviews(teacher_id);
 CREATE INDEX idx_reviews_student ON reviews(student_id);
@@ -384,6 +417,9 @@ CREATE TRIGGER update_payout_accounts_updated_at BEFORE UPDATE ON payout_account
 CREATE TRIGGER update_student_credits_updated_at BEFORE UPDATE ON student_credits
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Trigger: keep teacher_student_summary updated_at fresh
+-- (trigger declared with table definition above)
+
 -- Function: Calculate teacher average rating
 CREATE OR REPLACE FUNCTION get_teacher_avg_rating(teacher_uuid UUID)
 RETURNS NUMERIC AS $$
@@ -422,6 +458,129 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Function: refresh teacher/student summary aggregates
+CREATE OR REPLACE FUNCTION refresh_teacher_student_summary()
+RETURNS TRIGGER AS $$
+DECLARE
+  target_teacher UUID;
+  target_student UUID;
+  v_first TIMESTAMPTZ;
+  v_last TIMESTAMPTZ;
+  v_completed INTEGER;
+  v_cancelled INTEGER;
+  new_status TEXT;
+  v_subject_id UUID;
+  v_subject_name TEXT;
+  v_subject_name_he TEXT;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    target_teacher := OLD.teacher_id;
+    target_student := OLD.student_id;
+  ELSE
+    target_teacher := NEW.teacher_id;
+    target_student := NEW.student_id;
+  END IF;
+
+  SELECT
+    COUNT(*) FILTER (
+      WHERE status <> 'cancelled'
+        AND end_at <= NOW()
+    ),
+    COUNT(*) FILTER (
+      WHERE status = 'cancelled'
+    ),
+    MAX(end_at) FILTER (
+      WHERE status <> 'cancelled'
+        AND end_at <= NOW()
+    )
+  INTO
+    v_completed,
+    v_cancelled,
+    v_last
+  FROM bookings
+  WHERE teacher_id = target_teacher
+    AND student_id = target_student;
+
+  IF COALESCE(v_completed, 0) = 0 THEN
+    DELETE FROM teacher_student_summary
+    WHERE teacher_id = target_teacher
+      AND student_id = target_student;
+    RETURN NULL;
+  END IF;
+
+  SELECT
+    b.start_at,
+    b.subject_id,
+    s.name,
+    s.name_he
+  INTO
+    v_first,
+    v_subject_id,
+    v_subject_name,
+    v_subject_name_he
+  FROM bookings b
+  LEFT JOIN subjects s ON s.id = b.subject_id
+  WHERE b.teacher_id = target_teacher
+    AND b.student_id = target_student
+    AND b.status <> 'cancelled'
+    AND b.end_at <= NOW()
+  ORDER BY b.start_at ASC
+  LIMIT 1;
+
+  SELECT status
+  INTO new_status
+  FROM teacher_student_summary
+  WHERE teacher_id = target_teacher
+    AND student_id = target_student;
+
+  IF new_status IS NULL THEN
+    new_status := 'active';
+  END IF;
+
+  INSERT INTO teacher_student_summary (
+      teacher_id,
+      student_id,
+      status,
+      first_lesson_at,
+      last_lesson_at,
+      completed_count,
+      cancelled_count,
+      primary_subject_id,
+      primary_subject_name,
+      primary_subject_name_he
+    )
+    VALUES (
+      target_teacher,
+      target_student,
+      new_status,
+      v_first,
+      v_last,
+      COALESCE(v_completed, 0),
+      COALESCE(v_cancelled, 0),
+      v_subject_id,
+      v_subject_name,
+      v_subject_name_he
+    )
+    ON CONFLICT (teacher_id, student_id)
+    DO UPDATE SET
+      status = new_status,
+      first_lesson_at = v_first,
+      last_lesson_at = v_last,
+      completed_count = COALESCE(v_completed, 0),
+      cancelled_count = COALESCE(v_cancelled, 0),
+      primary_subject_id = v_subject_id,
+      primary_subject_name = v_subject_name,
+      primary_subject_name_he = v_subject_name_he,
+      updated_at = NOW();
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_refresh_teacher_student_summary
+AFTER INSERT OR UPDATE OR DELETE ON bookings
+FOR EACH ROW EXECUTE FUNCTION refresh_teacher_student_summary();
+
 -- ============================================
 -- VIEWS
 -- ============================================
@@ -454,6 +613,7 @@ COMMENT ON TABLE profiles IS 'Extended user profiles for both teachers and stude
 COMMENT ON TABLE subjects IS 'Available subjects for teaching/learning';
 COMMENT ON TABLE teacher_subjects IS 'Many-to-many relationship between teachers and subjects';
 COMMENT ON TABLE bookings IS 'Lesson bookings between students and teachers';
+COMMENT ON TABLE teacher_student_summary IS 'Aggregated stats for each teacher/student relationship';
 COMMENT ON TABLE reviews IS 'Student reviews for completed lessons';
 COMMENT ON TABLE teacher_availability IS 'Teacher availability schedule';
 COMMENT ON TABLE payment_intents IS 'Stripe payment tracking';

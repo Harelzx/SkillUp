@@ -2,13 +2,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { Tabs, useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { View, ActivityIndicator } from 'react-native';
-import { Home, Calendar, User, FileText, MessageCircle } from 'lucide-react-native';
+import { Home, Calendar, User, FileText, MessageCircle, Users } from 'lucide-react-native';
 import { colors } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/auth-context';
 import { Typography } from '@/ui/Typography';
 import TeacherOnboardingModal from '@/components/teacher/TeacherOnboardingModal';
 import { CustomTabBar } from '@/components/navigation/CustomTabBar';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
+import { useRTL } from '@/context/RTLContext';
 
 export default function TeacherLayout() {
   const { t } = useTranslation();
@@ -16,6 +17,7 @@ export default function TeacherLayout() {
   const router = useRouter();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const { data: unreadCount = 0 } = useUnreadCount();
+  const { direction } = useRTL();
 
   // Guard: Redirect if not a teacher
   useEffect(() => {
@@ -86,102 +88,110 @@ export default function TeacherLayout() {
   // Use CustomTabBar which handles safe area internally
 
   return (
-    <Tabs
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{
-        tabBarActiveTintColor: colors.primary[600],
-        tabBarInactiveTintColor: colors.gray[500],
-        headerShown: false,
-      }}
-    >
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t('teacher.tabs.profile', 'פרופיל'),
-          tabBarIcon: ({ color, size }) => (
-            <User size={26} color={color} />
-          ),
-          tabBarAccessibilityLabel: t('teacher.tabs.profile', 'פרופיל'),
+    <View style={{ flex: 1, direction }}>
+      <Tabs
+        tabBar={(props) => <CustomTabBar {...props} />}
+        screenOptions={{
+          tabBarActiveTintColor: colors.primary[600],
+          tabBarInactiveTintColor: colors.gray[500],
+          headerShown: false,
         }}
-      />
-      <Tabs.Screen
-        name="tracking"
-        options={{
-          title: t('teacher.tabs.tracking', 'מעקב'),
-          tabBarIcon: ({ color, size }) => (
-            <FileText size={26} color={color} />
-          ),
-          tabBarAccessibilityLabel: t('teacher.tabs.tracking', 'מעקב'),
-        }}
-      />
-      <Tabs.Screen
-        name="messages"
-        options={{
-          title: t('teacher.tabs.messages', 'הודעות'),
-          tabBarIcon: ({ color, size }) => (
-            <MessageCircle size={26} color={color} />
-          ),
-          tabBarAccessibilityLabel: t('teacher.tabs.messages', 'הודעות'),
-          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-        }}
-      />
-      <Tabs.Screen
-        name="calendar"
-        options={{
-          title: t('teacher.tabs.calendar', 'יומן'),
-          tabBarIcon: ({ color, size }) => (
-            <Calendar size={26} color={color} />
-          ),
-          tabBarAccessibilityLabel: t('teacher.tabs.calendar', 'יומן'),
-        }}
-      />
-       <Tabs.Screen
-        name="index"
-        options={{
-          title: t('teacher.tabs.home', 'בית'),
-          tabBarIcon: ({ color, size }) => (
-            <Home size={26} color={color} />
-          ),
-          tabBarAccessibilityLabel: t('teacher.tabs.home', 'בית'),
-        }}
-      />
-      <Tabs.Screen
-        name="edit-teacher-profile"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="help"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="privacy"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="reviews"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: t('teacher.tabs.profile', 'פרופיל'),
+            tabBarIcon: ({ color }) => (
+              <User size={26} color={color} />
+            ),
+            tabBarAccessibilityLabel: t('teacher.tabs.profile', 'פרופיל'),
+          }}
+        />
+        <Tabs.Screen
+          name="students"
+          options={{
+            title: t('teacher.tabs.students', 'תלמידים'),
+            tabBarIcon: ({ color }) => (
+              <Users size={26} color={color} />
+            ),
+            tabBarAccessibilityLabel: t('teacher.tabs.students', 'תלמידים'),
+          }}
+        />
+        <Tabs.Screen
+          name="tracking"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="messages"
+          options={{
+            title: t('teacher.tabs.messages', 'הודעות'),
+            tabBarIcon: ({ color }) => (
+              <MessageCircle size={26} color={color} />
+            ),
+            tabBarAccessibilityLabel: t('teacher.tabs.messages', 'הודעות'),
+            tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          }}
+        />
+        <Tabs.Screen
+          name="calendar"
+          options={{
+            title: t('teacher.tabs.calendar', 'יומן'),
+            tabBarIcon: ({ color }) => (
+              <Calendar size={26} color={color} />
+            ),
+            tabBarAccessibilityLabel: t('teacher.tabs.calendar', 'יומן'),
+          }}
+        />
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: t('teacher.tabs.home', 'בית'),
+            tabBarIcon: ({ color }) => (
+              <Home size={26} color={color} />
+            ),
+            tabBarAccessibilityLabel: t('teacher.tabs.home', 'בית'),
+          }}
+        />
+        <Tabs.Screen
+          name="edit-teacher-profile"
+          options={{
+            href: null, // Hide from tab bar
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            href: null, // Hide from tab bar
+          }}
+        />
+        <Tabs.Screen
+          name="notifications"
+          options={{
+            href: null, // Hide from tab bar
+          }}
+        />
+        <Tabs.Screen
+          name="help"
+          options={{
+            href: null, // Hide from tab bar
+          }}
+        />
+        <Tabs.Screen
+          name="privacy"
+          options={{
+            href: null, // Hide from tab bar
+          }}
+        />
+        <Tabs.Screen
+          name="reviews"
+          options={{
+            href: null, // Hide from tab bar
+          }}
+        />
+      </Tabs>
+    </View>
   );
 }
 

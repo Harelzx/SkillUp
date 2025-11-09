@@ -430,6 +430,50 @@ export interface Database {
           updated_at?: string
         }
       }
+      teacher_student_summary: {
+        Row: {
+          teacher_id: string
+          student_id: string
+          status: 'active' | 'inactive'
+          first_lesson_at: string | null
+          last_lesson_at: string | null
+          completed_count: number
+          cancelled_count: number
+          primary_subject_id: string | null
+          primary_subject_name: string | null
+          primary_subject_name_he: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          teacher_id: string
+          student_id: string
+          status?: 'active' | 'inactive'
+          first_lesson_at?: string | null
+          last_lesson_at?: string | null
+          completed_count?: number
+          cancelled_count?: number
+          primary_subject_id?: string | null
+          primary_subject_name?: string | null
+          primary_subject_name_he?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          teacher_id?: string
+          student_id?: string
+          status?: 'active' | 'inactive'
+          first_lesson_at?: string | null
+          last_lesson_at?: string | null
+          completed_count?: number
+          cancelled_count?: number
+          primary_subject_id?: string | null
+          primary_subject_name?: string | null
+          primary_subject_name_he?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       reviews: {
         Row: {
           id: string

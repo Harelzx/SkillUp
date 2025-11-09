@@ -3,8 +3,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { colors } from '@/theme/tokens';
 import { Typography } from '@/ui/Typography';
+import { useRTL } from '@/context/RTLContext';
+
 export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { getFlexDirection, getTextAlign } = useRTL();
   
   // Calculate dynamic bottom padding - moderate safe area
   const bottomPadding = Math.max(insets.bottom || 0, 7);
@@ -44,7 +47,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
     >
       <View
         style={{
-          flexDirection: 'row', // LTR layout for tab bar
+          flexDirection: getFlexDirection('row'), // Mirror order in RTL
           alignItems: 'center',
           justifyContent: 'space-around',
           paddingHorizontal: 8,
@@ -52,15 +55,15 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
         }}
       >
         {state.routes
-          .filter((route) => {
+          .map((route, routeIndex) => {
             // Hide routes with no tabBarIcon or when tabBarButton is a function (custom button = hidden)
             const { options } = descriptors[route.key];
-            return options.tabBarIcon && !options.tabBarButton;
-          })
-          .map((route, index) => {
-          const { options } = descriptors[route.key];
-          const label = options.tabBarLabel ?? options.title ?? route.name;
-          const isFocused = state.index === index;
+            if (!options.tabBarIcon || options.tabBarButton) {
+              return null;
+            }
+
+            const label = options.tabBarLabel ?? options.title ?? route.name;
+            const isFocused = state.index === routeIndex;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -120,7 +123,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
                     color: iconColor,
                     fontSize: 11,
                     fontWeight: isFocused ? '700' : '600',
-                    textAlign: 'center',
+                  textAlign: getTextAlign('center'),
                     letterSpacing: 0,
                   }}
                   numberOfLines={1}
@@ -131,6 +134,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
             </TouchableOpacity>
           );
           })
+          .filter(Boolean)
         }
       </View>
     </View>

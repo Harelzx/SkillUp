@@ -1,6 +1,5 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import * as Localization from 'expo-localization';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const resources = {
@@ -65,6 +64,32 @@ const resources = {
         experience: 'Experience',
         education: 'Education',
         languages: 'Languages',
+        // Teacher App
+        tabs: {
+          home: 'Home',
+          calendar: 'Calendar',
+          profile: 'Profile',
+          students: 'Students',
+          tracking: 'Tracking',
+        },
+        studentsPage: {
+          title: 'My Students',
+          searchPlaceholder: 'Search by student name...',
+          statusAll: 'All',
+          statusActive: 'Active',
+          statusInactive: 'Inactive',
+          emptyTitle: 'No students to display yet.',
+          emptySubtitle: 'Once a student completes a lesson with you, they will appear here with all relevant details.',
+          completedCount: 'Completed',
+          cancelledCount: 'Cancelled',
+          ageUnavailable: 'Age not available',
+          startDateLabel: 'Start date',
+          toastError: 'An error occurred while loading the student list',
+          filterClear: 'Clear',
+          ageValue: '{{count}} years',
+          noSubject: 'No subject',
+          activeFilter: 'Filtered to student: {{name}}',
+        },
       },
       booking: {
         selectDate: 'Select Date',
@@ -213,7 +238,26 @@ const resources = {
           home: 'בית',
           calendar: 'יומן',
           profile: 'פרופיל',
+          students: 'תלמידים',
           tracking: 'מעקב',
+        },
+        studentsPage: {
+          title: 'התלמידים שלי',
+          searchPlaceholder: 'חיפוש לפי שם תלמיד...',
+          statusAll: 'הכול',
+          statusActive: 'פעילים',
+          statusInactive: 'לא פעילים',
+          emptyTitle: 'אין תלמידים להצגה עדיין.',
+          emptySubtitle: 'ברגע שתלמיד יסיים שיעור אצלך, הוא יופיע כאן עם כל הנתונים הרלוונטיים.',
+          completedCount: 'בוצעו',
+          cancelledCount: 'בוטלו',
+          ageUnavailable: 'גיל לא זמין',
+          startDateLabel: 'תאריך התחלה',
+          toastError: 'אירעה שגיאה בטעינת רשימת התלמידים',
+          filterClear: 'נקה',
+          ageValue: '{{count}} שנים',
+          noSubject: 'ללא נושא',
+          activeFilter: 'מסננים לתלמיד: {{name}}',
         },
         tracking: {
           title: 'מעקב שיעורים',

@@ -123,6 +123,25 @@ export interface BookingWithDetails extends Booking {
 }
 
 // ============================================
+// TEACHER STUDENT SUMMARY
+// ============================================
+
+export interface TeacherStudentSummary {
+  teacher_id: string;
+  student_id: string;
+  status: 'active' | 'inactive';
+  first_lesson_at: string | null;
+  last_lesson_at: string | null;
+  completed_count: number;
+  cancelled_count: number;
+  primary_subject_id: string | null;
+  primary_subject_name: string | null;
+  primary_subject_name_he: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================
 // REVIEWS
 // ============================================
 

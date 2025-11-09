@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -27,6 +27,8 @@ import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { useAuth } from '@/features/auth/auth-context';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTeacherStudentDetail } from '@/hooks/useTeacherStudents';
 import {
   getTeacherCompletedLessons,
   upsertLessonNote,
@@ -735,15 +737,49 @@ export default function TrackingScreen() {
   const { t } = useTranslation();
   const { isRTL, direction } = useRTL();
   const { profile } = useAuth();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ studentId?: string | string[] }>();
+  const studentIdFromParams = useMemo(() => {
+    const value = params.studentId;
+    if (Array.isArray(value)) {
+      return value[0];
+    }
+    return value;
+  }, [params.studentId]);
   const queryClient = useQueryClient();
 
   const teacherId = profile?.role === 'teacher' ? profile.id : null;
 
   // Filter states
-  const [filters] = useState<LessonTrackingFilters>({ limit: 20 });
+  const [filters, setFilters] = useState<LessonTrackingFilters>({ limit: 20 });
   const [selectedLesson, setSelectedLesson] = useState<CompletedLesson | null>(null);
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+
+  useEffect(() => {
+    const limit = filters.limit ?? 20;
+    const normalized = studentIdFromParams?.toString().trim();
+
+    if (normalized) {
+      setFilters((prev) => {
+        if (prev.studentId === normalized && (prev.limit ?? limit) === limit) {
+          return prev;
+        }
+        return { ...prev, studentId: normalized, limit };
+      });
+    } else {
+      setFilters((prev) => {
+        if (!prev.studentId && (prev.limit ?? limit) === limit) {
+          return prev;
+        }
+        const next: LessonTrackingFilters = { ...prev };
+        delete next.studentId;
+        next.limit = limit;
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentIdFromParams]);
 
   // Fetch completed lessons with infinite scroll
   const {
@@ -769,6 +805,11 @@ export default function TrackingScreen() {
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor || null,
   });
+
+  const { data: filteredStudent } = useTeacherStudentDetail(
+    teacherId ?? undefined,
+    filters.studentId as string | undefined
+  );
 
   // Flatten pages into single array
   const lessons = useMemo(() => {
@@ -815,6 +856,17 @@ export default function TrackingScreen() {
       fetchNextPage();
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const handleClearStudentFilter = useCallback(() => {
+    setFilters((prev) => {
+      if (!prev.studentId) return prev;
+      const next: LessonTrackingFilters = { ...prev };
+      delete next.studentId;
+      next.limit = prev.limit ?? 20;
+      return next;
+    });
+    router.setParams({ studentId: undefined });
+  }, [router]);
 
   const handleEditNoteFromDetails = useCallback(() => {
     setDetailsModalVisible(false);
@@ -879,6 +931,33 @@ export default function TrackingScreen() {
         <Typography variant="h4" weight="bold" style={styles.headerTitle}>
           {t('teacher.tracking.title')}
         </Typography>
+        {filters.studentId && (
+          <View
+            style={{
+              marginTop: spacing[2],
+              paddingVertical: spacing[1],
+              paddingHorizontal: spacing[2],
+              borderRadius: 12,
+              backgroundColor: colors.primary[50],
+              borderWidth: 1,
+              borderColor: colors.primary[200],
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              gap: spacing[2],
+            }}
+          >
+            <Typography variant="body2" weight="semibold" style={{ color: colors.primary[700], flex: 1 }}>
+              {t('teacher.studentsPage.activeFilter', {
+                name: filteredStudent?.student_name ?? filters.studentId,
+              })}
+            </Typography>
+            <TouchableOpacity onPress={handleClearStudentFilter} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Typography variant="caption" color="primary" weight="semibold">
+                {t('teacher.studentsPage.filterClear')}
+              </Typography>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {isLoading && !lessonsData ? (
