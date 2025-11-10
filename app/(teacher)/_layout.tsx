@@ -90,6 +90,7 @@ export default function TeacherLayout() {
   return (
     <View style={{ flex: 1, direction }}>
       <Tabs
+        initialRouteName="index"
         tabBar={(props) => <CustomTabBar {...props} />}
         screenOptions={{
           tabBarActiveTintColor: colors.primary[600],

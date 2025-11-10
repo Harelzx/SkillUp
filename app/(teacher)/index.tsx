@@ -32,13 +32,14 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ label, value, trend }) => {
+  const { getMarginStart, getTextAlign } = useRTL();
   return (
     <View
       style={{
         minWidth: 160,
         maxWidth: 180,
         minHeight: 96, // Consistent height for all cards
-        marginStart: spacing[3],
+        ...getMarginStart(spacing[3]),
         backgroundColor: colors.white,
         borderRadius: 16,
         borderWidth: 1,
@@ -52,19 +53,20 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, trend }) => {
         elevation: 1,
       }}
     >
-      {/* Content aligned to right (RTL) */}
+      {/* Content centered */}
       <View 
         style={{ 
           flex: 1,
           justifyContent: 'space-between',
+          alignItems: 'center',
         }}
       >
-        {/* Label at top - right aligned */}
+        {/* Label */}
         <Typography
           variant="caption"
           color="textSecondary"
           numberOfLines={1}
-          align="center"
+          align={getTextAlign('center')}
           style={{
             fontSize: 13,
             marginBottom: 6,
@@ -73,11 +75,11 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, trend }) => {
           {label}
         </Typography>
 
-        {/* Value - prominent and right aligned */}
+        {/* Value */}
         <Typography
           variant="h4"
           weight="bold"
-          align="center"
+          align={getTextAlign('center')}
           style={{
             color: colors.gray[900],
             fontSize: 20,
@@ -87,14 +89,14 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, trend }) => {
           {value}
         </Typography>
         
-        {/* Trend indicator - right aligned */}
+        {/* Trend indicator */}
         {trend !== undefined && trend !== 0 && (
           <View
             style={{
-              flexDirection: 'column', // RTL for icon + text
+              flexDirection: 'column',
               alignItems: 'center',
               gap: 4,
-              alignSelf: 'center', // Align to right
+              alignSelf: 'center',
             }}
           >
             {trend > 0 ? (
@@ -124,7 +126,7 @@ interface MonthlyChartProps {
 }
 
 const MonthlyChart: React.FC<MonthlyChartProps> = ({ data }) => {
-  const { isRTL, getFlexDirection } = useRTL();
+  const { getFlexDirection, getTextAlign } = useRTL();
   const [viewMode, setViewMode] = useState<'revenue' | 'lessons'>('revenue');
   
   const maxValue = Math.max(...data.map(d => viewMode === 'revenue' ? d.revenue : d.lessons));
@@ -136,22 +138,31 @@ const MonthlyChart: React.FC<MonthlyChartProps> = ({ data }) => {
     <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[4] }}>
       <View
         style={{
-          flexDirection: getFlexDirection(),
-          justifyContent: 'space-between',
+          flexDirection: 'row',
           alignItems: 'center',
           marginBottom: spacing[4],
         }}
       >
-        <Typography variant="h5" weight="semibold">
+        <Typography
+          variant="h5"
+          weight="semibold"
+          align={getTextAlign('right')}
+          style={{
+            flex: 1,
+            textAlign: getTextAlign('right'),
+          }}
+        >
           גרף צמיחה חודשי
         </Typography>
 
         <View
           style={{
-            flexDirection: getFlexDirection(),
+            flexDirection: 'row',
             backgroundColor: colors.gray[100],
             borderRadius: 8,
             padding: 2,
+            gap: spacing[1],
+            marginStart: spacing[3],
           }}
         >
           <TouchableOpacity
@@ -171,7 +182,7 @@ const MonthlyChart: React.FC<MonthlyChartProps> = ({ data }) => {
               הכנסות
             </Typography>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             onPress={() => setViewMode('lessons')}
             style={{
@@ -260,7 +271,7 @@ const MonthlyChart: React.FC<MonthlyChartProps> = ({ data }) => {
                   <Typography
                     variant="caption"
                     color="textSecondary"
-                    style={{ fontSize: 10, marginTop: spacing[1] }}
+                    style={{ fontSize: 10, marginTop: spacing[1], textAlign: getTextAlign('center') }}
                   >
                     {item.month}
                   </Typography>
@@ -275,7 +286,7 @@ const MonthlyChart: React.FC<MonthlyChartProps> = ({ data }) => {
 };
 
 export default function TeacherHomeScreen() {
-  const { isRTL, direction, getFlexDirection, getMarginStart } = useRTL();
+  const { direction, getFlexDirection, getTextAlign } = useRTL();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
   const teacherId = profile?.role === 'teacher' ? profile.id : undefined;
@@ -321,7 +332,7 @@ export default function TeacherHomeScreen() {
   }
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { direction }]}>
       <StatusBar barStyle="dark-content" />
       
       {/* Info Banner - Teacher Notifications (now at top, no header above) */}
@@ -337,7 +348,17 @@ export default function TeacherHomeScreen() {
       >
         {/* Upcoming Lessons - now inside ScrollView */}
         <View style={{ marginTop: spacing[2], marginBottom: spacing[2] }}>
-          <Typography variant="h5" weight="semibold" style={{ textAlign: 'right', marginBottom: spacing[2], paddingHorizontal: spacing[4] }}>
+          <Typography
+            variant="h5"
+            weight="semibold"
+            style={{
+              textAlign: getTextAlign('right'),
+              marginBottom: spacing[2],
+              paddingHorizontal: spacing[4],
+              alignSelf: direction === 'rtl' ? 'flex-end' : 'flex-start',
+              width: '100%',
+            }}
+          >
             שיעורים קרובים
           </Typography>
 
@@ -357,13 +378,13 @@ export default function TeacherHomeScreen() {
             </ScrollView>
           ) : upcomingError ? (
             <View style={{ paddingVertical: spacing[3], paddingHorizontal: spacing[4] }}>
-              <Typography variant="body1" color="error" style={{ textAlign: 'right' }}>
+              <Typography variant="body1" color="error" align="right">
                 שגיאה בטעינת שיעורים
               </Typography>
             </View>
           ) : upcoming.length === 0 ? (
             <View style={{ paddingVertical: spacing[3], paddingHorizontal: spacing[4] }}>
-              <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right' }}>
+              <Typography variant="body2" color="textSecondary" align="right">
                 אין שיעורים קרובים
               </Typography>
             </View>
@@ -424,21 +445,29 @@ export default function TeacherHomeScreen() {
         </View>
         {/* Stats Cards - Horizontal Scroll */}
         <View style={{ marginTop: spacing[2] }}>
+        <View
+          style={{
+            paddingHorizontal: spacing[4],
+            marginBottom: spacing[3],
+            alignSelf: direction === 'rtl' ? 'flex-end' : 'flex-start',
+            width: '100%',
+          }}
+        >
           <Typography
             variant="h5"
             weight="semibold"
-            align={isRTL ? 'left' : 'right'}
-            style={{ paddingHorizontal: spacing[4], marginBottom: spacing[3] }}
+            style={{ textAlign: getTextAlign('right') }}
           >
             נתוני פעילות
           </Typography>
+        </View>
           
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{
               paddingHorizontal: spacing[4],
-              flexDirection: isRTL ? 'row' : 'row-reverse',
+              flexDirection: getFlexDirection(),
             }}
             style={styles.statsScroll}
           >
@@ -485,7 +514,7 @@ export default function TeacherHomeScreen() {
           >
             <View
               style={{
-                flexDirection: isRTL ? 'row-reverse' : 'row',
+                flexDirection: getFlexDirection(),
                 alignItems: 'center',
                 gap: spacing[3],
               }}
@@ -504,13 +533,18 @@ export default function TeacherHomeScreen() {
               </View>
               
               <View style={{ flex: 1 }}>
-                <Typography variant="body1" weight="semibold" color="primary">
+        <Typography
+          variant="body1"
+          weight="semibold"
+          color="primary"
+          style={{ textAlign: getTextAlign('right') }}
+        >
                   ביצועים מצוינים החודש!
                 </Typography>
                 <Typography
                   variant="caption"
                   color="textSecondary"
-                  style={{ marginTop: spacing[1] }}
+              style={{ marginTop: spacing[1], textAlign: getTextAlign('right') }}
                 >
                   המשך כך - הסטודנטים שלך מרוצים מאוד
                 </Typography>

@@ -3,14 +3,12 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
-  ScrollView,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@/ui/Typography';
 import { Card } from '@/ui/Card';
@@ -19,9 +17,9 @@ import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { useTeacherStudents } from '@/hooks/useTeacherStudents';
 import { useAuth } from '@/features/auth/auth-context';
-import { getTeacherSubjects } from '@/services/api/teachersAPI';
 import type { TeacherStudentCard } from '@/services/api/teacherStudentsAPI';
 
+// Order matters: with RTL row-reverse the first chip is rendered at the far right (הכול -> פעיל -> לא פעיל)
 const STATUS_FILTERS: Array<{ value: 'all' | 'active' | 'inactive'; labelKey: string }> = [
   { value: 'all', labelKey: 'teacher.studentsPage.statusAll' },
   { value: 'active', labelKey: 'teacher.studentsPage.statusActive' },
@@ -39,7 +37,6 @@ export default function TeacherStudentsScreen() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,10 +50,9 @@ export default function TeacherStudentsScreen() {
     () => ({
       search: debouncedSearch || undefined,
       status: statusFilter === 'all' ? undefined : statusFilter,
-      subjectId: subjectFilter || undefined,
       limit: 12,
     }),
-    [debouncedSearch, statusFilter, subjectFilter]
+    [debouncedSearch, statusFilter]
   );
 
   const {
@@ -77,19 +73,6 @@ export default function TeacherStudentsScreen() {
       setToastMessage(t('teacher.studentsPage.toastError'));
     }
   }, [isError, error, t]);
-
-  const {
-    data: subjectOptions = [],
-    isLoading: subjectsLoading,
-  } = useQuery({
-    queryKey: ['teacherSubjects', teacherId],
-    enabled: Boolean(teacherId),
-    queryFn: async () => {
-      if (!teacherId) return [];
-      return getTeacherSubjects(teacherId);
-    },
-    staleTime: 1000 * 60 * 10,
-  });
 
   const students = useMemo(() => {
     if (!data?.pages) return [];
@@ -150,10 +133,11 @@ export default function TeacherStudentsScreen() {
       color: colors.gray[900],
     },
     filterRow: {
-      flexDirection: getFlexDirection('row'),
+      flexDirection: getFlexDirection('row-reverse'),
       alignItems: 'center',
       marginTop: spacing[3],
       gap: spacing[2],
+      justifyContent: isRTL ? 'flex-start' : 'flex-end', // Keep status chips anchored to the visual right edge in RTL while preserving natural LTR alignment
     },
     filterChip: {
       paddingHorizontal: spacing[3],
@@ -183,13 +167,15 @@ export default function TeacherStudentsScreen() {
       paddingBottom: spacing[8],
     },
     card: {
+      position: 'relative',
       padding: spacing[4],
       borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.gray[200],
       marginBottom: spacing[3],
       backgroundColor: colors.white,
-      gap: spacing[2],
+      gap: spacing[3],
+      alignItems: 'center', // Center all column content; individual text blocks use textAlign for consistency
     },
     countsRow: {
       flexDirection: getFlexDirection('row'),
@@ -202,14 +188,20 @@ export default function TeacherStudentsScreen() {
       paddingHorizontal: spacing[2],
       backgroundColor: colors.gray[100],
     },
+    statusPillContainer: {
+      position: 'absolute',
+      top: spacing[3],
+      left: spacing[3], // Pin to physical left regardless of layout direction
+    },
     statusPill: {
-      alignSelf: isRTL ? 'flex-start' : 'flex-end',
-      backgroundColor: colors.primary[50],
       borderRadius: 12,
       paddingHorizontal: spacing[2],
       paddingVertical: spacing[1],
       borderWidth: 1,
-      borderColor: colors.primary[200],
+    },
+    cardContent: {
+      width: '100%',
+      alignItems: 'center',
     },
     emptyState: {
       alignItems: 'center',
@@ -251,20 +243,30 @@ export default function TeacherStudentsScreen() {
     return (
       <TouchableOpacity activeOpacity={0.7} onPress={() => handleStudentPress(item.student_id)}>
         <Card variant="elevated" style={styles.card}>
-          <View style={{ flexDirection: getFlexDirection('row'), alignItems: 'flex-start', gap: spacing[2] }}>
-            <View style={{ flex: 1 }}>
-              <Typography variant="h6" weight="bold" style={{ textAlign: getTextAlign('right'), marginBottom: spacing[1] }}>
-                {item.student_name}
-              </Typography>
-              <Typography variant="body2" color="textSecondary" style={{ textAlign: getTextAlign('right') }}>
-                {subjectLabel}
-              </Typography>
-              <Typography variant="caption" color="textSecondary" style={{ marginTop: spacing[1], textAlign: getTextAlign('right') }}>
-                {item.age ? t('teacher.studentsPage.ageValue', { count: item.age }) : t('teacher.studentsPage.ageUnavailable')}
-              </Typography>
-            </View>
-            <View style={styles.statusPill}>
-              <Typography variant="caption" style={{ color: colors.primary[700], fontWeight: '700' }}>
+          <View style={styles.statusPillContainer}>
+            <View
+              // Subtle soft green/red palette keeps the badge informative without overpowering the card
+              style={[
+                styles.statusPill,
+                item.status === 'active'
+                  ? {
+                      backgroundColor: colors.success[50],
+                      borderColor: colors.success[100],
+                    }
+                  : {
+                      backgroundColor: colors.error[50],
+                      borderColor: colors.error[100],
+                    },
+              ]}
+            >
+              <Typography
+                variant="caption"
+                style={{
+                  color: item.status === 'active' ? colors.success[700] : colors.error[700],
+                  fontWeight: '700',
+                  textAlign: 'center',
+                }}
+              >
                 {item.status === 'active'
                   ? t('teacher.studentsPage.statusActive')
                   : t('teacher.studentsPage.statusInactive')}
@@ -272,20 +274,50 @@ export default function TeacherStudentsScreen() {
             </View>
           </View>
 
-          <View style={styles.countsRow}>
-            <View style={styles.countPill}>
-              <Typography variant="caption" weight="semibold" style={{ color: colors.gray[700] }}>
+          <View style={styles.cardContent}>
+            <Typography variant="h6" weight="bold" style={{ textAlign: 'center', marginBottom: spacing[1] }}>
+              {item.student_name}
+            </Typography>
+            <Typography variant="body2" color="textSecondary" style={{ textAlign: 'center' }}>
+              {subjectLabel}
+            </Typography>
+            <Typography variant="caption" color="textSecondary" style={{ marginTop: spacing[1], textAlign: 'center' }}>
+              {item.age ? t('teacher.studentsPage.ageValue', { count: item.age }) : t('teacher.studentsPage.ageUnavailable')}
+            </Typography>
+          </View>
+
+          <View style={[styles.countsRow, { justifyContent: 'center' }]}>
+            <View
+              style={[
+                styles.countPill,
+                {
+                  borderWidth: 1,
+                  borderColor: colors.success[100],
+                  backgroundColor: colors.success[50],
+                },
+              ]}
+            >
+              <Typography variant="caption" weight="semibold" style={{ color: colors.success[700], textAlign: 'center' }}>
                 {`${t('teacher.studentsPage.completedCount')}: ${item.completed_count}`}
               </Typography>
             </View>
-            <View style={[styles.countPill, { backgroundColor: colors.error[50], borderColor: 'transparent' }]}>
-              <Typography variant="caption" weight="semibold" style={{ color: colors.error[600] }}>
+            <View
+              style={[
+                styles.countPill,
+                {
+                  borderWidth: 1,
+                  borderColor: colors.error[100],
+                  backgroundColor: colors.error[50],
+                },
+              ]}
+            >
+              <Typography variant="caption" weight="semibold" style={{ color: colors.error[600], textAlign: 'center' }}>
                 {`${t('teacher.studentsPage.cancelledCount')}: ${item.cancelled_count}`}
               </Typography>
             </View>
           </View>
 
-          <Typography variant="caption" color="textSecondary" style={{ textAlign: getTextAlign('right'), marginTop: spacing[1] }}>
+          <Typography variant="caption" color="textSecondary" style={{ textAlign: 'center', marginTop: spacing[1] }}>
             {`${t('teacher.studentsPage.startDateLabel')}: ${firstLesson}`}
           </Typography>
         </Card>
@@ -316,56 +348,6 @@ export default function TeacherStudentsScreen() {
     return renderStudentItem({ item });
   };
 
-  const subjectChips = useMemo(() => {
-    if (subjectsLoading || subjectOptions.length === 0) return null;
-    return (
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingVertical: spacing[1],
-          gap: spacing[2],
-          flexDirection: getFlexDirection('row'),
-        }}
-      >
-        {subjectOptions.map((item) => {
-          const isSelected = subjectFilter === item.id;
-          return (
-            <TouchableOpacity
-              key={item.id}
-              activeOpacity={0.7}
-              style={[
-                styles.filterChip,
-                { paddingHorizontal: spacing[3], paddingVertical: spacing[1] },
-                isSelected && styles.filterChipActive,
-              ]}
-              onPress={() => setSubjectFilter(isSelected ? null : item.id)}
-            >
-              <Typography
-                variant="caption"
-                style={[
-                  styles.filterChipText,
-                  isSelected && styles.filterChipTextActive,
-                ]}
-              >
-                {item.name_he || item.name}
-              </Typography>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-    );
-  }, [
-    subjectOptions,
-    subjectsLoading,
-    subjectFilter,
-    styles.filterChip,
-    styles.filterChipActive,
-    styles.filterChipText,
-    styles.filterChipTextActive,
-    getFlexDirection,
-  ]);
-
   return (
     <SafeAreaView style={styles.container}>
       <FlatList<TeacherStudentCard | null>
@@ -376,7 +358,7 @@ export default function TeacherStudentsScreen() {
         renderItem={renderItem}
         ListHeaderComponent={
           <View style={styles.headerRow}>
-            <Typography variant="h4" weight="bold" style={{ textAlign: getTextAlign('right'), marginBottom: spacing[3] }}>
+            <Typography variant="h4" weight="bold" style={{ textAlign: getTextAlign('center'), marginBottom: spacing[3] }}>
               {t('teacher.studentsPage.title')}
             </Typography>
 
@@ -415,8 +397,6 @@ export default function TeacherStudentsScreen() {
                 );
               })}
             </View>
-
-            {subjectChips}
           </View>
         }
         contentContainerStyle={styles.content}

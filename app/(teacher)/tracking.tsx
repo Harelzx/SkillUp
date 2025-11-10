@@ -9,6 +9,7 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -27,8 +28,7 @@ import { colors, spacing } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
 import { useAuth } from '@/features/auth/auth-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTeacherStudentDetail } from '@/hooks/useTeacherStudents';
+import { useLocalSearchParams } from 'expo-router';
 import {
   getTeacherCompletedLessons,
   upsertLessonNote,
@@ -73,7 +73,7 @@ const LessonTrackingCard: React.FC<LessonTrackingCardProps> = ({
   onDetailsPress,
 }) => {
   const { t } = useTranslation();
-  const { isRTL } = useRTL();
+  const { isRTL, getTextAlign, getFlexDirection } = useRTL();
   const [showFullNote, setShowFullNote] = useState(false);
 
   const studentName = lesson.student
@@ -106,6 +106,7 @@ const LessonTrackingCard: React.FC<LessonTrackingCardProps> = ({
 
   const styles = createStyle({
     card: {
+      position: 'relative', // Required for the status badge to anchor against card edges
       backgroundColor: colors.white,
       borderRadius: 16,
       borderWidth: 1,
@@ -115,7 +116,7 @@ const LessonTrackingCard: React.FC<LessonTrackingCardProps> = ({
       marginHorizontal: spacing[4],
     },
     headerRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: getFlexDirection('row'), // Mirror automatically so student info stays nearest reading edge
       justifyContent: 'space-between',
       alignItems: 'flex-start',
       marginBottom: spacing[3],
@@ -128,21 +129,27 @@ const LessonTrackingCard: React.FC<LessonTrackingCardProps> = ({
       fontWeight: '700',
       color: colors.gray[900],
       marginBottom: spacing[1],
+      textAlign: getTextAlign('right'),
     },
     subjectRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: getFlexDirection('row-reverse'),
       alignItems: 'center',
       gap: spacing[2],
     },
-    completedBadge: {
+    subjectText: {
+      textAlign: getTextAlign('right'),
+    },
+    statusBadge: {
+      position: 'absolute',
+      top: spacing[3],
+      left: spacing[3], // Pin badge to physical left so it's consistent in both layouts
       backgroundColor: colors.success[100],
       paddingHorizontal: spacing[2],
       paddingVertical: spacing[1],
       borderRadius: 8,
-      alignSelf: 'flex-start',
     },
     infoRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: getFlexDirection('row-reverse'),
       alignItems: 'center',
       marginBottom: spacing[2],
       gap: spacing[2],
@@ -150,31 +157,38 @@ const LessonTrackingCard: React.FC<LessonTrackingCardProps> = ({
     infoText: {
       fontSize: 14,
       color: colors.gray[600],
+      textAlign: getTextAlign('right'),
     },
     noteSection: {
       marginTop: spacing[3],
       paddingTop: spacing[3],
       borderTopWidth: 1,
       borderTopColor: colors.gray[200],
+      alignItems: isRTL ? 'flex-start' : 'flex-end', // Ensure note labels hug the text edge in RTL
     },
     noteText: {
       fontSize: 14,
       color: colors.gray[700],
       lineHeight: 20,
       marginBottom: spacing[2],
+      textAlign: getTextAlign('right'),
+    },
+    noteHeading: {
+      marginBottom: spacing[1],
+      textAlign: getTextAlign('right'),
     },
     showMoreButton: {
-      alignSelf: 'flex-start',
+      alignSelf: isRTL ? 'flex-start' : 'flex-end',
       marginTop: spacing[1],
     },
     actionsRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: getFlexDirection('row-reverse'),
       gap: spacing[2],
       marginTop: spacing[3],
     },
     actionButton: {
       flex: 1,
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: getFlexDirection('row-reverse'),
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: spacing[2],
@@ -196,20 +210,20 @@ const LessonTrackingCard: React.FC<LessonTrackingCardProps> = ({
 
   return (
     <Card variant="elevated" style={styles.card}>
+      <View style={styles.statusBadge}>
+        <Typography variant="caption" style={{ color: colors.success[700], fontWeight: '600' }}>
+          {t('teacher.tracking.completed')}
+        </Typography>
+      </View>
       <View style={styles.headerRow}>
         <View style={styles.studentInfo}>
           <Typography variant="h6" weight="bold" style={styles.studentName}>
             {studentName}
           </Typography>
           <View style={styles.subjectRow}>
-            <Typography variant="body2" color="textSecondary">
+            <Typography variant="body2" color="textSecondary" style={styles.subjectText}>
               {subjectName}
             </Typography>
-            <View style={styles.completedBadge}>
-              <Typography variant="caption" style={{ color: colors.success[700], fontWeight: '600' }}>
-                {t('teacher.tracking.completed')}
-              </Typography>
-            </View>
           </View>
         </View>
       </View>
@@ -233,7 +247,7 @@ const LessonTrackingCard: React.FC<LessonTrackingCardProps> = ({
 
       {hasNote && noteSummary && (
         <View style={styles.noteSection}>
-          <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[1] }}>
+          <Typography variant="body2" weight="semibold" style={styles.noteHeading}>
             {t('teacher.tracking.note')}:
           </Typography>
           <Typography variant="body2" style={styles.noteText}>
@@ -246,7 +260,7 @@ const LessonTrackingCard: React.FC<LessonTrackingCardProps> = ({
               onPress={() => setShowFullNote(!showFullNote)}
               style={styles.showMoreButton}
             >
-              <Typography variant="caption" color="primary">
+              <Typography variant="caption" color="primary" style={{ textAlign: getTextAlign('right') }}>
                 {showFullNote ? t('teacher.tracking.showLess') : t('teacher.tracking.showAll')}
               </Typography>
             </TouchableOpacity>
@@ -293,9 +307,18 @@ const NoteModal: React.FC<NoteModalProps> = ({
   isLoading,
 }) => {
   const { t } = useTranslation();
-  const { isRTL } = useRTL();
+  const { isRTL, getTextAlign, getFlexDirection } = useRTL();
   const [note, setNote] = useState('');
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+
+  const modalWidth = useMemo(() => {
+    const horizontalMargin = spacing[6]; // leave breathing room on both sides
+    const candidate = Math.max(windowWidth - horizontalMargin, 280);
+    const capped = Math.min(candidate, 540);
+    const comfortable = Math.max(capped, Math.min(windowWidth - spacing[8], 320));
+    return Math.min(comfortable, windowWidth - horizontalMargin / 2);
+  }, [windowWidth]);
 
   React.useEffect(() => {
     if (visible && lesson) {
@@ -339,21 +362,21 @@ const NoteModal: React.FC<NoteModalProps> = ({
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'flex-end',
+      justifyContent: 'center', // keep modal vertically centered for consistent UX across screens
+      alignItems: 'center',
+      paddingHorizontal: spacing[4], // add breathing room so the modal never touches screen edges
     },
     modalContent: {
       backgroundColor: colors.white,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      borderBottomLeftRadius: 24,
-      borderBottomRightRadius: 24,
+      borderRadius: 24,
       paddingTop: spacing[4],
-      paddingBottom: insets.bottom + spacing[4],
+      paddingBottom: spacing[4] + insets.bottom, // honor safe area while keeping roomy padding
+      paddingHorizontal: spacing[4],
       maxHeight: '85%',
       flexDirection: 'column',
     },
     modalHeader: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: getFlexDirection('row-reverse'),
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: spacing[4],
@@ -363,6 +386,7 @@ const NoteModal: React.FC<NoteModalProps> = ({
       fontSize: 18,
       fontWeight: '700',
       color: colors.gray[900],
+      textAlign: getTextAlign('right'),
     },
     closeButton: {
       padding: spacing[2],
@@ -385,7 +409,7 @@ const NoteModal: React.FC<NoteModalProps> = ({
       backgroundColor: colors.white,
     },
     modalActions: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: getFlexDirection('row-reverse'),
       gap: spacing[3],
       marginTop: spacing[4],
       paddingHorizontal: spacing[4],
@@ -430,10 +454,10 @@ const NoteModal: React.FC<NoteModalProps> = ({
           style={styles.modalOverlay}
         >
           <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { width: modalWidth }]}>
               <View style={styles.modalHeader}>
                 <Typography variant="h6" weight="bold" style={styles.modalTitle}>
-                  הערה לשיעור עם {studentName}, {dateStr}
+                  הערה לשיעור עם {studentName}
                 </Typography>
                 <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                   <X size={24} color={colors.gray[600]} />
@@ -499,8 +523,17 @@ const LessonDetailsModal: React.FC<LessonDetailsModalProps> = ({
   onEditNote,
 }) => {
   const { t } = useTranslation();
-  const { isRTL } = useRTL();
+  const { isRTL, getTextAlign, getFlexDirection } = useRTL();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+
+  const detailModalWidth = useMemo(() => {
+    const horizontalMargin = spacing[6];
+    const candidate = Math.max(windowWidth - horizontalMargin, 300);
+    const capped = Math.min(candidate, 600);
+    const comfortable = Math.max(capped, Math.min(windowWidth - spacing[8], 360));
+    return Math.min(comfortable, windowWidth - horizontalMargin / 2);
+  }, [windowWidth]);
 
   if (!lesson) return null;
 
@@ -532,21 +565,21 @@ const LessonDetailsModal: React.FC<LessonDetailsModalProps> = ({
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'flex-end',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing[4],
     },
     modalContent: {
       backgroundColor: colors.white,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      borderBottomLeftRadius: 24,
-      borderBottomRightRadius: 24,
+      borderRadius: 24,
       paddingTop: spacing[4],
-      paddingBottom: insets.bottom + spacing[4],
+      paddingBottom: spacing[4] + insets.bottom,
+      paddingHorizontal: spacing[4],
       maxHeight: '90%',
       flexDirection: 'column',
     },
     modalHeader: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: getFlexDirection('row-reverse'),
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: spacing[4],
@@ -559,6 +592,7 @@ const LessonDetailsModal: React.FC<LessonDetailsModalProps> = ({
       fontSize: 20,
       fontWeight: '700',
       color: colors.gray[900],
+      textAlign: getTextAlign('right'),
     },
     closeButton: {
       padding: spacing[2],
@@ -568,7 +602,7 @@ const LessonDetailsModal: React.FC<LessonDetailsModalProps> = ({
       flexGrow: 1,
     },
     detailRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: getFlexDirection('row-reverse'),
       justifyContent: 'space-between',
       paddingVertical: spacing[3],
       borderBottomWidth: 1,
@@ -578,25 +612,29 @@ const LessonDetailsModal: React.FC<LessonDetailsModalProps> = ({
       fontSize: 14,
       color: colors.gray[600],
       fontWeight: '500',
+      textAlign: getTextAlign('right'),
     },
     detailValue: {
       fontSize: 14,
       color: colors.gray[900],
       fontWeight: '600',
       flex: 1,
-      textAlign: isRTL ? 'left' : 'right',
+      textAlign: getTextAlign('right'),
     },
     noteSection: {
       marginTop: spacing[2],
       paddingTop: spacing[3],
       borderTopWidth: 2,
       borderTopColor: colors.gray[200],
+      alignItems: isRTL ? 'flex-start' : 'flex-end', // hug the right edge in RTL and left in LTR
+      alignSelf: 'stretch',
     },
     noteText: {
       fontSize: 14,
       color: colors.gray[700],
       lineHeight: 22,
       marginTop: spacing[2],
+      textAlign: getTextAlign('right'),
     },
     editNoteButton: {
       marginTop: spacing[4],
@@ -625,7 +663,7 @@ const LessonDetailsModal: React.FC<LessonDetailsModalProps> = ({
         style={styles.modalOverlay}
       >
         <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { width: detailModalWidth }] }>
             <View style={styles.modalHeader}>
               <Typography variant="h5" weight="bold" style={styles.modalTitle}>
                 {t('teacher.tracking.viewDetails')}
@@ -702,7 +740,11 @@ const LessonDetailsModal: React.FC<LessonDetailsModalProps> = ({
               </View>
 
               <View style={styles.noteSection}>
-                <Typography variant="body1" weight="semibold" style={{ color: colors.gray[900] }}>
+                <Typography
+                  variant="body1"
+                  weight="semibold"
+                  style={{ color: colors.gray[900], textAlign: getTextAlign('right') }}
+                >
                   {t('teacher.tracking.note')}:
                 </Typography>
                 {lesson.tracking?.note ? (
@@ -735,9 +777,8 @@ const LessonDetailsModal: React.FC<LessonDetailsModalProps> = ({
 
 export default function TrackingScreen() {
   const { t } = useTranslation();
-  const { isRTL, direction } = useRTL();
+  const { direction } = useRTL();
   const { profile } = useAuth();
-  const router = useRouter();
   const params = useLocalSearchParams<{ studentId?: string | string[] }>();
   const studentIdFromParams = useMemo(() => {
     const value = params.studentId;
@@ -806,11 +847,6 @@ export default function TrackingScreen() {
     getNextPageParam: (lastPage) => lastPage.nextCursor || null,
   });
 
-  const { data: filteredStudent } = useTeacherStudentDetail(
-    teacherId ?? undefined,
-    filters.studentId as string | undefined
-  );
-
   // Flatten pages into single array
   const lessons = useMemo(() => {
     if (!lessonsData?.pages) return [];
@@ -857,17 +893,6 @@ export default function TrackingScreen() {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const handleClearStudentFilter = useCallback(() => {
-    setFilters((prev) => {
-      if (!prev.studentId) return prev;
-      const next: LessonTrackingFilters = { ...prev };
-      delete next.studentId;
-      next.limit = prev.limit ?? 20;
-      return next;
-    });
-    router.setParams({ studentId: undefined });
-  }, [router]);
-
   const handleEditNoteFromDetails = useCallback(() => {
     setDetailsModalVisible(false);
     setNoteModalVisible(true);
@@ -886,12 +911,13 @@ export default function TrackingScreen() {
       paddingVertical: spacing[3],
       borderBottomWidth: 1,
       borderBottomColor: colors.gray[200],
+      alignItems: 'center', // Center the header content regardless of layout direction
     },
     headerTitle: {
       fontSize: 24,
       fontWeight: '700',
       color: colors.gray[900],
-      textAlign: isRTL ? 'right' : 'left',
+      textAlign: 'center',
     },
     emptyContainer: {
       flex: 1,
@@ -931,33 +957,6 @@ export default function TrackingScreen() {
         <Typography variant="h4" weight="bold" style={styles.headerTitle}>
           {t('teacher.tracking.title')}
         </Typography>
-        {filters.studentId && (
-          <View
-            style={{
-              marginTop: spacing[2],
-              paddingVertical: spacing[1],
-              paddingHorizontal: spacing[2],
-              borderRadius: 12,
-              backgroundColor: colors.primary[50],
-              borderWidth: 1,
-              borderColor: colors.primary[200],
-              flexDirection: isRTL ? 'row-reverse' : 'row',
-              alignItems: 'center',
-              gap: spacing[2],
-            }}
-          >
-            <Typography variant="body2" weight="semibold" style={{ color: colors.primary[700], flex: 1 }}>
-              {t('teacher.studentsPage.activeFilter', {
-                name: filteredStudent?.student_name ?? filters.studentId,
-              })}
-            </Typography>
-            <TouchableOpacity onPress={handleClearStudentFilter} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Typography variant="caption" color="primary" weight="semibold">
-                {t('teacher.studentsPage.filterClear')}
-              </Typography>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
 
       {isLoading && !lessonsData ? (

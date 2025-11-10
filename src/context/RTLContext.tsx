@@ -4,11 +4,11 @@ import { I18nManager } from 'react-native';
 
 interface RTLContextValue {
   isRTL: boolean;
-  direction: 'ltr' | 'rtl';
+  direction: 'rtl' | 'ltr';
   language: string;
   setLanguage: (lang: string) => Promise<void>;
   getTextAlign: (defaultAlign?: 'left' | 'center' | 'right') => 'left' | 'center' | 'right';
-  getFlexDirection: (defaultDirection?: 'row' | 'column') => 'row' | 'row-reverse' | 'column';
+  getFlexDirection: (defaultDirection?: 'row' | 'column' | 'row-reverse') => 'row' | 'column' | 'row-reverse';
   getMarginStart: (value: number) => { marginLeft?: number; marginRight?: number };
   getMarginEnd: (value: number) => { marginLeft?: number; marginRight?: number };
   getPaddingStart: (value: number) => { paddingLeft?: number; paddingRight?: number };
@@ -28,7 +28,21 @@ export const RTLProvider: React.FC<RTLProviderProps> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
 
   const isRTL = language === 'he';
-  const direction: 'ltr' | 'rtl' = isRTL ? 'rtl' : 'ltr';
+  const direction: 'rtl' | 'ltr' = isRTL ? 'rtl' : 'ltr';
+
+  const applySystemDirection = async (targetLanguage?: string | null) => {
+    const shouldBeRTL = (targetLanguage ?? language) === 'he';
+    // Disable automatic swapping – we handle layout manually
+    if (I18nManager.swapLeftAndRightInRTL !== undefined) {
+      I18nManager.swapLeftAndRightInRTL(false);
+    }
+    if (I18nManager.allowRTL !== undefined) {
+      I18nManager.allowRTL(shouldBeRTL);
+    }
+    if (I18nManager.forceRTL !== undefined && I18nManager.isRTL !== shouldBeRTL) {
+      I18nManager.forceRTL(shouldBeRTL);
+    }
+  };
 
   useEffect(() => {
     const initializeLanguage = async () => {
@@ -41,16 +55,11 @@ export const RTLProvider: React.FC<RTLProviderProps> = ({ children }) => {
           await AsyncStorage.setItem(LANGUAGE_KEY, 'he');
           setLanguageState('he');
         }
-
-        // Set RTL for React Native on initial load
-        const shouldBeRTL = savedLanguage === 'he' || !savedLanguage;
-        if (I18nManager.isRTL !== shouldBeRTL) {
-          I18nManager.forceRTL(shouldBeRTL);
-          I18nManager.allowRTL(shouldBeRTL);
-        }
+        await applySystemDirection(savedLanguage);
       } catch (error) {
         console.error('Failed to load language:', error);
         setLanguageState('he');
+        await applySystemDirection('he');
       } finally {
         setIsInitialized(true);
       }
@@ -63,6 +72,7 @@ export const RTLProvider: React.FC<RTLProviderProps> = ({ children }) => {
     try {
       await AsyncStorage.setItem(LANGUAGE_KEY, lang);
       setLanguageState(lang);
+      await applySystemDirection(lang);
     } catch (error) {
       console.error('Failed to save language:', error);
     }
@@ -76,8 +86,17 @@ export const RTLProvider: React.FC<RTLProviderProps> = ({ children }) => {
     return defaultAlign;
   };
 
-  const getFlexDirection = (defaultDirection: 'row' | 'column' = 'row'): 'row' | 'row-reverse' | 'column' => {
-    if (defaultDirection === 'column') return 'column';
+  const getFlexDirection = (
+    defaultDirection: 'row' | 'column' | 'row-reverse' = 'row'
+  ): 'row' | 'column' | 'row-reverse' => {
+    if (defaultDirection === 'column') {
+      return 'column';
+    }
+
+    if (defaultDirection === 'row-reverse') {
+      return isRTL ? 'row' : 'row-reverse';
+    }
+
     return isRTL ? 'row-reverse' : 'row';
   };
 

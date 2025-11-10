@@ -193,7 +193,7 @@ interface DayModalProps {
 }
 
 const DayModal: React.FC<DayModalProps> = ({ visible, day, onClose }) => {
-  const { isRTL } = useRTL();
+  const { getFlexDirection, getTextAlign } = useRTL();
   
   if (!day) return null;
   
@@ -232,7 +232,7 @@ const DayModal: React.FC<DayModalProps> = ({ visible, day, onClose }) => {
           {/* Header */}
           <View
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection(),
               justifyContent: 'space-between',
               alignItems: 'center',
               marginBottom: spacing[3],
@@ -242,10 +242,15 @@ const DayModal: React.FC<DayModalProps> = ({ visible, day, onClose }) => {
             }}
           >
             <View>
-              <Typography variant="h5" weight="bold">
+              <Typography variant="h5" weight="bold" align={getTextAlign('right')}>
                 {dateStr}
               </Typography>
-              <Typography variant="caption" color="textSecondary" style={{ marginTop: 4 }}>
+              <Typography
+                variant="caption"
+                color="textSecondary"
+                align={getTextAlign('right')}
+                style={{ marginTop: 4 }}
+              >
                 {day.lessons.length === 0
                   ? 'אין שיעורים'
                   : `${day.lessons.length} ${day.lessons.length === 1 ? 'שיעור' : 'שיעורים'}`}
@@ -305,17 +310,25 @@ const DayModal: React.FC<DayModalProps> = ({ visible, day, onClose }) => {
                     }}
                   >
                     <View style={{ gap: spacing[2] }}>
-                      <Typography variant="body1" weight="semibold">
+                      <Typography
+                        variant="body1"
+                        weight="semibold"
+                        align={getTextAlign('right')}
+                      >
                         {lesson.studentName}
                       </Typography>
                       
-                      <Typography variant="body2" color="textSecondary">
+                      <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        align={getTextAlign('right')}
+                      >
                         {lesson.subject}
                       </Typography>
                       
                       <View
                         style={{
-                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                          flexDirection: getFlexDirection(),
                           alignItems: 'center',
                           gap: spacing[1],
                         }}
@@ -328,7 +341,7 @@ const DayModal: React.FC<DayModalProps> = ({ visible, day, onClose }) => {
                       
                       <View
                         style={{
-                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                          flexDirection: getFlexDirection(),
                           alignItems: 'center',
                           gap: spacing[1],
                         }}
@@ -351,7 +364,7 @@ const DayModal: React.FC<DayModalProps> = ({ visible, day, onClose }) => {
 };
 
 export default function TeacherCalendarScreen() {
-  const { isRTL, direction } = useRTL();
+  const { isRTL, direction, getFlexDirection, getTextAlign } = useRTL();
   const { width: windowWidth } = useWindowDimensions();
   const { profile } = useAuth();
   
@@ -600,6 +613,9 @@ export default function TeacherCalendarScreen() {
   // Dynamic cell size based on available space
   const finalCellSize = Math.max(cellWidth, 42);
   
+  const PrevChevron = isRTL ? ChevronLeft : ChevronRight;
+  const NextChevron = isRTL ? ChevronRight : ChevronLeft;
+
   const styles = {
     container: {
       flex: 1,
@@ -621,7 +637,7 @@ export default function TeacherCalendarScreen() {
       ...shadows.md,
     },
     weekdaysRow: {
-      flexDirection: (isRTL ? 'row-reverse' : 'row') as 'row' | 'row-reverse',
+      flexDirection: getFlexDirection(),
       justifyContent: 'space-around' as 'space-around',
       paddingVertical: spacing[2],
       borderBottomWidth: 1,
@@ -656,18 +672,23 @@ export default function TeacherCalendarScreen() {
       <View style={styles.header}>
         <View
           style={{
-            flexDirection: isRTL ? 'row-reverse' : 'row',
+            flexDirection: getFlexDirection(),
             justifyContent: 'space-between',
             alignItems: 'center',
           }}
         >
-          <Typography variant="h3" weight="bold">
+          <Typography
+            variant="h3"
+            weight="bold"
+            align={getTextAlign('right')}
+            style={{ textAlign: getTextAlign('right') }}
+          >
             {MONTHS_HE[currentMonth]} {currentYear}
           </Typography>
           
           <View
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection(),
               gap: spacing[2],
             }}
           >
@@ -700,7 +721,7 @@ export default function TeacherCalendarScreen() {
               accessibilityLabel="חודש קודם"
               accessibilityRole="button"
             >
-              <ChevronRight size={20} color={colors.gray[700]} />
+              <PrevChevron size={20} color={colors.gray[700]} />
             </TouchableOpacity>
             
             <TouchableOpacity
@@ -716,7 +737,7 @@ export default function TeacherCalendarScreen() {
               accessibilityLabel="חודש הבא"
               accessibilityRole="button"
             >
-              <ChevronLeft size={20} color={colors.gray[700]} />
+              <NextChevron size={20} color={colors.gray[700]} />
             </TouchableOpacity>
           </View>
         </View>
@@ -751,7 +772,7 @@ export default function TeacherCalendarScreen() {
           {/* Days Grid */}
           <View
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection(),
               flexWrap: 'wrap',
               gap: 8, // Responsive gap between cells
             }}
@@ -899,6 +920,7 @@ export default function TeacherCalendarScreen() {
             <Typography 
               variant="caption" 
               weight="semibold" 
+              align={getTextAlign('right')}
               style={{ 
                 marginBottom: spacing[2],
                 fontSize: 14,
@@ -906,17 +928,17 @@ export default function TeacherCalendarScreen() {
             >
               מקרא
             </Typography>
-            <View 
-              style={{ 
-                flexDirection: 'row-reverse',
-                flexWrap: 'wrap',
-                gap: spacing[3],
-                rowGap: spacing[2],
-              }}
-            >
               <View
                 style={{
-                  flexDirection: 'row-reverse',
+                  flexDirection: getFlexDirection(),
+                  flexWrap: 'wrap',
+                  gap: spacing[3],
+                  rowGap: spacing[2],
+                }}
+              >
+              <View
+                style={{
+                  flexDirection: getFlexDirection(),
                   alignItems: 'center',
                   gap: spacing[2],
                   minHeight: 18,
@@ -945,7 +967,7 @@ export default function TeacherCalendarScreen() {
               
               <View
                 style={{
-                  flexDirection: 'row-reverse',
+                  flexDirection: getFlexDirection(),
                   alignItems: 'center',
                   gap: spacing[2],
                   minHeight: 18,
@@ -983,7 +1005,7 @@ export default function TeacherCalendarScreen() {
               
               <View
                 style={{
-                  flexDirection: 'row-reverse',
+                  flexDirection: getFlexDirection(),
                   alignItems: 'center',
                   gap: spacing[2],
                   minHeight: 18,
@@ -1025,7 +1047,7 @@ export default function TeacherCalendarScreen() {
             <View
               style={{
                 marginTop: spacing[2],
-                flexDirection: 'row-reverse',
+                flexDirection: getFlexDirection(),
                 alignItems: 'center',
                 gap: spacing[1],
               }}
@@ -1033,6 +1055,7 @@ export default function TeacherCalendarScreen() {
               <Info size={12} color={colors.gray[600]} strokeWidth={1.5} />
               <Typography 
                 variant="caption" 
+                align={getTextAlign('right')}
                 style={{ 
                   fontSize: 12,
                   color: colors.gray[600],
@@ -1109,7 +1132,7 @@ export default function TeacherCalendarScreen() {
               האם אתה בטוח שברצונך לבטל את השיעור? הקרדיטים יוחזרו אוטומטית לתלמיד.
             </Typography>
 
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing[2] }}>
+            <View style={{ flexDirection: getFlexDirection(), gap: spacing[2] }}>
               <TouchableOpacity
                 onPress={() => setCancelModalVisible(false)}
                 style={{

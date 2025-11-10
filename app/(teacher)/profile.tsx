@@ -7,7 +7,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
 import {
   User,
   Settings,
@@ -20,7 +19,6 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import { Typography } from '@/ui/Typography';
-import { Card } from '@/ui/Card';
 import { colors, spacing, shadows } from '@/theme/tokens';
 import { createStyle } from '@/theme/utils';
 import { useRTL } from '@/context/RTLContext';
@@ -34,13 +32,13 @@ interface MenuItemProps {
 }
 
 const MenuItem: React.FC<MenuItemProps> = ({ icon, label, onPress, showChevron = true }) => {
-  const { isRTL } = useRTL();
+  const { isRTL, getFlexDirection, getMarginStart } = useRTL();
   
   return (
     <TouchableOpacity
       onPress={onPress}
       style={{
-        flexDirection: isRTL ? 'row-reverse' : 'row',
+        flexDirection: getFlexDirection(),
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingVertical: spacing[3],
@@ -53,9 +51,8 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, label, onPress, showChevron =
     >
       <View
         style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: getFlexDirection(),
           alignItems: 'center',
-          gap: spacing[3],
         }}
       >
         <View
@@ -70,7 +67,11 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, label, onPress, showChevron =
         >
           {icon}
         </View>
-        <Typography variant="body1" weight="medium">
+        <Typography
+          variant="body1"
+          weight="medium"
+          style={getMarginStart(spacing[3])}
+        >
           {label}
         </Typography>
       </View>
@@ -87,8 +88,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, label, onPress, showChevron =
 };
 
 export default function TeacherProfileScreen() {
-  const { t } = useTranslation();
-  const { isRTL, direction } = useRTL();
+  const { direction, getFlexDirection, getTextAlign } = useRTL();
   const { profile, signOut } = useAuth();
   const router = useRouter();
   
@@ -143,12 +143,14 @@ export default function TeacherProfileScreen() {
       
       {/* Header with Logout Button */}
       <View style={styles.header}>
-        <View style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <Typography variant="h3" weight="bold" align={isRTL ? 'right' : 'left'}>
+        <View
+          style={{
+            flexDirection: getFlexDirection(),
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Typography variant="h3" weight="bold" align={getTextAlign('left')}>
             פרופיל
           </Typography>
           
@@ -184,7 +186,7 @@ export default function TeacherProfileScreen() {
             </Typography>
           </View>
           
-          <Typography variant="h4" weight="bold">
+          <Typography variant="h4" weight="bold" align={getTextAlign('center')}>
             {profile?.displayName || 'מורה'}
           </Typography>
           
@@ -192,7 +194,7 @@ export default function TeacherProfileScreen() {
             <Typography
               variant="body2"
               color="textSecondary"
-              align="center"
+              align={getTextAlign('center')}
               style={{ marginTop: spacing[1] }}
             >
               {profile.bio}
@@ -201,7 +203,7 @@ export default function TeacherProfileScreen() {
           
           <View
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection(),
               alignItems: 'center',
               marginTop: spacing[2],
               paddingHorizontal: spacing[3],
