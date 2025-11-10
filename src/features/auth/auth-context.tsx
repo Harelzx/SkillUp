@@ -54,72 +54,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string, retries = 3): Promise<Profile | null> => {
     try {
-      // Get user metadata to determine role
       const { data: { user } } = await supabase.auth.getUser();
-      const role = user?.user_metadata?.role || 'student';
+      const metaRole = user?.user_metadata?.role as 'teacher' | 'student' | undefined;
 
-      // Determine which table to query
-      const table = role === 'teacher' ? 'teachers' : 'students';
-      
-      const { data, error } = await supabase
-        .from(table)
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const tablesToTry: Array<{ table: 'teachers' | 'students'; role: 'teacher' | 'student' }> =
+        metaRole === 'teacher'
+          ? [{ table: 'teachers', role: 'teacher' }, { table: 'students', role: 'student' }]
+          : metaRole === 'student'
+            ? [{ table: 'students', role: 'student' }, { table: 'teachers', role: 'teacher' }]
+            : [
+                { table: 'teachers', role: 'teacher' },
+                { table: 'students', role: 'student' },
+              ];
 
-      if (error) {
-        // If profile not found (PGRST116) and we have retries left, wait and retry
-        if (error.code === 'PGRST116' && retries > 0) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-          return fetchProfile(userId, retries - 1);
+      for (const candidate of tablesToTry) {
+        const { data, error } = await supabase
+          .from(candidate.table)
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (error) {
+          if (error.code === 'PGRST116') {
+            // Not found in this table, try the next one
+            continue;
+          }
+
+          // Unexpected error
+          throw error;
         }
-        return null;
+
+        const row = data as any;
+        let transformedProfile: Profile;
+
+        if (candidate.role === 'teacher') {
+          transformedProfile = {
+            id: row.id,
+            role: 'teacher',
+            displayName: row.display_name ?? row.displayName ?? 'Teacher',
+            email: row.email ?? user?.email ?? null,
+            phoneNumber: row.phone_number ?? row.phone ?? null,
+            bio: row.bio ?? null,
+            avatarUrl: row.avatar_url ?? null,
+            videoUrl: row.video_url ?? null,
+            hourlyRate: row.hourly_rate ?? undefined,
+            subjects: [],
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            profileCompleted: Boolean(row.profile_completed),
+          };
+        } else {
+          transformedProfile = {
+            id: row.id,
+            role: 'student',
+            displayName: `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Student',
+            email: row.email ?? user?.email ?? null,
+            phoneNumber: row.phone ?? row.phone_number ?? null,
+            bio: row.bio ?? null,
+            avatarUrl: row.avatar_url ?? null,
+            videoUrl: undefined,
+            hourlyRate: undefined,
+            subjects: row.subjects_interests || [],
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            profileCompleted: Boolean(row.profile_completed),
+          };
+        }
+
+        console.log('✅ Profile loaded from Supabase:', transformedProfile.displayName, `(${transformedProfile.role})`);
+        setProfile(transformedProfile);
+        return transformedProfile;
       }
 
-      // Transform based on table type
-      let transformedProfile: Profile;
-
-      if (role === 'teacher') {
-        const row = data as any;
-        transformedProfile = {
-          id: row.id,
-          role: 'teacher',
-          displayName: row.display_name,
-          email: row.email,
-          phoneNumber: row.phone,
-          bio: row.bio,
-          avatarUrl: row.avatar_url,
-          videoUrl: row.video_url,
-          hourlyRate: row.hourly_rate,
-          subjects: [],
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-          profileCompleted: row.profile_completed || false,
-        };
-      } else {
-        const row = data as any;
-        transformedProfile = {
-          id: row.id,
-          role: 'student',
-          displayName: `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Student',
-          email: row.email,
-          phoneNumber: row.phone,
-          bio: row.bio,
-          avatarUrl: row.avatar_url,
-          videoUrl: undefined,
-          hourlyRate: undefined,
-          subjects: row.subjects_interests || [],
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-          profileCompleted: row.profile_completed || false,
-        };
+      if (retries > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return fetchProfile(userId, retries - 1);
       }
 
-      console.log('✅ Profile loaded from Supabase:', transformedProfile.displayName, `(${transformedProfile.role})`);
-      setProfile(transformedProfile);
-      return transformedProfile;
+      return null;
     } catch (error: any) {
-      // Silent fail
+      console.error('❌ [AuthContext] fetchProfile error:', error);
       return null;
     }
   };
