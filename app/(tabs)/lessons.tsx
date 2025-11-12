@@ -14,10 +14,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Calendar,
   Clock,
-  User,
   CheckCircle,
   AlertCircle,
   X,
+  Monitor,
+  MapPin,
 } from 'lucide-react-native';
 import { Card, CardContent } from '@/ui/Card';
 import { Typography } from '@/ui/Typography';
@@ -48,7 +49,7 @@ export default function LessonsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { getFlexDirection, isRTL } = useRTL();
+  const { getFlexDirection, isRTL, getTextAlign } = useRTL();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const [pressedButton, setPressedButton] = useState<string | null>(null);
@@ -354,21 +355,36 @@ export default function LessonsScreen() {
     return (
       <Card key={lesson.id} style={styles.lessonCard}>
         <CardContent>
-          <View style={[styles.lessonHeader, { flexDirection: 'row-reverse' }]}>
+          <View style={[styles.lessonHeader, { flexDirection: getFlexDirection('row-reverse') }]}>
             <View style={{ flex: 1 }}>
-              <Typography variant="h5" weight="semibold" style={{ textAlign: 'right' }}>
+              <Typography 
+                variant="h5" 
+                weight="semibold" 
+                style={{ textAlign: getTextAlign('right') }}
+                align={getTextAlign('right')}
+              >
                 {lesson.teacherName}
               </Typography>
-              <Typography variant="body2" color="textSecondary" style={{ textAlign: 'right' }}>
+              <Typography 
+                variant="body2" 
+                color="textSecondary" 
+                style={{ textAlign: getTextAlign('right') }}
+                align={getTextAlign('right')}
+              >
                 {lesson.subject}
               </Typography>
             </View>
-            <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
-              <View style={[styles.infoRow, { flexDirection: 'row', gap: spacing[1] }]}>
-                <Typography variant="caption" style={{ color: statusColor }}>
-                  {t(`lessons.status.${lesson.status}`)}
+            {/* Location Badge - moved from bottom */}
+            <View style={[styles.statusBadge, { backgroundColor: `${colors.blue[500]}20` }]}>
+              <View style={[styles.infoRow, { flexDirection: getFlexDirection('row-reverse'), gap: spacing[1] }]}>
+                <Typography variant="caption" style={{ color: colors.blue[600] }} align={getTextAlign('right')}>
+                  {lesson.isOnline ? 'שיעור אונליין' : 'שיעור פרונטלי'}
                 </Typography>
-                <StatusIcon size={14} color={statusColor} />
+                {lesson.isOnline ? (
+                  <Monitor size={14} color={colors.blue[600]} />
+                ) : (
+                  <MapPin size={14} color={colors.blue[600]} />
+                )}
               </View>
             </View>
           </View>
@@ -386,27 +402,46 @@ export default function LessonsScreen() {
               borderWidth: 1,
               borderColor: colors.orange[200],
             }}>
-              <Typography variant="caption" style={{ color: colors.orange[700], fontWeight: '600' }}>
+              <Typography 
+                variant="caption" 
+                style={{ color: colors.orange[700], fontWeight: '600', textAlign: getTextAlign('right') }}
+                align={getTextAlign('right')}
+              >
                 ⏳ ממתין לתשלום
               </Typography>
             </View>
           )}
 
           <View style={styles.lessonInfo}>
-            <View style={[styles.infoRow, { flexDirection: getFlexDirection() }]}>
+            <View style={[styles.infoRow, { flexDirection: getFlexDirection('row-reverse') }]}>
               <Calendar size={16} color={colors.gray[600]} />
-              <Typography variant="body2" color="textSecondary">
+              <Typography 
+                variant="body2" 
+                color="textSecondary"
+                style={{ textAlign: getTextAlign('right') }}
+                align={getTextAlign('right')}
+              >
                 {lesson.date} בשעה {lesson.time}
               </Typography>
             </View>
-            <View style={[styles.infoRow, { flexDirection: getFlexDirection() }]}>
-              <User size={16} color={colors.gray[600]} />
-              <Typography variant="body2" color="textSecondary">
-                {lesson.isOnline ? 'שיעור אונליין' : 'שיעור פרונטלי'}
-              </Typography>
+            {/* Status Badge - moved from top */}
+            <View style={[styles.infoRow, { flexDirection: getFlexDirection('row-reverse') }]}>
+              <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
+                <View style={[styles.infoRow, { flexDirection: getFlexDirection('row-reverse'), gap: spacing[1] }]}>
+                  <Typography variant="caption" style={{ color: statusColor }} align={getTextAlign('right')}>
+                    {t(`lessons.status.${lesson.status}`)}
+                  </Typography>
+                  <StatusIcon size={14} color={statusColor} />
+                </View>
+              </View>
             </View>
-            <View style={[styles.infoRow, { flexDirection: getFlexDirection() }]}>
-              <Typography variant="body1" weight="semibold">
+            <View style={[styles.infoRow, { flexDirection: getFlexDirection('row-reverse') }]}>
+              <Typography 
+                variant="body1" 
+                weight="semibold"
+                style={{ textAlign: getTextAlign('right') }}
+                align={getTextAlign('right')}
+              >
                 {lesson.price} לשעה
               </Typography>
             </View>

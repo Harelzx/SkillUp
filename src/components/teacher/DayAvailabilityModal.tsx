@@ -79,7 +79,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
   onClose,
   onSlotsUpdated,
 }) => {
-  const { isRTL } = useRTL();
+  const { isRTL, getFlexDirection, getTextAlign, getMarginStart } = useRTL();
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -434,7 +434,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
           {/* Header */}
           <View
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection('row-reverse'),
               justifyContent: 'space-between',
               alignItems: 'center',
               marginBottom: spacing[3],
@@ -444,10 +444,10 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
             }}
           >
             <View style={{ flex: 1 }}>
-              <Typography variant="h5" weight="bold">
+              <Typography variant="h5" weight="bold" align={getTextAlign('right')}>
                 ניהול זמינות
               </Typography>
-              <Typography variant="caption" color="textSecondary" style={{ marginTop: 4 }}>
+              <Typography variant="caption" color="textSecondary" style={{ marginTop: 4 }} align={getTextAlign('right')}>
                 {dateStr}
               </Typography>
             </View>
@@ -482,7 +482,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
               {/* Day Status Controls */}
               <View
                 style={{
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: getFlexDirection('row-reverse'),
                   gap: spacing[2],
                   marginBottom: spacing[3],
                 }}
@@ -497,8 +497,8 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
                       paddingVertical: spacing[2],
                     }}
                   >
-                    <Calendar size={16} color={colors.white} style={{ marginLeft: spacing[1] }} />
-                    <Typography variant="body2" weight="semibold" color="white">
+                    <Calendar size={16} color={colors.white} style={getMarginStart(spacing[1])} />
+                    <Typography variant="body2" weight="semibold" color="white" align={getTextAlign('right')}>
                       פתח יום
                     </Typography>
                   </Button>
@@ -512,8 +512,8 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
                       paddingVertical: spacing[2],
                     }}
                   >
-                    <X size={16} color={colors.white} style={{ marginLeft: spacing[1] }} />
-                    <Typography variant="body2" weight="semibold" color="white">
+                    <X size={16} color={colors.white} style={getMarginStart(spacing[1])} />
+                    <Typography variant="body2" weight="semibold" color="white" align={getTextAlign('right')}>
                       סגור יום
                     </Typography>
                   </Button>
@@ -559,7 +559,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
                       >
                         <View
                           style={{
-                            flexDirection: isRTL ? 'row-reverse' : 'row',
+                            flexDirection: getFlexDirection('row-reverse'),
                             alignItems: 'center',
                             gap: spacing[2],
                           }}
@@ -567,7 +567,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
                           <Clock size={16} color={colors.gray[500]} />
                           
                           {/* Time inputs */}
-                          <View style={{ flex: 1, flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing[1], alignItems: 'center' }}>
+                          <View style={{ flex: 1, flexDirection: getFlexDirection('row-reverse'), gap: spacing[1], alignItems: 'center' }}>
                             <TouchableOpacity
                               onPress={() => {
                                 if (!slot.isBooked) {
@@ -681,7 +681,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
                 <TouchableOpacity
                   onPress={handleAddSlot}
                   style={{
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    flexDirection: getFlexDirection('row-reverse'),
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: spacing[1],
@@ -697,7 +697,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
                   accessibilityRole="button"
                 >
                   <Plus size={20} color={colors.primary[600]} />
-                  <Typography variant="body2" color="primary" weight="semibold">
+                  <Typography variant="body2" color="primary" weight="semibold" align={getTextAlign('right')}>
                     הוסף משבצת
                   </Typography>
                 </TouchableOpacity>
@@ -706,7 +706,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
               {/* Action Buttons */}
               <View
                 style={{
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: getFlexDirection('row-reverse'),
                   gap: spacing[2],
                   marginTop: spacing[4],
                   paddingTop: spacing[3],
@@ -723,7 +723,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
                     paddingVertical: spacing[2],
                   }}
                 >
-                  <Typography variant="body2" weight="semibold" color="text">
+                  <Typography variant="body2" weight="semibold" color="text" align={getTextAlign('right')}>
                     ביטול
                   </Typography>
                 </Button>
@@ -739,7 +739,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
                   {saving ? (
                     <ActivityIndicator size="small" color={colors.white} />
                   ) : (
-                    <Typography variant="body2" weight="semibold" color="white">
+                    <Typography variant="body2" weight="semibold" color="white" align={getTextAlign('right')}>
                       שמור שינויים
                     </Typography>
                   )}

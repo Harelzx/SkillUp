@@ -19,7 +19,7 @@ export function ConversationHeader({
   isTyping = false,
   onBack,
 }: ConversationHeaderProps) {
-  const { isRTL, getFlexDirection, getMarginStart, getMarginEnd } = useRTL();
+  const { isRTL, getFlexDirection, getMarginStart, getMarginEnd, getTextAlign } = useRTL();
 
   // Get the other participant's details
   const otherPerson = userRole === 'student' ? conversation.teacher : conversation.student;
@@ -40,31 +40,37 @@ export function ConversationHeader({
         paddingHorizontal: spacing[4],
         paddingTop: spacing[2],
         paddingBottom: spacing[3],
+        position: 'relative',
       }}
     >
-      <View
+      {/* Back Button - positioned absolutely on the left */}
+      <TouchableOpacity
+        onPress={onBack}
+        activeOpacity={0.7}
         style={{
-          flexDirection: getFlexDirection(),
-          alignItems: 'center',
+          position: 'absolute',
+          left: spacing[4],
+          top: spacing[2] + 2,
+          padding: spacing[2],
+          zIndex: 1,
         }}
       >
-        {/* Back Button */}
-        <TouchableOpacity
-          onPress={onBack}
-          activeOpacity={0.7}
-          style={{
-            ...getMarginStart(-8),
-            ...getMarginEnd(spacing[3]),
-            padding: spacing[2],
-          }}
-        >
-          {isRTL ? (
-            <ChevronLeft size={24} color={colors.gray[700]} />
-          ) : (
-            <ChevronRight size={24} color={colors.gray[700]} />
-          )}
-        </TouchableOpacity>
+        {isRTL ? (
+          <ChevronLeft size={24} color={colors.gray[700]} />
+        ) : (
+          <ChevronRight size={24} color={colors.gray[700]} />
+        )}
+      </TouchableOpacity>
 
+      {/* Centered Content: Avatar and Name */}
+      <View
+        style={{
+          flexDirection: getFlexDirection('row-reverse'),
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 44, // Space for back button
+        }}
+      >
         {/* Avatar */}
         <View
           style={{
@@ -89,18 +95,23 @@ export function ConversationHeader({
         </View>
 
         {/* Name and Status */}
-        <View style={{ flex: 1 }}>
+        <View style={{ alignItems: 'center' }}>
           <Typography
             size="base"
             weight="bold"
-            style={{ color: colors.gray[900] }}
+            style={{ color: colors.gray[900], textAlign: getTextAlign('center') }}
             numberOfLines={1}
+            align={getTextAlign('center')}
           >
             {displayName}
           </Typography>
 
           {isTyping && (
-            <Typography size="xs" style={{ color: colors.primary[600], marginTop: 2 }}>
+            <Typography 
+              size="xs" 
+              style={{ color: colors.primary[600], marginTop: 2, textAlign: getTextAlign('center') }} 
+              align={getTextAlign('center')}
+            >
               מקליד...
             </Typography>
           )}

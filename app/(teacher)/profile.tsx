@@ -29,29 +29,30 @@ interface MenuItemProps {
   label: string;
   onPress: () => void;
   showChevron?: boolean;
+  isLast?: boolean;
 }
 
-const MenuItem: React.FC<MenuItemProps> = ({ icon, label, onPress, showChevron = true }) => {
+const MenuItem: React.FC<MenuItemProps> = ({ icon, label, onPress, showChevron = true, isLast = false }) => {
   const { isRTL, getFlexDirection, getMarginStart } = useRTL();
   
   return (
     <TouchableOpacity
       onPress={onPress}
       style={{
-        flexDirection: getFlexDirection(),
+        flexDirection: getFlexDirection('row-reverse'),
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingVertical: spacing[3],
         paddingHorizontal: spacing[4],
         backgroundColor: colors.white,
-        borderBottomWidth: 1,
+        borderBottomWidth: isLast ? 0 : 1,
         borderBottomColor: colors.gray[100],
       }}
       activeOpacity={0.7}
     >
       <View
         style={{
-          flexDirection: getFlexDirection(),
+          flexDirection: getFlexDirection('row-reverse'),
           alignItems: 'center',
         }}
       >
@@ -78,9 +79,9 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, label, onPress, showChevron =
       
       {showChevron && (
         isRTL ? (
-          <ChevronRight size={20} color={colors.gray[400]} />
-        ) : (
           <ChevronLeft size={20} color={colors.gray[400]} />
+        ) : (
+          <ChevronRight size={20} color={colors.gray[400]} />
         )
       )}
     </TouchableOpacity>
@@ -88,7 +89,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, label, onPress, showChevron =
 };
 
 export default function TeacherProfileScreen() {
-  const { direction, getFlexDirection, getTextAlign } = useRTL();
+  const { direction, getFlexDirection, getTextAlign, isRTL } = useRTL();
   const { profile, signOut } = useAuth();
   const router = useRouter();
   
@@ -145,20 +146,22 @@ export default function TeacherProfileScreen() {
       <View style={styles.header}>
         <View
           style={{
-            flexDirection: getFlexDirection(),
+            position: 'relative',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justifyContent: 'center',
           }}
         >
-          <Typography variant="h3" weight="bold" align={getTextAlign('left')}>
+          <Typography variant="h3" weight="bold" align={getTextAlign('center')}>
             פרופיל
           </Typography>
           
-          {/* Logout Button - Top Left (RTL: Top Right) */}
+          {/* Logout Button - Absolute positioned on the left (RTL: right) */}
           <TouchableOpacity
             onPress={handleSignOut}
             data-testid="teacher-logout"
             style={{
+              position: 'absolute',
+              [isRTL ? 'left' : 'right']: 0,
               width: 44,
               height: 44,
               borderRadius: 12,
@@ -203,7 +206,7 @@ export default function TeacherProfileScreen() {
           
           <View
             style={{
-              flexDirection: getFlexDirection(),
+              flexDirection: getFlexDirection('row-reverse'),
               alignItems: 'center',
               marginTop: spacing[2],
               paddingHorizontal: spacing[3],
@@ -234,20 +237,14 @@ export default function TeacherProfileScreen() {
             icon={<Bell size={20} color={colors.gray[700]} />}
             label="התראות"
             onPress={() => router.push('/(teacher)/notifications')}
+            isLast={true}
           />
-        </View>
-        
-        {/* Reviews */}
-        <View style={styles.menuSection}>
           <MenuItem
             icon={<Star size={20} color={colors.gray[700]} />}
             label="ביקורות"
             onPress={() => router.push('/(teacher)/reviews')}
+            isLast={true}
           />
-        </View>
-        
-        {/* Support */}
-        <View style={styles.menuSection}>
           <MenuItem
             icon={<HelpCircle size={20} color={colors.gray[700]} />}
             label="עזרה ותמיכה"
@@ -257,6 +254,7 @@ export default function TeacherProfileScreen() {
             icon={<Shield size={20} color={colors.gray[700]} />}
             label="פרטיות ואבטחה"
             onPress={() => router.push('/(teacher)/privacy')}
+            isLast={true}
           />
         </View>
         

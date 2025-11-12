@@ -29,14 +29,14 @@ const SettingRow: React.FC<SettingRowProps> = ({
   showChevron = true,
   rightElement 
 }) => {
-  const { isRTL } = useRTL();
+  const { isRTL, getFlexDirection, getTextAlign } = useRTL();
   
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={!onPress}
       style={{
-        flexDirection: isRTL ? 'row-reverse' : 'row',
+        flexDirection: getFlexDirection('row-reverse'),
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingVertical: spacing[4],
@@ -50,7 +50,7 @@ const SettingRow: React.FC<SettingRowProps> = ({
     >
       <View
         style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: getFlexDirection('row-reverse'),
           alignItems: 'center',
           gap: spacing[3],
           flex: 1,
@@ -69,11 +69,11 @@ const SettingRow: React.FC<SettingRowProps> = ({
           {icon}
         </View>
         <View style={{ flex: 1 }}>
-          <Typography variant="body1" weight="medium">
+          <Typography variant="body1" weight="medium" align={getTextAlign('right')}>
             {label}
           </Typography>
           {value && (
-            <Typography variant="body2" color="textSecondary" style={{ marginTop: 2 }}>
+            <Typography variant="body2" color="textSecondary" style={{ marginTop: 2 }} align={getTextAlign('right')}>
               {value}
             </Typography>
           )}
@@ -92,7 +92,7 @@ const SettingRow: React.FC<SettingRowProps> = ({
 };
 
 export default function TeacherSettingsScreen() {
-  const { isRTL, direction } = useRTL();
+  const { isRTL, direction, getFlexDirection, getTextAlign } = useRTL();
   
   // Stub state for visual demonstration
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
@@ -119,7 +119,7 @@ export default function TeacherSettingsScreen() {
           paddingVertical: spacing[3],
         }}
       >
-        <Typography variant="h3" weight="bold" align={isRTL ? 'right' : 'left'}>
+        <Typography variant="h3" weight="bold" align={getTextAlign('right')}>
           הגדרות
         </Typography>
       </View>
@@ -286,7 +286,7 @@ export default function TeacherSettingsScreen() {
           
           <View
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection('row-reverse'),
               alignItems: 'center',
               justifyContent: 'space-between',
               paddingVertical: spacing[4],
@@ -296,7 +296,7 @@ export default function TeacherSettingsScreen() {
           >
             <View
               style={{
-                flexDirection: isRTL ? 'row-reverse' : 'row',
+                flexDirection: getFlexDirection('row-reverse'),
                 alignItems: 'center',
                 gap: spacing[3],
               }}
@@ -313,7 +313,7 @@ export default function TeacherSettingsScreen() {
               >
                 <CalendarIcon size={20} color={colors.primary[600]} />
               </View>
-              <Typography variant="body1" weight="medium">
+              <Typography variant="body1" weight="medium" align={getTextAlign('right')}>
                 תצוגת לוח שנה
               </Typography>
             </View>
@@ -321,7 +321,7 @@ export default function TeacherSettingsScreen() {
             {/* Segmented Control */}
             <View
               style={{
-                flexDirection: isRTL ? 'row-reverse' : 'row',
+                flexDirection: getFlexDirection('row-reverse'),
                 backgroundColor: colors.gray[100],
                 borderRadius: 8,
                 padding: 2,
@@ -340,6 +340,7 @@ export default function TeacherSettingsScreen() {
                   variant="caption"
                   weight="semibold"
                   style={{ color: calendarView === 'month' ? colors.primary[600] : colors.gray[600] }}
+                  align={getTextAlign('right')}
                 >
                   חודש
                 </Typography>
@@ -358,6 +359,7 @@ export default function TeacherSettingsScreen() {
                   variant="caption"
                   weight="semibold"
                   style={{ color: calendarView === 'week' ? colors.primary[600] : colors.gray[600] }}
+                  align={getTextAlign('right')}
                 >
                   שבוע
                 </Typography>
@@ -381,7 +383,7 @@ export default function TeacherSettingsScreen() {
           }}
           activeOpacity={0.8}
         >
-          <Typography variant="body1" weight="bold" style={{ color: colors.white }}>
+          <Typography variant="body1" weight="bold" style={{ color: colors.white }} align={getTextAlign('right')}>
             שמור הגדרות
           </Typography>
         </TouchableOpacity>

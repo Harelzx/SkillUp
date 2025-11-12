@@ -10,6 +10,9 @@ import {
   TrendingUp,
   ArrowUp,
   ArrowDown,
+  Monitor,
+  MapPin,
+  CheckCircle,
 } from 'lucide-react-native';
 import { Typography } from '@/ui/Typography';
 import { Card } from '@/ui/Card';
@@ -399,47 +402,97 @@ export default function TeacherHomeScreen() {
                 paddingHorizontal: spacing[4],
               }}
             >
-              {upcoming.map(lesson => (
-                <Card key={lesson.id} variant="elevated" style={{ width: 280, maxWidth: 300, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: spacing[3], backgroundColor: colors.white }}>
-                  <View style={{ gap: 6 }}>
-                    {/* Top row: student name | mode chip */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="body1" weight="semibold" numberOfLines={1} style={{ fontSize: 16, textAlign: 'right' }}>
-                        {`${lesson.student?.first_name || ''} ${lesson.student?.last_name || ''}`.trim() || 'תלמיד/ה'}
-                      </Typography>
-                      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, borderWidth: 1, borderColor: colors.gray[200], backgroundColor: colors.gray[50] }}>
-                        <Typography variant="caption" style={{ fontSize: 12 }}>
-                          {lesson.mode === 'online' ? 'Online' : lesson.mode === 'at_student' || lesson.mode === 'student_location' ? 'אצל התלמיד' : 'אצל המורה'}
+              {upcoming.map(lesson => {
+                const statusColor = getStatusColor(lesson.status);
+                const statusText = lesson.status === 'confirmed' ? 'מאושר' : lesson.status === 'awaiting_payment' ? 'ממתין לתשלום' : 'ממתין לאישור';
+                const modeText = lesson.mode === 'online' ? 'שיעור אונליין' : lesson.mode === 'at_student' || lesson.mode === 'student_location' ? 'אצל התלמיד' : 'אצל המורה';
+                
+                return (
+                  <Card key={lesson.id} variant="elevated" style={{ width: 280, maxWidth: 300, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: spacing[3], backgroundColor: colors.white }}>
+                    <View style={{ gap: 6 }}>
+                      {/* Top row: student name | status badge */}
+                      <View style={{ flexDirection: getFlexDirection('row-reverse'), alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography 
+                          variant="body1" 
+                          weight="semibold" 
+                          numberOfLines={1} 
+                          style={{ fontSize: 16, textAlign: getTextAlign('right') }}
+                          align={getTextAlign('right')}
+                        >
+                          {`${lesson.student?.first_name || ''} ${lesson.student?.last_name || ''}`.trim() || 'תלמיד/ה'}
+                        </Typography>
+                        {/* Status Badge - moved from bottom */}
+                        <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, borderWidth: 1, borderColor: `${statusColor}40`, backgroundColor: `${statusColor}20` }}>
+                          <View style={{ flexDirection: getFlexDirection('row-reverse'), alignItems: 'center', gap: 4 }}>
+                            <Typography 
+                              variant="caption" 
+                              style={{ fontSize: 12, color: statusColor }}
+                              align={getTextAlign('right')}
+                            >
+                              {statusText}
+                            </Typography>
+                            <CheckCircle size={12} color={statusColor} />
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Subject and time */}
+                      <View>
+                        <Typography 
+                          variant="body2" 
+                          weight="semibold"
+                          style={{ textAlign: getTextAlign('right') }}
+                          align={getTextAlign('right')}
+                        >
+                          {lesson.subject?.name_he || lesson.subject?.name || 'שיעור'}
+                        </Typography>
+                        <Typography 
+                          variant="caption" 
+                          color="textSecondary" 
+                          style={{ marginTop: 2, textAlign: getTextAlign('right') }}
+                          align={getTextAlign('right')}
+                        >
+                          {formatLessonTimeRange(lesson.startAt, lesson.endAt)}
                         </Typography>
                       </View>
-                    </View>
 
-                    {/* Subject and time */}
-                    <View>
-                      <Typography variant="body2" weight="semibold">
-                        {lesson.subject?.name_he || lesson.subject?.name || 'שיעור'}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary" style={{ marginTop: 2 }}>
-                        {formatLessonTimeRange(lesson.startAt, lesson.endAt)}
-                      </Typography>
+                      {/* Bottom row: mode chip | price */}
+                      <View style={{ flexDirection: getFlexDirection('row-reverse'), alignItems: 'center', justifyContent: 'space-between' }}>
+                        {/* Mode Badge - moved from top */}
+                        <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, borderWidth: 1, borderColor: colors.blue[200], backgroundColor: colors.blue[50] }}>
+                          <View style={{ flexDirection: getFlexDirection('row-reverse'), alignItems: 'center', gap: 4 }}>
+                            <Typography 
+                              variant="caption" 
+                              style={{ fontSize: 12, color: colors.blue[600] }}
+                              align={getTextAlign('right')}
+                            >
+                              {modeText}
+                            </Typography>
+                            {lesson.mode === 'online' ? (
+                              <Monitor size={12} color={colors.blue[600]} />
+                            ) : (
+                              <MapPin size={12} color={colors.blue[600]} />
+                            )}
+                          </View>
+                        </View>
+                        {typeof lesson.totalPrice === 'number' ? (
+                          <Typography 
+                            variant="body2" 
+                            color='primary' 
+                            weight="bold"
+                            style={{ textAlign: getTextAlign('right') }}
+                            align={getTextAlign('right')}
+                          >
+                            {`₪${lesson.totalPrice}/שיעור`}
+                          </Typography>
+                        ) : (
+                          <View />
+                        )}
+                      </View>
                     </View>
-
-                    {/* Bottom row: status | price */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="caption" style={{ color: getStatusColor(lesson.status) }}>
-                        {lesson.status === 'confirmed' ? 'מאושר' : lesson.status === 'awaiting_payment' ? 'ממתין לתשלום' : 'ממתין לאישור'}
-                      </Typography>
-                      {typeof lesson.totalPrice === 'number' ? (
-                        <Typography variant="body2" color='primary' weight="bold">
-                          {`₪${lesson.totalPrice}/שיעור`}
-                        </Typography>
-                      ) : (
-                        <View />
-                      )}
-                    </View>
-                  </View>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </ScrollView>
           )}
         </View>

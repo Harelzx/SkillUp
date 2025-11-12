@@ -5,7 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/src/types/database';
+import type { Database } from '@/types/database';
 import { EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY } from '@env';
 
 const supabaseUrl = EXPO_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co';

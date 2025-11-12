@@ -77,6 +77,7 @@ const EditDayButton: React.FC<{
   onPress: () => void;
   date: Date;
 }> = ({ onPress, date }) => {
+  const { getFlexDirection, getTextAlign } = useRTL();
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -92,7 +93,7 @@ const EditDayButton: React.FC<{
         backgroundColor: colors.primary[50],
         borderWidth: 1,
         borderColor: colors.primary[200],
-        flexDirection: 'row-reverse',
+        flexDirection: getFlexDirection('row-reverse'),
         alignItems: 'center',
         justifyContent: 'center',
         gap: spacing[1],
@@ -106,6 +107,7 @@ const EditDayButton: React.FC<{
           fontSize: 12,
           fontWeight: '600',
         }}
+        align={getTextAlign('right')}
       >
         עריכת יום
       </Typography>
@@ -120,7 +122,7 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
   onManageAvailability,
   onCancelLesson,
 }) => {
-  const { isRTL } = useRTL();
+  const { isRTL, getFlexDirection, getTextAlign, getMarginStart, getMarginEnd } = useRTL();
 
   // Fetch booking statuses from database
   const { data: bookingStatuses = [] } = useQuery({
@@ -160,24 +162,23 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
     return (
       <View style={{ padding: spacing[4] }}>
         <View style={{ 
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: getFlexDirection('row-reverse'),
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: spacing[3]
         }}>
           <View style={{ 
-            flexDirection: isRTL ? 'row-reverse' : 'row',
+            flexDirection: getFlexDirection('row-reverse'),
             alignItems: 'center',
+            gap: spacing[2],
           }}>
             <View style={{ 
               width: 12, 
               height: 12, 
               borderRadius: 6, 
               backgroundColor: colors.primary[500],
-              marginLeft: isRTL ? 0 : spacing[2],
-              marginRight: isRTL ? spacing[2] : 0
             }} />
-            <Typography variant="body2" weight="semibold">
+            <Typography variant="body2" weight="semibold" align={getTextAlign('right')}>
               השיעורים בתאריך {formatDate(selectedDate)}
             </Typography>
           </View>
@@ -191,7 +192,7 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
           <View 
             key={i}
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection('row-reverse'),
               alignItems: 'center',
               paddingVertical: spacing[3],
               paddingHorizontal: spacing[4],
@@ -210,7 +211,8 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
             }} />
             <View style={{ 
               flex: 1, 
-              marginHorizontal: spacing[3],
+              ...getMarginStart(spacing[3]),
+              ...getMarginEnd(spacing[3]),
               gap: spacing[1]
             }}>
               <View style={{ 
@@ -242,24 +244,23 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
     return (
       <View style={{ padding: spacing[4] }}>
         <View style={{ 
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: getFlexDirection('row-reverse'),
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: spacing[3]
         }}>
           <View style={{ 
-            flexDirection: isRTL ? 'row-reverse' : 'row',
+            flexDirection: getFlexDirection('row-reverse'),
             alignItems: 'center',
+            gap: spacing[2],
           }}>
             <View style={{ 
               width: 12, 
               height: 12, 
               borderRadius: 6, 
               backgroundColor: colors.primary[500],
-              marginLeft: isRTL ? 0 : spacing[2],
-              marginRight: isRTL ? spacing[2] : 0
             }} />
-            <Typography variant="body2" weight="semibold">
+            <Typography variant="body2" weight="semibold" align={getTextAlign('right')}>
               השיעורים בתאריך {formatDate(selectedDate)}
             </Typography>
           </View>
@@ -285,27 +286,26 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
   }
 
   return (
-    <View style={{ padding: spacing[4] }}>
+      <View style={{ padding: spacing[4] }}>
       {/* Header */}
       <View style={{ 
-        flexDirection: isRTL ? 'row-reverse' : 'row',
+        flexDirection: getFlexDirection('row-reverse'),
         alignItems: 'center',
         justifyContent: 'space-between',
         marginBottom: spacing[3]
       }}>
         <View style={{ 
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: getFlexDirection('row-reverse'),
           alignItems: 'center',
+          gap: spacing[2],
         }}>
           <View style={{ 
             width: 12, 
             height: 12, 
             borderRadius: 6, 
             backgroundColor: colors.primary[500],
-            marginLeft: isRTL ? 0 : spacing[2],
-            marginRight: isRTL ? spacing[2] : 0
           }} />
-          <Typography variant="body2" weight="semibold">
+          <Typography variant="body2" weight="semibold" align={getTextAlign('right')}>
             השיעורים בתאריך {formatDate(selectedDate)}
           </Typography>
         </View>
@@ -324,7 +324,7 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
               backgroundColor: colors.primary[50],
               borderWidth: 1,
               borderColor: colors.primary[200],
-              flexDirection: 'row-reverse',
+              flexDirection: getFlexDirection('row-reverse'),
               alignItems: 'center',
               justifyContent: 'center',
               gap: spacing[1],
@@ -338,6 +338,7 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
                 fontSize: 12,
                 fontWeight: '600',
               }}
+              align={getTextAlign('right')}
             >
               עריכת יום
             </Typography>
@@ -359,7 +360,7 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
             <TouchableOpacity
               key={booking.id}
               style={{
-                flexDirection: isRTL ? 'row-reverse' : 'row',
+                flexDirection: getFlexDirection('row-reverse'),
                 alignItems: 'center',
                 paddingVertical: spacing[3],
                 paddingHorizontal: spacing[4],
@@ -374,16 +375,17 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
             >
               {/* Time Range - Right side */}
               <View style={{ 
-                alignItems: isRTL ? 'flex-end' : 'flex-start',
+                alignItems: isRTL ? 'flex-start' : 'flex-end',
                 minWidth: 80,
               }}>
-                <Typography variant="body2" weight="bold">
+                <Typography variant="body2" weight="bold" align={getTextAlign('right')}>
                   {formatTime(booking.start_at)}
                 </Typography>
                 <Typography 
                   variant="caption" 
                   color="textSecondary"
                   style={{ marginTop: 2 }}
+                  align={getTextAlign('right')}
                 >
                   {formatTime(booking.end_at)}
                 </Typography>
@@ -400,17 +402,17 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
               {/* Content - Center */}
               <View style={{ flex: 1, gap: spacing[1] }}>
                 <View style={{ 
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: getFlexDirection('row-reverse'),
                   alignItems: 'center',
                   gap: spacing[2]
                 }}>
-                  <Typography variant="body2" weight="semibold" numberOfLines={1}>
+                  <Typography variant="body2" weight="semibold" numberOfLines={1} align={getTextAlign('right')}>
                     {studentName}
                   </Typography>
                   
                   {/* Status Chip */}
                   <View style={{
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    flexDirection: getFlexDirection('row-reverse'),
                     alignItems: 'center',
                     backgroundColor: statusConfig.bgColor,
                     paddingHorizontal: spacing[2],
@@ -423,6 +425,7 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
                       variant="caption" 
                       style={{ color: statusConfig.color }}
                       numberOfLines={1}
+                      align={getTextAlign('right')}
                     >
                       {statusConfig.label}
                     </Typography>
@@ -430,18 +433,18 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
                 </View>
                 
                 <View style={{ 
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: getFlexDirection('row-reverse'),
                   alignItems: 'center',
                   gap: spacing[2],
                   flexWrap: 'wrap'
                 }}>
-                  <Typography variant="caption" color="textSecondary">
+                  <Typography variant="caption" color="textSecondary" align={getTextAlign('right')}>
                     {booking.subject?.name_he || 'ללא נושא'}
                   </Typography>
                   
                   {/* Mode Chip */}
                   <View style={{
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    flexDirection: getFlexDirection('row-reverse'),
                     alignItems: 'center',
                     backgroundColor: colors.gray[100],
                     paddingHorizontal: spacing[2],
@@ -450,7 +453,7 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
                     gap: 4,
                   }}>
                     <ModeIcon size={10} color={colors.gray[600]} />
-                    <Typography variant="caption" color="textSecondary">
+                    <Typography variant="caption" color="textSecondary" align={getTextAlign('right')}>
                       {getModeLabel(booking.is_online)}
                     </Typography>
                   </View>
@@ -459,9 +462,9 @@ export const DayLessonsList: React.FC<DayLessonsListProps> = ({
                 {/* Bottom actions - inside content to avoid overlap */}
                 <View
                   style={{
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    flexDirection: getFlexDirection('row-reverse'),
                     alignItems: 'center',
-                    justifyContent: isRTL ? 'flex-end' : 'flex-start',
+                    justifyContent: isRTL ? 'flex-start' : 'flex-end',
                     marginTop: spacing[2],
                   }}
                 >

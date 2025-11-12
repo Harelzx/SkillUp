@@ -730,6 +730,16 @@ export interface Database {
         Args: { p_student_id: string; p_amount: number }
         Returns: void
       }
+      create_notification: {
+        Args: {
+          p_user_id: string
+          p_type: string
+          p_title: string
+          p_subtitle: string | null
+          p_data: Json | null
+        }
+        Returns: Database['public']['Tables']['notifications']['Row']
+      }
     }
     Enums: {
       user_role: 'teacher' | 'student'

@@ -18,7 +18,7 @@ export function MessageBubble({
   isOwnMessage,
   showTimestamp = true,
 }: MessageBubbleProps) {
-  const { isRTL, getFlexDirection, getMarginEnd } = useRTL();
+  const { isRTL, getFlexDirection, getMarginEnd, getTextAlign } = useRTL();
 
   const formatTime = (dateString: string) => {
     return format(new Date(dateString), 'HH:mm');
@@ -27,8 +27,8 @@ export function MessageBubble({
   return (
     <View
       style={{
-        flexDirection: getFlexDirection(),
-        justifyContent: isOwnMessage ? (isRTL ? 'flex-start' : 'flex-end') : (isRTL ? 'flex-end' : 'flex-start'),
+        flexDirection: getFlexDirection('row-reverse'),
+        justifyContent: isOwnMessage ? (isRTL ? 'flex-end' : 'flex-start') : (isRTL ? 'flex-start' : 'flex-end'),
         marginBottom: spacing[2],
         paddingHorizontal: spacing[4],
       }}
@@ -40,8 +40,8 @@ export function MessageBubble({
           borderRadius: 16,
           paddingHorizontal: spacing[3],
           paddingVertical: spacing[2],
-          borderBottomRightRadius: isOwnMessage && !isRTL ? 4 : 16,
-          borderBottomLeftRadius: isOwnMessage && isRTL ? 4 : !isOwnMessage && !isRTL ? 4 : 16,
+          [isRTL ? 'borderBottomLeftRadius' : 'borderBottomRightRadius']: isOwnMessage ? 4 : 16,
+          [isRTL ? 'borderBottomRightRadius' : 'borderBottomLeftRadius']: isOwnMessage ? 16 : 4,
         }}
       >
         {/* Message Content */}
@@ -50,7 +50,9 @@ export function MessageBubble({
           style={{
             color: isOwnMessage ? colors.white : colors.gray[900],
             lineHeight: 20,
+            textAlign: getTextAlign('right'),
           }}
+          align={getTextAlign('right')}
         >
           {message.content}
         </Typography>
@@ -59,10 +61,10 @@ export function MessageBubble({
         {showTimestamp && (
           <View
             style={{
-              flexDirection: getFlexDirection(),
+              flexDirection: getFlexDirection('row-reverse'),
               alignItems: 'center',
               marginTop: spacing[1],
-              justifyContent: isRTL ? 'flex-start' : 'flex-end',
+              justifyContent: isRTL ? 'flex-end' : 'flex-start',
             }}
           >
             <Typography
@@ -70,7 +72,9 @@ export function MessageBubble({
               style={{
                 color: isOwnMessage ? colors.primary[100] : colors.gray[500],
                 ...getMarginEnd(spacing[1]),
+                textAlign: getTextAlign('right'),
               }}
+              align={getTextAlign('right')}
             >
               {formatTime(message.created_at)}
             </Typography>

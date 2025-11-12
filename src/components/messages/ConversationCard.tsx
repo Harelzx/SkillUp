@@ -19,7 +19,7 @@ export function ConversationCard({
   userRole,
   onPress,
 }: ConversationCardProps) {
-  const { isRTL, getFlexDirection, getMarginStart, getMarginEnd } = useRTL();
+  const { isRTL, getFlexDirection, getMarginStart, getMarginEnd, getTextAlign } = useRTL();
 
   // Get the other participant's details
   const otherPerson = userRole === 'student' ? conversation.teacher : conversation.student;
@@ -89,16 +89,8 @@ export function ConversationCard({
         paddingHorizontal: spacing[4],
         marginBottom: spacing[2],
         marginHorizontal: spacing[4],
-        ...(isRTL 
-          ? {
-              borderRightWidth: hasUnread ? 4 : 0,
-              borderRightColor: hasUnread ? colors.primary[600] : 'transparent',
-            }
-          : {
-              borderLeftWidth: hasUnread ? 4 : 0,
-              borderLeftColor: hasUnread ? colors.primary[600] : 'transparent',
-            }
-        ),
+        [isRTL ? 'borderRightWidth' : 'borderLeftWidth']: hasUnread ? 4 : 0,
+        [isRTL ? 'borderRightColor' : 'borderLeftColor']: hasUnread ? colors.primary[600] : 'transparent',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: hasUnread ? 0.1 : 0.05,
@@ -108,7 +100,7 @@ export function ConversationCard({
     >
       <View
         style={{
-          flexDirection: getFlexDirection(),
+          flexDirection: getFlexDirection('row-reverse'),
           alignItems: 'center',
         }}
       >
@@ -121,7 +113,7 @@ export function ConversationCard({
           {/* Name and Time Row */}
           <View
             style={{
-              flexDirection: getFlexDirection(),
+              flexDirection: getFlexDirection('row-reverse'),
               alignItems: 'flex-start',
               justifyContent: 'space-between',
               marginBottom: spacing[1],
@@ -135,8 +127,10 @@ export function ConversationCard({
                 color: hasUnread ? colors.gray[900] : colors.gray[800],
                 flex: 1,
                 ...getMarginEnd(spacing[3]),
+                textAlign: getTextAlign('right'),
               }}
               numberOfLines={1}
+              align={getTextAlign('right')}
             >
               {displayName}
             </Typography>
@@ -147,7 +141,9 @@ export function ConversationCard({
               style={{
                 color: colors.gray[500],
                 marginTop: 2,
+                textAlign: getTextAlign('right'),
               }}
+              align={getTextAlign('right')}
             >
               {formatRelativeTime(conversation.last_message_at)}
             </Typography>
@@ -156,7 +152,7 @@ export function ConversationCard({
           {/* Message Preview Row */}
           <View
             style={{
-              flexDirection: getFlexDirection(),
+              flexDirection: getFlexDirection('row-reverse'),
               alignItems: 'center',
               justifyContent: 'space-between',
               marginTop: spacing[1],
@@ -170,7 +166,9 @@ export function ConversationCard({
                 flex: 1,
                 fontWeight: hasUnread ? '600' : '400',
                 ...getMarginStart(spacing[2]),
+                textAlign: getTextAlign('right'),
               }}
+              align={getTextAlign('right')}
             >
               {conversation.last_message_preview || 'התחילו שיחה'}
             </Typography>

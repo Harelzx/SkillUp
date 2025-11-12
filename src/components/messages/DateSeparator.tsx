@@ -4,12 +4,14 @@ import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { format, isToday, isYesterday, isThisYear } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { useRTL } from '@/context/RTLContext';
 
 interface DateSeparatorProps {
   date: string | Date;
 }
 
 export function DateSeparator({ date }: DateSeparatorProps) {
+  const { getFlexDirection, getTextAlign } = useRTL();
   const dateObj = typeof date === 'string' ? new Date(date) : date;
 
   const formatDate = (dateToFormat: Date) => {
@@ -28,7 +30,7 @@ export function DateSeparator({ date }: DateSeparatorProps) {
   return (
     <View
       style={{
-        flexDirection: 'row',
+        flexDirection: getFlexDirection('row-reverse'),
         alignItems: 'center',
         marginVertical: spacing[4],
         paddingHorizontal: spacing[4],
@@ -53,7 +55,12 @@ export function DateSeparator({ date }: DateSeparatorProps) {
           marginHorizontal: spacing[3],
         }}
       >
-        <Typography size="xs" weight="medium" style={{ color: colors.gray[600] }}>
+        <Typography 
+          size="xs" 
+          weight="medium" 
+          style={{ color: colors.gray[600], textAlign: getTextAlign('right') }} 
+          align={getTextAlign('right')}
+        >
           {formatDate(dateObj)}
         </Typography>
       </View>

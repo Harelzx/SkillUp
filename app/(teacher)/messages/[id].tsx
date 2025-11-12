@@ -22,11 +22,13 @@ import { getConversationById } from '@/services/api';
 import { useAuth } from '@/features/auth/auth-context';
 import { isSameDay } from 'date-fns';
 import type { Message } from '@/types/api';
+import { useRTL } from '@/context/RTLContext';
 
 export default function TeacherConversationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { getTextAlign } = useRTL();
   const flatListRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -171,14 +173,16 @@ export default function TeacherConversationScreen() {
           <Typography
             size="lg"
             weight="bold"
-            style={{ color: colors.error[600], marginBottom: spacing[2] }}
+            style={{ color: colors.error[600], marginBottom: spacing[2], textAlign: getTextAlign('center') }}
+            align={getTextAlign('center')}
           >
             שיחה לא נמצאה
           </Typography>
           {conversationError && (
             <Typography
               size="sm"
-              style={{ color: colors.gray[600], textAlign: 'center', marginTop: spacing[2] }}
+              style={{ color: colors.gray[600], marginTop: spacing[2], textAlign: getTextAlign('center') }}
+              align={getTextAlign('center')}
             >
               {conversationError instanceof Error
                 ? conversationError.message
@@ -252,7 +256,8 @@ export default function TeacherConversationScreen() {
             >
               <Typography
                 size="base"
-                style={{ color: colors.gray[500], textAlign: 'center' }}
+                style={{ color: colors.gray[500], textAlign: getTextAlign('center') }}
+                align={getTextAlign('center')}
               >
                 עדיין אין הודעות בשיחה.{'\n'}שלח הודעה כדי להתחיל!
               </Typography>

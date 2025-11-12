@@ -12,10 +12,12 @@ import { colors, spacing } from '@/theme/tokens';
 import { ConversationCard } from '@/components/messages/ConversationCard';
 import { EmptyConversations } from '@/components/messages/EmptyConversations';
 import { useConversations } from '@/hooks/useConversations';
+import { useRTL } from '@/context/RTLContext';
 
 export default function TeacherMessagesInboxScreen() {
   const router = useRouter();
   const { data: conversations, isLoading, isError, error, refetch } = useConversations();
+  const { getTextAlign } = useRTL();
 
   const handleConversationPress = (conversationId: string) => {
     router.push(`/(teacher)/messages/${conversationId}`);
@@ -41,6 +43,7 @@ export default function TeacherMessagesInboxScreen() {
           <Typography
             size="sm"
             style={{ color: colors.gray[500], marginTop: spacing[3] }}
+            align={getTextAlign('center')}
           >
             טוען הודעות...
           </Typography>
@@ -70,12 +73,14 @@ export default function TeacherMessagesInboxScreen() {
             size="lg"
             weight="bold"
             style={{ color: colors.error[600], marginBottom: spacing[2] }}
+            align={getTextAlign('center')}
           >
             שגיאה בטעינת הודעות
           </Typography>
           <Typography
             size="base"
-            style={{ color: colors.gray[600], textAlign: 'center' }}
+            style={{ color: colors.gray[600] }}
+            align={getTextAlign('center')}
           >
             {error instanceof Error ? error.message : 'אירעה שגיאה לא צפויה'}
           </Typography>
@@ -129,7 +134,9 @@ export default function TeacherMessagesInboxScreen() {
                 color: colors.gray[900],
                 fontSize: 20,
                 letterSpacing: -0.3,
+                textAlign: getTextAlign('right'),
               }}
+              align={getTextAlign('right')}
             >
               שיחות עם תלמידים
             </Typography>
@@ -140,7 +147,9 @@ export default function TeacherMessagesInboxScreen() {
                 marginTop: spacing[1],
                 fontSize: 14,
                 lineHeight: 20,
+                textAlign: getTextAlign('right'),
               }}
+              align={getTextAlign('right')}
             >
               בחר תלמיד כדי להתחיל שיחה או להמשיך שיחה קיימת
             </Typography>

@@ -1,5 +1,13 @@
 import { supabase } from '@/lib/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Notification } from '@/types/api';
+import type { Database } from '@/types/database';
+
+type NotificationUpdate = Database['public']['Tables']['notifications']['Update'];
+type ChannelStatus = 'SUBSCRIBED' | 'TIMED_OUT' | 'CHANNEL_ERROR' | 'CLOSED';
+type ChannelError = Error | { message?: string; code?: string; [key: string]: unknown } | undefined;
+
+const db = supabase as SupabaseClient<Database>;
 
 // ============================================
 // GET NOTIFICATIONS
@@ -13,10 +21,10 @@ export async function getNotifications(params?: {
   offset?: number;
   unreadOnly?: boolean;
 }) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  let query = supabase
+  let query = db
     .from('notifications')
     .select('*', { count: 'exact' })
     .eq('user_id', user.id)
@@ -50,10 +58,10 @@ export async function getNotifications(params?: {
  * Get unread notification count
  */
 export async function getUnreadCount() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { count, error } = await supabase
+  const { count, error } = await db
     .from('notifications')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user.id)
@@ -67,10 +75,10 @@ export async function getUnreadCount() {
  * Get notification by ID
  */
 export async function getNotification(notificationId: string) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('notifications')
     .select('*')
     .eq('id', notificationId)
@@ -89,12 +97,14 @@ export async function getNotification(notificationId: string) {
  * Mark notification as read
  */
 export async function markAsRead(notificationId: string) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { data, error } = await supabase
-    .from('notifications')
-    .update({ is_read: true })
+  const updatePayload: NotificationUpdate = { is_read: true };
+
+  const { data, error } = await (db
+    .from('notifications') as any)
+    .update(updatePayload)
     .eq('id', notificationId)
     .eq('user_id', user.id)
     .select()
@@ -108,12 +118,14 @@ export async function markAsRead(notificationId: string) {
  * Mark all notifications as read
  */
 export async function markAllAsRead() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { error } = await supabase
-    .from('notifications')
-    .update({ is_read: true })
+  const updatePayload: NotificationUpdate = { is_read: true };
+
+  const { error } = await (db
+    .from('notifications') as any)
+    .update(updatePayload)
     .eq('user_id', user.id)
     .eq('is_read', false);
 
@@ -125,12 +137,14 @@ export async function markAllAsRead() {
  * Mark notification as unread
  */
 export async function markAsUnread(notificationId: string) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { data, error } = await supabase
-    .from('notifications')
-    .update({ is_read: false })
+  const updatePayload: NotificationUpdate = { is_read: false };
+
+  const { data, error } = await (db
+    .from('notifications') as any)
+    .update(updatePayload)
     .eq('id', notificationId)
     .eq('user_id', user.id)
     .select()
@@ -148,10 +162,10 @@ export async function markAsUnread(notificationId: string) {
  * Delete notification
  */
 export async function deleteNotification(notificationId: string) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { error } = await supabase
+  const { error } = await db
     .from('notifications')
     .delete()
     .eq('id', notificationId)
@@ -165,10 +179,10 @@ export async function deleteNotification(notificationId: string) {
  * Delete all read notifications
  */
 export async function deleteAllRead() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { error } = await supabase
+  const { error } = await db
     .from('notifications')
     .delete()
     .eq('user_id', user.id)
@@ -204,13 +218,15 @@ export async function createNotification(params: {
   try {
     // Use RPC function with SECURITY DEFINER to bypass RLS
     // The function now returns the full notification record
-    const { data, error } = await supabase.rpc('create_notification', {
-      p_user_id: params.userId,
-      p_type: params.type,
-      p_title: params.title,
-      p_subtitle: params.subtitle || null,
-      p_data: params.data || null,
-    }).single();
+    const { data, error } = await (db as any)
+      .rpc('create_notification', {
+        p_user_id: params.userId,
+        p_type: params.type,
+        p_title: params.title,
+        p_subtitle: params.subtitle || null,
+        p_data: params.data || null,
+      })
+      .single();
 
     if (error) {
       console.error('[createNotification] RPC call failed:', {
@@ -260,39 +276,109 @@ export function subscribeToNotifications(
 ) {
   console.log('[subscribeToNotifications] Creating channel for user:', userId);
 
-  const channel = supabase
-    .channel(`notifications:${userId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${userId}`,
-      },
-      (payload) => {
-        console.log('[subscribeToNotifications] 📨 Received realtime event:', {
-          type: payload.eventType,
-          table: payload.table,
-          new: payload.new,
-        });
-        callback(payload.new as Notification);
+  const MAX_RETRIES = 3;
+  const RAPID_CLOSE_THRESHOLD_MS = 5000;
+
+  let retryCount = 0;
+  let lastSubscribedAt = 0;
+  let lastFailureAt = 0;
+  let isActive = true;
+  let channel = createChannel();
+
+  function createChannel() {
+    return db
+      .channel(`notifications:${userId}`, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: userId },
+        },
+      })
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('[subscribeToNotifications] 📨 Received realtime event:', {
+            type: payload.eventType,
+            table: payload.table,
+            new: payload.new,
+          });
+          callback(payload.new as Notification);
+        }
+      )
+      .subscribe((status, err) => {
+        handleStatus(status, err);
+      });
+  }
+
+  function handleStatus(status: ChannelStatus, err?: ChannelError) {
+    const context = err ? { error: err } : undefined;
+    console.log('[subscribeToNotifications] Channel status:', status, context);
+
+    if (status === 'SUBSCRIBED') {
+      const now = Date.now();
+      if (lastFailureAt && now - lastFailureAt > RAPID_CLOSE_THRESHOLD_MS) {
+        retryCount = 0;
       }
-    )
-    .subscribe((status) => {
-      console.log('[subscribeToNotifications] Channel status:', status);
-      if (status === 'SUBSCRIBED') {
-        console.log('[subscribeToNotifications] ✅ Successfully subscribed to notifications');
-      } else if (status === 'CHANNEL_ERROR') {
-        console.error('[subscribeToNotifications] ❌ Channel error');
-      } else if (status === 'TIMED_OUT') {
-        console.error('[subscribeToNotifications] ⏱️ Subscription timed out');
+      lastSubscribedAt = now;
+      console.log('[subscribeToNotifications] ✅ Successfully subscribed to notifications');
+      return;
+    }
+
+    if (!isActive) {
+      return;
+    }
+
+    if (status === 'TIMED_OUT') {
+      console.error('[subscribeToNotifications] ⏱️ Subscription timed out', context);
+    } else if (status === 'CHANNEL_ERROR') {
+      console.error('[subscribeToNotifications] ❌ Channel error', context);
+    } else if (status === 'CLOSED') {
+      const elapsed = lastSubscribedAt ? Date.now() - lastSubscribedAt : null;
+      console.warn('[subscribeToNotifications] Channel closed unexpectedly', {
+        elapsedSinceSubscribeMs: elapsed,
+        ...(context || {}),
+      });
+
+      if (elapsed !== null && elapsed > RAPID_CLOSE_THRESHOLD_MS) {
+        retryCount = 0;
       }
-    });
+    } else {
+      return;
+    }
+
+    lastFailureAt = Date.now();
+    retryCount += 1;
+
+    if (retryCount >= MAX_RETRIES) {
+      console.error('[subscribeToNotifications] ❗ Realtime subscription failed repeatedly, giving up', {
+        status,
+        attempt: retryCount,
+        ...(context || {}),
+      });
+      return;
+    }
+
+    const backoff = Math.min(5000, 500 * retryCount);
+    console.log(`[subscribeToNotifications] 🔁 Retrying subscription in ${backoff}ms (attempt ${retryCount})`);
+
+    setTimeout(() => {
+      if (!isActive) return;
+      db.removeChannel(channel);
+      channel = createChannel();
+    }, backoff);
+  }
 
   return () => {
     console.log('[subscribeToNotifications] Unsubscribing from channel');
-    supabase.removeChannel(channel);
+    isActive = false;
+    if (channel) {
+      db.removeChannel(channel);
+    }
   };
 }
 
@@ -375,7 +461,7 @@ export function formatNotificationTime(createdAt: string): string {
  * Get user's notification preferences
  */
 export async function getNotificationPreferences() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
   // TODO: Implement notification preferences table
@@ -401,7 +487,7 @@ export async function updateNotificationPreferences(preferences: {
   marketingEmails?: boolean;
   pushNotifications?: boolean;
 }) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
   // TODO: Implement notification preferences table

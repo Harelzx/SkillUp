@@ -28,7 +28,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
   timestamp,
   isRead = false 
 }) => {
-  const { isRTL } = useRTL();
+  const { isRTL, getFlexDirection, getTextAlign } = useRTL();
   
   const getIcon = () => {
     const iconColor = colors.primary[600];
@@ -58,7 +58,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
     >
       <View
         style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: getFlexDirection('row-reverse'),
           alignItems: 'flex-start',
           gap: spacing[3],
         }}
@@ -81,20 +81,27 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
         
         {/* Content */}
         <View style={{ flex: 1 }}>
-          <Typography variant="body1" weight="semibold">
+          <Typography 
+            variant="body1" 
+            weight="semibold" 
+            align={getTextAlign('right')}
+            style={{ textAlign: getTextAlign('right') }}
+          >
             {title}
           </Typography>
           <Typography
             variant="body2"
             color="textSecondary"
-            style={{ marginTop: spacing[1] }}
+            style={{ marginTop: spacing[1], textAlign: getTextAlign('right') }}
+            align={getTextAlign('right')}
           >
             {message}
           </Typography>
           <Typography
             variant="caption"
             color="textSecondary"
-            style={{ marginTop: spacing[2] }}
+            style={{ marginTop: spacing[2], textAlign: getTextAlign('right') }}
+            align={getTextAlign('right')}
           >
             {timestamp}
           </Typography>
@@ -106,7 +113,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
 
 export default function TeacherNotificationsScreen() {
   const { t } = useTranslation();
-  const { isRTL, direction } = useRTL();
+  const { isRTL, direction, getFlexDirection, getTextAlign } = useRTL();
   const router = useRouter();
   
   const [notifications, setNotifications] = useState([
@@ -167,12 +174,17 @@ export default function TeacherNotificationsScreen() {
       >
         <View
           style={{
-            flexDirection: isRTL ? 'row-reverse' : 'row',
+            flexDirection: getFlexDirection('row-reverse'),
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
-          <Typography variant="h3" weight="bold">
+          <Typography 
+            variant="h3" 
+            weight="bold" 
+            align={getTextAlign('right')}
+            style={{ textAlign: getTextAlign('right') }}
+          >
             התראות
           </Typography>
           
@@ -184,7 +196,11 @@ export default function TeacherNotificationsScreen() {
                 paddingHorizontal: spacing[3],
               }}
             >
-              <Typography variant="body2" style={{ color: colors.primary[600] }}>
+              <Typography 
+                variant="body2" 
+                style={{ color: colors.primary[600], textAlign: getTextAlign('right') }} 
+                align={getTextAlign('right')}
+              >
                 סמן הכל כנקרא
               </Typography>
             </TouchableOpacity>

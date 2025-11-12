@@ -232,7 +232,7 @@ const DayModal: React.FC<DayModalProps> = ({ visible, day, onClose }) => {
           {/* Header */}
           <View
             style={{
-              flexDirection: getFlexDirection(),
+              flexDirection: getFlexDirection('row-reverse'),
               justifyContent: 'space-between',
               alignItems: 'center',
               marginBottom: spacing[3],
@@ -328,7 +328,7 @@ const DayModal: React.FC<DayModalProps> = ({ visible, day, onClose }) => {
                       
                       <View
                         style={{
-                          flexDirection: getFlexDirection(),
+                          flexDirection: getFlexDirection('row-reverse'),
                           alignItems: 'center',
                           gap: spacing[1],
                         }}
@@ -341,7 +341,7 @@ const DayModal: React.FC<DayModalProps> = ({ visible, day, onClose }) => {
                       
                       <View
                         style={{
-                          flexDirection: getFlexDirection(),
+                          flexDirection: getFlexDirection('row-reverse'),
                           alignItems: 'center',
                           gap: spacing[1],
                         }}
@@ -613,8 +613,8 @@ export default function TeacherCalendarScreen() {
   // Dynamic cell size based on available space
   const finalCellSize = Math.max(cellWidth, 42);
   
-  const PrevChevron = isRTL ? ChevronLeft : ChevronRight;
-  const NextChevron = isRTL ? ChevronRight : ChevronLeft;
+  const PrevChevron = isRTL ? ChevronRight : ChevronLeft;
+  const NextChevron = isRTL ? ChevronLeft : ChevronRight;
 
   const styles = {
     container: {
@@ -637,7 +637,7 @@ export default function TeacherCalendarScreen() {
       ...shadows.md,
     },
     weekdaysRow: {
-      flexDirection: getFlexDirection(),
+      flexDirection: getFlexDirection('row-reverse'),
       justifyContent: 'space-around' as 'space-around',
       paddingVertical: spacing[2],
       borderBottomWidth: 1,
@@ -650,7 +650,7 @@ export default function TeacherCalendarScreen() {
       justifyContent: 'space-between' as 'space-between',
     },
     dayCellDate: {
-      alignSelf: 'center' as 'center', // Right side in RTL
+      alignSelf: 'center' as 'center',
       zIndex: 2,
     },
     dayCellDots: {
@@ -672,7 +672,7 @@ export default function TeacherCalendarScreen() {
       <View style={styles.header}>
         <View
           style={{
-            flexDirection: getFlexDirection(),
+            flexDirection: getFlexDirection('row-reverse'),
             justifyContent: 'space-between',
             alignItems: 'center',
           }}
@@ -681,14 +681,13 @@ export default function TeacherCalendarScreen() {
             variant="h3"
             weight="bold"
             align={getTextAlign('right')}
-            style={{ textAlign: getTextAlign('right') }}
           >
             {MONTHS_HE[currentMonth]} {currentYear}
           </Typography>
           
           <View
             style={{
-              flexDirection: getFlexDirection(),
+              flexDirection: getFlexDirection('row-reverse'),
               gap: spacing[2],
             }}
           >
@@ -772,7 +771,7 @@ export default function TeacherCalendarScreen() {
           {/* Days Grid */}
           <View
             style={{
-              flexDirection: getFlexDirection(),
+              flexDirection: getFlexDirection('row-reverse'),
               flexWrap: 'wrap',
               gap: 8, // Responsive gap between cells
             }}
@@ -924,13 +923,14 @@ export default function TeacherCalendarScreen() {
               style={{ 
                 marginBottom: spacing[2],
                 fontSize: 14,
+                textAlign: getTextAlign('right'),
               }}
             >
               מקרא
             </Typography>
               <View
                 style={{
-                  flexDirection: getFlexDirection(),
+                  flexDirection: getFlexDirection('row-reverse'),
                   flexWrap: 'wrap',
                   gap: spacing[3],
                   rowGap: spacing[2],
@@ -938,7 +938,7 @@ export default function TeacherCalendarScreen() {
               >
               <View
                 style={{
-                  flexDirection: getFlexDirection(),
+                  flexDirection: getFlexDirection('row-reverse'),
                   alignItems: 'center',
                   gap: spacing[2],
                   minHeight: 18,
@@ -967,7 +967,7 @@ export default function TeacherCalendarScreen() {
               
               <View
                 style={{
-                  flexDirection: getFlexDirection(),
+                  flexDirection: getFlexDirection('row-reverse'),
                   alignItems: 'center',
                   gap: spacing[2],
                   minHeight: 18,
@@ -1005,7 +1005,7 @@ export default function TeacherCalendarScreen() {
               
               <View
                 style={{
-                  flexDirection: getFlexDirection(),
+                  flexDirection: getFlexDirection('row-reverse'),
                   alignItems: 'center',
                   gap: spacing[2],
                   minHeight: 18,
@@ -1047,7 +1047,7 @@ export default function TeacherCalendarScreen() {
             <View
               style={{
                 marginTop: spacing[2],
-                flexDirection: getFlexDirection(),
+                flexDirection: getFlexDirection('row-reverse'),
                 alignItems: 'center',
                 gap: spacing[1],
               }}
@@ -1132,7 +1132,7 @@ export default function TeacherCalendarScreen() {
               האם אתה בטוח שברצונך לבטל את השיעור? הקרדיטים יוחזרו אוטומטית לתלמיד.
             </Typography>
 
-            <View style={{ flexDirection: getFlexDirection(), gap: spacing[2] }}>
+            <View style={{ flexDirection: getFlexDirection('row-reverse'), gap: spacing[2] }}>
               <TouchableOpacity
                 onPress={() => setCancelModalVisible(false)}
                 style={{

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, Keyboard } from 'react-native';
 import { colors, spacing } from '@/theme/tokens';
-import { Send } from 'lucide-react-native';
+import { Send, SendHorizontal } from 'lucide-react-native';
 import { useRTL } from '@/context/RTLContext';
 
 interface MessageInputProps {
@@ -17,7 +17,7 @@ export function MessageInput({
   placeholder = 'הקלד הודעה...',
   disabled = false,
 }: MessageInputProps) {
-  const { isRTL, getFlexDirection, getMarginEnd, getTextAlign, direction } = useRTL();
+  const { isRTL, getFlexDirection, getMarginEnd, getMarginStart, getTextAlign, direction } = useRTL();
   const [message, setMessage] = useState('');
   const [height, setHeight] = useState(40);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -92,8 +92,8 @@ export function MessageInput({
   return (
     <View
       style={{
-        flexDirection: getFlexDirection(),
-        alignItems: 'flex-end',
+        flexDirection: isRTL ? 'row-reverse' : 'row',
+        alignItems: 'center',
         paddingHorizontal: spacing[4],
         paddingVertical: spacing[3],
         backgroundColor: colors.white,
@@ -111,8 +111,9 @@ export function MessageInput({
           borderColor: colors.gray[200],
           paddingHorizontal: spacing[4],
           paddingVertical: spacing[2],
-          ...getMarginEnd(spacing[2]),
+          ...(isRTL ? getMarginStart(spacing[2]) : getMarginEnd(spacing[2])),
           maxHeight: 120,
+          direction: direction,
         }}
       >
         <TextInput
@@ -122,7 +123,7 @@ export function MessageInput({
           placeholderTextColor={colors.gray[400]}
           multiline
           textAlignVertical="center"
-          textAlign={getTextAlign()}
+          textAlign={isRTL ? 'right' : 'left'}
           editable={!disabled}
           style={{
             fontSize: 16,
@@ -131,6 +132,7 @@ export function MessageInput({
             maxHeight: 120,
             paddingVertical: 8,
             writingDirection: direction,
+            textAlign: isRTL ? 'right' : 'left',
           }}
           onContentSizeChange={(event) => {
             setHeight(Math.max(40, Math.min(120, event.nativeEvent.contentSize.height)));
@@ -145,23 +147,32 @@ export function MessageInput({
       <TouchableOpacity
         onPress={handleSend}
         disabled={!canSend}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
         style={{
           width: 44,
           height: 44,
           borderRadius: 22,
-          backgroundColor: canSend ? colors.primary[600] : colors.gray[300],
+          backgroundColor: canSend ? colors.primary[500] : colors.gray[200],
           justifyContent: 'center',
           alignItems: 'center',
+          shadowColor: canSend ? colors.primary[500] : 'transparent',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: canSend ? 0.3 : 0,
+          shadowRadius: 4,
+          elevation: canSend ? 3 : 0,
         }}
       >
-        <Send
-          size={20}
-          color={colors.white}
-          style={{
-            transform: [{ scaleX: isRTL ? -1 : 1 }],
-          }}
-        />
+        {isRTL ? (
+          <SendHorizontal
+            size={22}
+            color={canSend ? colors.white : colors.gray[400]}
+          />
+        ) : (
+          <Send
+            size={22}
+            color={canSend ? colors.white : colors.gray[400]}
+          />
+        )}
       </TouchableOpacity>
     </View>
   );
