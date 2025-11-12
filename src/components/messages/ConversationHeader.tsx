@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, TouchableOpacity, Image } from 'react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
@@ -19,17 +18,26 @@ export function ConversationHeader({
   isTyping = false,
   onBack,
 }: ConversationHeaderProps) {
-  const { isRTL, getFlexDirection, getMarginStart, getMarginEnd, getTextAlign } = useRTL();
+  const { isRTL, getFlexDirection, getMarginEnd, getTextAlign } = useRTL();
 
   // Get the other participant's details
   const otherPerson = userRole === 'student' ? conversation.teacher : conversation.student;
   
   // Safely get display name with fallback
-  const displayName = otherPerson
-    ? userRole === 'student'
-      ? otherPerson.display_name || 'מורה'
-      : `${otherPerson.first_name || ''} ${otherPerson.last_name || ''}`.trim() || 'תלמיד'
-    : userRole === 'student' ? 'מורה' : 'תלמיד';
+  const displayName = (() => {
+    if (!otherPerson) {
+      return userRole === 'student' ? 'מורה' : 'תלמיד';
+    }
+    
+    if (userRole === 'student') {
+      // otherPerson is teacher, which has display_name
+      return (otherPerson as typeof conversation.teacher).display_name || 'מורה';
+    } else {
+      // otherPerson is student, which has first_name and last_name
+      const student = otherPerson as typeof conversation.student;
+      return `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'תלמיד';
+    }
+  })();
 
   return (
     <View
@@ -97,9 +105,9 @@ export function ConversationHeader({
         {/* Name and Status */}
         <View style={{ alignItems: 'center' }}>
           <Typography
-            size="base"
+            variant="body1"
             weight="bold"
-            style={{ color: colors.gray[900], textAlign: getTextAlign('center') }}
+            style={{ color: colors.gray[900] }}
             numberOfLines={1}
             align={getTextAlign('center')}
           >
@@ -108,8 +116,8 @@ export function ConversationHeader({
 
           {isTyping && (
             <Typography 
-              size="xs" 
-              style={{ color: colors.primary[600], marginTop: 2, textAlign: getTextAlign('center') }} 
+              variant="caption" 
+              style={{ color: colors.primary[600], marginTop: 2 }} 
               align={getTextAlign('center')}
             >
               מקליד...

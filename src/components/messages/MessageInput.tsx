@@ -5,7 +5,7 @@ import { Send, SendHorizontal } from 'lucide-react-native';
 import { useRTL } from '@/context/RTLContext';
 
 interface MessageInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string) => Promise<void> | void;
   onTyping?: (isTyping: boolean) => void;
   placeholder?: string;
   disabled?: boolean;
@@ -42,11 +42,14 @@ export function MessageInput({
 
     // Send message - don't await to avoid blocking UI
     // The parent component handles errors
-    onSend(trimmedMessage).catch((error) => {
-      // If send fails, restore the message
-      setMessage(trimmedMessage);
-      console.error('[MessageInput] Failed to send message:', error);
-    });
+    const sendResult = onSend(trimmedMessage);
+    if (sendResult instanceof Promise) {
+      sendResult.catch((error) => {
+        // If send fails, restore the message
+        setMessage(trimmedMessage);
+        console.error('[MessageInput] Failed to send message:', error);
+      });
+    }
   }, [message, onSend, onTyping, disabled]);
 
   const handleChangeText = useCallback(
