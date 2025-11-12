@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, Keyboard } from 'react-native';
 import { colors, spacing } from '@/theme/tokens';
 import { Send, SendHorizontal } from 'lucide-react-native';
