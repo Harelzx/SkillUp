@@ -6,7 +6,9 @@
       "Bash(git config:*)",
       "Bash(claude mcp add:*)",
       "Bash(claude mcp:*)",
-      "Bash(env)"
+      "Bash(env)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
