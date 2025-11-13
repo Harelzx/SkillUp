@@ -258,10 +258,15 @@ export function subscribeToNotifications(
   userId: string,
   callback: (notification: Notification) => void
 ) {
-  console.log('[subscribeToNotifications] Creating channel for user:', userId);
+  // Use timestamp to ensure unique channel name and prevent collisions
+  const channelId = `notifications:${userId}:${Date.now()}`;
+  console.log('[subscribeToNotifications] Creating channel:', channelId);
+
+  // Track if we're intentionally closing the channel
+  let isIntentionalClose = false;
 
   const channel = supabase
-    .channel(`notifications:${userId}`)
+    .channel(channelId)
     .on(
       'postgres_changes',
       {
@@ -280,18 +285,28 @@ export function subscribeToNotifications(
       }
     )
     .subscribe((status) => {
-      console.log('[subscribeToNotifications] Channel status:', status);
+      console.log('[subscribeToNotifications] Channel status:', status, 'for', channelId);
       if (status === 'SUBSCRIBED') {
         console.log('[subscribeToNotifications] ✅ Successfully subscribed to notifications');
       } else if (status === 'CHANNEL_ERROR') {
-        console.error('[subscribeToNotifications] ❌ Channel error');
+        // Only log error if this is NOT an intentional closure
+        if (!isIntentionalClose) {
+          console.error('[subscribeToNotifications] ❌ Unexpected channel error');
+          // Attempt to remove the channel on genuine error
+          supabase.removeChannel(channel).then(() => {
+            console.log('[subscribeToNotifications] 🧹 Channel removed after error');
+          });
+        }
       } else if (status === 'TIMED_OUT') {
         console.error('[subscribeToNotifications] ⏱️ Subscription timed out');
+      } else if (status === 'CLOSED') {
+        console.log('[subscribeToNotifications] 🔒 Channel closed');
       }
     });
 
   return () => {
-    console.log('[subscribeToNotifications] Unsubscribing from channel');
+    console.log('[subscribeToNotifications] Unsubscribing from channel:', channelId);
+    isIntentionalClose = true;
     supabase.removeChannel(channel);
   };
 }
@@ -302,6 +317,7 @@ export function subscribeToNotifications(
 
 /**
  * Get notification icon based on type
+ * Returns an emoji icon for each notification type
  */
 export function getNotificationIcon(type: string): string {
   const iconMap: Record<string, string> = {
@@ -324,17 +340,25 @@ export function getNotificationIcon(type: string): string {
 
 /**
  * Get notification color based on type
+ * Returns semantic color: 'success', 'error', 'warning', or 'primary'
  */
-export function getNotificationColor(type: string): string {
-  if (type.includes('CANCELLED') || type.includes('FAILED')) {
+export function getNotificationColor(type: string): 'success' | 'error' | 'warning' | 'primary' {
+  // Error states (red)
+  if (type === 'BOOKING_CANCELLED' || type.includes('FAILED')) {
     return 'error';
   }
-  if (type.includes('CONFIRMED') || type.includes('RECEIVED')) {
+
+  // Success states (green)
+  if (type === 'BOOKING_CONFIRMED' || type.includes('RECEIVED') || type.includes('PURCHASED')) {
     return 'success';
   }
-  if (type.includes('REMINDER')) {
+
+  // Warning states (orange/yellow)
+  if (type === 'BOOKING_RESCHEDULED' || type.includes('REMINDER')) {
     return 'warning';
   }
+
+  // Default primary (blue)
   return 'primary';
 }
 

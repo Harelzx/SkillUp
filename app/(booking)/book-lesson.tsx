@@ -327,36 +327,9 @@ export default function BookLessonScreen() {
       console.log('🔄 [Booking] Refetching credits after booking...');
       await refetchCredits();
       
-      // Show success message based on status
-      const isAwaitingPayment = result.status === 'awaiting_payment';
-      
-      Alert.alert(
-        isAwaitingPayment ? 'הזמנה נשמרה! ⏳' : 'מעולה! 🎉',
-        isAwaitingPayment 
-          ? `ההזמנה נשמרה בהצלחה!\n\n` +
-            `מזהה: ${result.booking_id.substring(0, 8)}...\n` +
-            `המשבצת נחסמה עבורך.\n\n` +
-            `💡 ההזמנה ממתינה לאישור תשלום.\n` +
-            `תראה את ההזמנה ב"השיעורים שלי" עם סטטוס "ממתין לתשלום".`
-          : `השיעור הוזמן בהצלחה!\n\n` +
-            `מזהה: ${result.booking_id.substring(0, 8)}...\n` +
-            `תאריך: ${new Date(result.start_at).toLocaleString('he-IL', { 
-              dateStyle: 'short', 
-              timeStyle: 'short',
-              timeZone: 'Asia/Jerusalem'
-            })}\n` +
-            `סכום ששולם: ₪${result.amount_charged.toFixed(2)}\n` +
-            `קרדיטים: ₪${result.credits_applied.toFixed(2)}`,
-        [
-          { 
-            text: 'מעולה', 
-            onPress: () => {
-              // Navigate back to home or bookings screen
-              router.push('/(tabs)/' as any);
-            }
-          }
-        ]
-      );
+      // Navigate back to home - the notification toast will show the success message
+      // The notification from the database (BOOKING_CONFIRMED) will be displayed automatically
+      router.push('/(tabs)/' as any);
 
       // Reset refs for potential future bookings
       idempotencyKeyRef.current = null;

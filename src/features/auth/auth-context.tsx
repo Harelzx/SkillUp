@@ -141,12 +141,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       // Sign in with Supabase
-      const { error, data } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Wrap in try-catch to catch network errors that might be thrown as exceptions
+      let result;
+      try {
+        result = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+      } catch (networkException: any) {
+        // If Supabase throws an exception (e.g., network error), catch it here
+        const exceptionMessage = networkException?.message || '';
+        if (exceptionMessage.includes('Failed to fetch') ||
+            exceptionMessage.includes('ERR_NAME_NOT_RESOLVED') ||
+            exceptionMessage.includes('Network request failed') ||
+            exceptionMessage.includes('network') ||
+            exceptionMessage.includes('fetch')) {
+          throw new Error('בעיית חיבור לאינטרנט. אנא בדוק את החיבור שלך ונסה שוב.');
+        }
+        throw networkException; // Re-throw if not a network error
+      }
+      
+      const { error, data } = result;
 
-      if (error) throw error;
+      if (error) {
+        // Check for network errors - check both message and status
+        const errorMessage = error.message || '';
+        const errorStatus = error.status || '';
+        
+        if (errorMessage.includes('Failed to fetch') || 
+            errorMessage.includes('ERR_NAME_NOT_RESOLVED') ||
+            errorMessage.includes('Network request failed') ||
+            errorMessage.includes('network') ||
+            errorStatus === '0' || // Network error status
+            !errorStatus) { // No status usually means network error
+          const networkError = new Error('בעיית חיבור לאינטרנט. אנא בדוק את החיבור שלך ונסה שוב.');
+          networkError.name = 'NetworkError';
+          throw networkError;
+        }
+        throw error;
+      }
 
       // Fetch profile after successful Supabase login
       if (data.user) {
@@ -165,7 +198,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       return { error: null, profile: null };
-    } catch (error) {
+    } catch (error: any) {
+      console.error('SignIn error:', error);
+      
+      // Enhanced error handling - check multiple error properties
+      const errorMessage = error?.message || '';
+      const errorName = error?.name || '';
+      const errorStatus = error?.status || '';
+      
+      // Network errors
+      if (errorName === 'NetworkError' || 
+          errorMessage.includes('Failed to fetch') ||
+          errorMessage.includes('ERR_NAME_NOT_RESOLVED') ||
+          errorMessage.includes('Network request failed') ||
+          errorMessage.includes('network') ||
+          errorMessage.includes('fetch') ||
+          errorStatus === '0' ||
+          !errorStatus) {
+        console.warn('⚠️ Network error detected during sign in');
+        return { 
+          error: new Error('בעיית חיבור לאינטרנט. אנא בדוק את החיבור שלך ונסה שוב.'), 
+          profile: null 
+        };
+      }
+      
+      // Check for authentication errors
+      if (errorMessage.includes('Invalid login credentials') ||
+          errorMessage.includes('Email not confirmed') ||
+          errorMessage.includes('invalid') ||
+          errorStatus === '400' || errorStatus === '401') {
+        return { 
+          error: new Error('כתובת אימייל או סיסמה שגויים'), 
+          profile: null 
+        };
+      }
+      
+      // Default error
       return { error: error as Error, profile: null };
     }
   };

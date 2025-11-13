@@ -1,7 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/src/types/database';
-import { EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY } from '@env';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
+// Get Supabase configuration based on platform
+let EXPO_PUBLIC_SUPABASE_URL: string;
+let EXPO_PUBLIC_SUPABASE_ANON_KEY: string;
+
+if (Platform.OS === 'web') {
+  // On web, use hardcoded values (since env vars don't work reliably)
+  EXPO_PUBLIC_SUPABASE_URL = 'https://ntofcpjwulypvjcsytqv.supabase.co';
+  EXPO_PUBLIC_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50b2ZjcGp3dWx5cHZqY3N5dHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzAxNDMsImV4cCI6MjA3NTcwNjE0M30.VWZ9OIMBFgipEG6CfGKlZI5dxar-RSQtRgvVx56xh80';
+} else {
+  // On native, try to get from @env
+  try {
+    const envVars = require('@env');
+    EXPO_PUBLIC_SUPABASE_URL = envVars.EXPO_PUBLIC_SUPABASE_URL;
+    EXPO_PUBLIC_SUPABASE_ANON_KEY = envVars.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  } catch {
+    // Fallback to Constants
+    EXPO_PUBLIC_SUPABASE_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_URL;
+    EXPO_PUBLIC_SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  }
+}
 
 // Supabase configuration
 const supabaseUrl = EXPO_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co';
@@ -12,6 +34,7 @@ if (__DEV__) {
   console.log('🔧 Supabase Config:', {
     url: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'MISSING',
     hasAnonKey: !!supabaseAnonKey && supabaseAnonKey !== 'your-anon-key',
+    platform: Platform.OS,
   });
   
   if (!EXPO_PUBLIC_SUPABASE_URL || EXPO_PUBLIC_SUPABASE_ANON_KEY === 'your-anon-key') {
@@ -19,6 +42,18 @@ if (__DEV__) {
     console.warn('1. .env file exists in project root');
     console.warn('2. Metro bundler was restarted after creating .env');
     console.warn('3. Variables are prefixed with EXPO_PUBLIC_');
+  }
+  
+  // Validate URL format
+  if (supabaseUrl && supabaseUrl !== 'https://your-project.supabase.co') {
+    try {
+      const url = new URL(supabaseUrl);
+      if (!url.hostname.includes('supabase.co')) {
+        console.warn('⚠️ Supabase URL might be incorrect. Expected format: https://*.supabase.co');
+      }
+    } catch (e) {
+      console.error('❌ Invalid Supabase URL format:', supabaseUrl);
+    }
   }
 }
 

@@ -39,7 +39,16 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "config": {
+        "firebase": {
+          "apiKey": "AIzaSyDummyKey"
+        }
+      }
+    },
+    "extra": {
+      "EXPO_PUBLIC_SUPABASE_URL": "https://ntofcpjwulypvjcsytqv.supabase.co",
+      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50b2ZjcGp3dWx5cHZqY3N5dHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMzAxNDMsImV4cCI6MjA3NTcwNjE0M30.VWZ9OIMBFgipEG6CfGKlZI5dxar-RSQtRgvVx56xh80"
     },
     "plugins": [
       "expo-router",

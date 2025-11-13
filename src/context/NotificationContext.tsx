@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
 import { useAuth } from '@/features/auth/auth-context';
 import { subscribeToNotifications, markAsRead } from '@/services/api/notificationsAPI';
 import type { Notification } from '@/types/api';
@@ -22,6 +23,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const isActiveRef = useRef(true);
 
   // Subscribe to real-time notifications
   useEffect(() => {
@@ -33,6 +35,20 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
     console.log('[NotificationContext] Setting up real-time subscription for user:', user.id);
     setIsLoading(true);
+
+    // Cleanup any existing subscription first to prevent channel collision
+    if (unsubscribeRef.current) {
+      console.log('[NotificationContext] 🧹 Cleaning up existing subscription before creating new one');
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+
+    // Only subscribe if app is active
+    if (!isActiveRef.current) {
+      console.log('[NotificationContext] ⏸️ App is in background, skipping subscription setup');
+      setIsLoading(false);
+      return;
+    }
 
     // Subscribe to new notifications
     const unsubscribe = subscribeToNotifications(user.id, (notification) => {
@@ -68,6 +84,50 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         unsubscribeRef.current();
         unsubscribeRef.current = null;
       }
+    };
+  }, [user?.id]);
+
+  // Handle AppState changes (background/foreground)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      console.log('[NotificationContext] AppState changed to:', nextAppState);
+
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // App going to background - cleanup subscription
+        isActiveRef.current = false;
+        if (unsubscribeRef.current) {
+          console.log('[NotificationContext] 🔴 App going to background - cleaning up subscription');
+          unsubscribeRef.current();
+          unsubscribeRef.current = null;
+        }
+      } else if (nextAppState === 'active' && !isActiveRef.current) {
+        // App returning to foreground - re-subscribe
+        isActiveRef.current = true;
+        if (user?.id && !unsubscribeRef.current) {
+          console.log('[NotificationContext] 🟢 App returning to foreground - re-subscribing');
+
+          const unsubscribe = subscribeToNotifications(user.id, (notification) => {
+            console.log('[NotificationContext] ✅ New notification received (after re-subscribe):', {
+              id: notification.id,
+              type: notification.type,
+            });
+
+            setNotifications((prev) => {
+              const exists = prev.some((n) => n.id === notification.id);
+              if (!exists) {
+                return [notification, ...prev];
+              }
+              return prev;
+            });
+          });
+
+          unsubscribeRef.current = unsubscribe;
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
     };
   }, [user?.id]);
 

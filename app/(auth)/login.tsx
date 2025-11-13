@@ -173,14 +173,20 @@ export default function LoginScreen() {
       const { error, profile: userProfile } = await signIn(formData.email, formData.password);
       
       if (error) {
-        // Check if this is a profile not found error
+        // Display specific error messages
         if (error.message === 'User profile not found in database') {
           Alert.alert(
             'שגיאה',
             'פרופיל המשתמש לא נמצא במערכת. אנא צור קשר עם התמיכה.'
           );
+        } else if (error.message?.includes('בעיית חיבור לאינטרנט')) {
+          Alert.alert(
+            'בעיית חיבור',
+            error.message
+          );
         } else {
-          Alert.alert('שגיאה', 'כתובת אימייל או סיסמה שגויים');
+          // Use the error message from auth context (already in Hebrew)
+          Alert.alert('שגיאה', error.message || 'כתובת אימייל או סיסמה שגויים');
         }
         setIsLoading(false);
         return;

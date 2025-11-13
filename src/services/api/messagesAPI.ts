@@ -330,10 +330,15 @@ export function subscribeToMessages(
   conversationId: string,
   callback: (message: Message) => void
 ) {
-  console.log(`[subscribeToMessages] Setting up subscription for conversation: ${conversationId}`);
+  // Use timestamp to ensure unique channel name and prevent collisions
+  const channelId = `messages:${conversationId}:${Date.now()}`;
+  console.log(`[subscribeToMessages] Setting up subscription with channel: ${channelId}`);
+
+  // Track if we're intentionally closing the channel
+  let isIntentionalClose = false;
 
   const channel = supabase
-    .channel(`messages:${conversationId}`)
+    .channel(channelId)
     .on(
       'postgres_changes',
       {
@@ -353,11 +358,14 @@ export function subscribeToMessages(
       }
     )
     .subscribe((status) => {
-      console.log(`[subscribeToMessages] Subscription status for ${conversationId}:`, status);
+      console.log(`[subscribeToMessages] Subscription status for ${channelId}:`, status);
       if (status === 'SUBSCRIBED') {
         console.log(`[subscribeToMessages] Successfully subscribed to messages for conversation: ${conversationId}`);
       } else if (status === 'CHANNEL_ERROR') {
-        console.error(`[subscribeToMessages] Channel error for conversation: ${conversationId}`);
+        // Only log error if this is NOT an intentional closure
+        if (!isIntentionalClose) {
+          console.error(`[subscribeToMessages] Unexpected channel error for conversation: ${conversationId}`);
+        }
       } else if (status === 'TIMED_OUT') {
         console.error(`[subscribeToMessages] Subscription timed out for conversation: ${conversationId}`);
       } else if (status === 'CLOSED') {
@@ -366,7 +374,8 @@ export function subscribeToMessages(
     });
 
   return () => {
-    console.log(`[subscribeToMessages] Cleaning up subscription for conversation: ${conversationId}`);
+    console.log(`[subscribeToMessages] Cleaning up subscription for channel: ${channelId}`);
+    isIntentionalClose = true;
     supabase.removeChannel(channel);
   };
 }
@@ -378,8 +387,12 @@ export function subscribeToMessageUpdates(
   conversationId: string,
   callback: (message: Message) => void
 ) {
+  // Use timestamp to ensure unique channel name and prevent collisions
+  const channelId = `message-updates:${conversationId}:${Date.now()}`;
+  let isIntentionalClose = false;
+
   const channel = supabase
-    .channel(`message-updates:${conversationId}`)
+    .channel(channelId)
     .on(
       'postgres_changes',
       {
@@ -392,9 +405,14 @@ export function subscribeToMessageUpdates(
         callback(payload.new as Message);
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' && !isIntentionalClose) {
+        console.error(`[subscribeToMessageUpdates] Unexpected channel error for conversation: ${conversationId}`);
+      }
+    });
 
   return () => {
+    isIntentionalClose = true;
     supabase.removeChannel(channel);
   };
 }
@@ -415,8 +433,12 @@ export function subscribeToTypingIndicators(
     }
   };
 
+  // Use timestamp to ensure unique channel name and prevent collisions
+  const channelId = `typing:${conversationId}:${Date.now()}`;
+  let isIntentionalClose = false;
+
   const channel = supabase
-    .channel(`typing:${conversationId}`)
+    .channel(channelId)
     .on(
       'postgres_changes',
       {
@@ -429,12 +451,17 @@ export function subscribeToTypingIndicators(
         fetchIndicators();
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' && !isIntentionalClose) {
+        console.error(`[subscribeToTypingIndicators] Unexpected channel error for conversation: ${conversationId}`);
+      }
+    });
 
   // Initial fetch
   fetchIndicators();
 
   return () => {
+    isIntentionalClose = true;
     supabase.removeChannel(channel);
   };
 }

@@ -2,12 +2,54 @@ import React, { useEffect, useState } from 'react';
 import { View, TouchableOpacity, Animated, Platform } from 'react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
-import { X, MessageCircle } from 'lucide-react-native';
+import { X, MessageCircle, CheckCircle, XCircle, Clock } from 'lucide-react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useNotifications } from '@/context/NotificationContext';
-import type { Notification } from '@/types/api';
+import type { Notification, NotificationType } from '@/types/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRTL } from '@/context/RTLContext';
+
+// Helper function to get icon and color for notification type
+interface NotificationStyle {
+  icon: typeof MessageCircle;
+  iconColor: string;
+  backgroundColor: string;
+  borderColor: string;
+}
+
+function getNotificationStyle(type: NotificationType): NotificationStyle {
+  switch (type) {
+    case 'BOOKING_CONFIRMED':
+      return {
+        icon: CheckCircle,
+        iconColor: colors.success[600],
+        backgroundColor: colors.success[50],
+        borderColor: colors.success[600],
+      };
+    case 'BOOKING_CANCELLED':
+      return {
+        icon: XCircle,
+        iconColor: colors.error[600],
+        backgroundColor: colors.error[50],
+        borderColor: colors.error[600],
+      };
+    case 'BOOKING_RESCHEDULED':
+      return {
+        icon: Clock,
+        iconColor: colors.warning[600],
+        backgroundColor: colors.warning[50],
+        borderColor: colors.warning[600],
+      };
+    case 'NEW_MESSAGE':
+    default:
+      return {
+        icon: MessageCircle,
+        iconColor: colors.primary[600],
+        backgroundColor: colors.primary[100],
+        borderColor: colors.primary[600],
+      };
+  }
+}
 
 export function NotificationToast() {
   const router = useRouter();
@@ -20,22 +62,36 @@ export function NotificationToast() {
   const [slideAnim] = useState(new Animated.Value(-100));
   const [opacity] = useState(new Animated.Value(0));
 
-  // Show the most recent unread NEW_MESSAGE notification
+  // Show the most recent unread notification (messages and bookings)
   useEffect(() => {
-    // Don't show toast if user is in the messages tab or in a conversation
+    // Don't show toast if user is in the messages tab for NEW_MESSAGE notifications
     const isInMessagesTab = pathname?.startsWith('/(tabs)/messages');
-    if (isInMessagesTab) {
-      console.log('[NotificationToast] User is in messages tab, skipping toast');
-      return;
-    }
 
-    const unreadMessages = notifications.filter(
-      (n) => !n.is_read && n.type === 'NEW_MESSAGE'
-    );
+    // Filter for unread notifications of relevant types
+    const relevantNotifications = notifications.filter((n) => {
+      if (n.is_read) return false;
 
-    if (unreadMessages.length > 0 && !currentNotification) {
-      const latest = unreadMessages[0];
-      console.log('[NotificationToast] Showing toast for notification:', latest.id);
+      // Skip NEW_MESSAGE if user is in messages tab
+      if (n.type === 'NEW_MESSAGE' && isInMessagesTab) {
+        console.log('[NotificationToast] User is in messages tab, skipping message notification');
+        return false;
+      }
+
+      // Show NEW_MESSAGE and all BOOKING_* notifications
+      return (
+        n.type === 'NEW_MESSAGE' ||
+        n.type === 'BOOKING_CONFIRMED' ||
+        n.type === 'BOOKING_CANCELLED' ||
+        n.type === 'BOOKING_RESCHEDULED'
+      );
+    });
+
+    if (relevantNotifications.length > 0 && !currentNotification) {
+      const latest = relevantNotifications[0];
+      console.log('[NotificationToast] Showing toast for notification:', {
+        id: latest.id,
+        type: latest.type,
+      });
       setCurrentNotification(latest);
 
       // Animate in
@@ -59,7 +115,7 @@ export function NotificationToast() {
 
       return () => clearTimeout(timeout);
     }
-  }, [notifications, currentNotification]);
+  }, [notifications, currentNotification, pathname]);
 
   const dismissToast = () => {
     if (!currentNotification) return;
@@ -83,7 +139,7 @@ export function NotificationToast() {
   };
 
   const handlePress = () => {
-    if (!currentNotification?.data?.conversation_id) {
+    if (!currentNotification) {
       dismissToast();
       return;
     }
@@ -91,8 +147,26 @@ export function NotificationToast() {
     // Mark as read
     markNotificationAsRead(currentNotification.id);
 
-    // Navigate to conversation
-    router.push(`/(tabs)/messages/${currentNotification.data.conversation_id}`);
+    // Navigate based on notification type
+    switch (currentNotification.type) {
+      case 'NEW_MESSAGE':
+        if (currentNotification.data?.conversation_id) {
+          router.push(`/(tabs)/messages/${currentNotification.data.conversation_id}`);
+        }
+        break;
+
+      case 'BOOKING_CONFIRMED':
+      case 'BOOKING_CANCELLED':
+      case 'BOOKING_RESCHEDULED':
+        // Navigate to lessons/bookings tab
+        // Note: Individual booking details navigation can be added when that feature is implemented
+        router.push('/(tabs)/lessons');
+        break;
+
+      default:
+        // For other notification types, just dismiss
+        break;
+    }
 
     // Dismiss toast
     dismissToast();
@@ -101,6 +175,10 @@ export function NotificationToast() {
   if (!currentNotification) {
     return null;
   }
+
+  // Get styling for current notification type
+  const style = getNotificationStyle(currentNotification.type);
+  const Icon = style.icon;
 
   return (
     <Animated.View
@@ -129,11 +207,11 @@ export function NotificationToast() {
           shadowRadius: 8,
           elevation: 8,
           borderWidth: 1,
-          borderColor: colors.primary[200],
+          borderColor: `${style.borderColor}33`, // 20% opacity for light border
           borderRightWidth: isRTL ? 4 : 1,
           borderLeftWidth: isRTL ? 1 : 4,
-          borderRightColor: isRTL ? colors.primary[600] : colors.primary[200],
-          borderLeftColor: isRTL ? colors.primary[200] : colors.primary[600],
+          borderRightColor: isRTL ? style.borderColor : `${style.borderColor}33`,
+          borderLeftColor: isRTL ? `${style.borderColor}33` : style.borderColor,
         }}
       >
         {/* Icon */}
@@ -142,13 +220,13 @@ export function NotificationToast() {
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: colors.primary[100],
+            backgroundColor: style.backgroundColor,
             justifyContent: 'center',
             alignItems: 'center',
             ...getMarginEnd(spacing[3]),
           }}
         >
-          <MessageCircle size={20} color={colors.primary[600]} />
+          <Icon size={20} color={style.iconColor} />
         </View>
 
         {/* Content */}

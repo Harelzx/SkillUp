@@ -3,7 +3,8 @@
  */
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import {
   getMessages,
   sendMessage,
@@ -37,11 +38,27 @@ export function useMessages(options: UseMessagesOptions) {
     staleTime: 10000, // 10 seconds
   });
 
+  const unsubscribeMessagesRef = useRef<(() => void) | null>(null);
+  const isActiveRef = useRef(true);
+
   // Set up real-time subscription for new messages
   useEffect(() => {
     if (!enabled || !conversationId) return;
 
     console.log(`📡 [useMessages] Setting up realtime subscription for messages: ${conversationId}`);
+
+    // Cleanup existing subscription first
+    if (unsubscribeMessagesRef.current) {
+      console.log('[useMessages] 🧹 Cleaning up existing subscription before creating new one');
+      unsubscribeMessagesRef.current();
+      unsubscribeMessagesRef.current = null;
+    }
+
+    // Only subscribe if app is active
+    if (!isActiveRef.current) {
+      console.log('[useMessages] ⏸️ App is in background, skipping subscription setup');
+      return;
+    }
 
     const unsubscribe = subscribeToMessages(conversationId, (newMessage) => {
       console.log('📡 [useMessages] Realtime: New message received', {
@@ -92,9 +109,62 @@ export function useMessages(options: UseMessagesOptions) {
       });
     });
 
+    unsubscribeMessagesRef.current = unsubscribe;
+
     return () => {
       console.log(`📡 [useMessages] Cleaning up messages realtime subscription: ${conversationId}`);
-      unsubscribe();
+      if (unsubscribeMessagesRef.current) {
+        unsubscribeMessagesRef.current();
+        unsubscribeMessagesRef.current = null;
+      }
+    };
+  }, [enabled, conversationId, queryClient]);
+
+  // Handle AppState changes for messages subscription
+  useEffect(() => {
+    if (!enabled || !conversationId) return;
+
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      console.log('[useMessages] AppState changed to:', nextAppState);
+
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        isActiveRef.current = false;
+        if (unsubscribeMessagesRef.current) {
+          console.log('[useMessages] 🔴 App going to background - cleaning up messages subscription');
+          unsubscribeMessagesRef.current();
+          unsubscribeMessagesRef.current = null;
+        }
+      } else if (nextAppState === 'active' && !isActiveRef.current) {
+        isActiveRef.current = true;
+        if (!unsubscribeMessagesRef.current) {
+          console.log('[useMessages] 🟢 App returning to foreground - re-subscribing to messages');
+
+          const unsubscribe = subscribeToMessages(conversationId, (newMessage) => {
+            queryClient.setQueryData(
+              ['messages', conversationId],
+              (old: { messages: Message[]; total: number; hasMore: boolean } | undefined) => {
+                if (!old) return { messages: [newMessage], total: 1, hasMore: false };
+                const exists = old.messages.some((msg) => msg.id === newMessage.id);
+                if (!exists) {
+                  return {
+                    messages: [...old.messages, newMessage],
+                    total: old.total + 1,
+                    hasMore: old.hasMore,
+                  };
+                }
+                return old;
+              }
+            );
+            queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          });
+
+          unsubscribeMessagesRef.current = unsubscribe;
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
     };
   }, [enabled, conversationId, queryClient]);
 
