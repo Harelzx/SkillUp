@@ -424,23 +424,23 @@ export default function EditTeacherProfileScreen() {
       paddingVertical: spacing[3],
       borderBottomWidth: 1,
       borderBottomColor: colors.gray[200],
-    },
-    backButton: {
-      flexDirection: getFlexDirection('row-reverse'),
+      position: 'relative',
       alignItems: 'center',
+      justifyContent: 'center',
     },
     content: {
-      padding: spacing[4],
+      flex: 1,
     },
     section: {
       marginBottom: spacing[6],
+      width: '100%',
     },
     sectionTitle: {
       marginBottom: spacing[3],
-      paddingHorizontal: spacing[1],
     },
     avatarSection: {
       alignItems: 'center',
+      marginTop: spacing[4],
       marginBottom: spacing[6],
     },
     avatarContainer: {
@@ -477,7 +477,6 @@ export default function EditTeacherProfileScreen() {
     },
     label: {
       marginBottom: spacing[2],
-      paddingHorizontal: spacing[1],
     },
     input: {
       backgroundColor: colors.white,
@@ -487,7 +486,7 @@ export default function EditTeacherProfileScreen() {
       paddingHorizontal: spacing[4],
       paddingVertical: spacing[3],
       fontSize: 16,
-      textAlign: getTextAlign('right'),
+      textAlign: 'right',
       minHeight: 48,
     },
     inputError: {
@@ -497,21 +496,20 @@ export default function EditTeacherProfileScreen() {
       color: colors.red[600],
       fontSize: 13,
       marginTop: spacing[1],
-      paddingHorizontal: spacing[1],
     },
     textArea: {
       minHeight: 100,
       textAlignVertical: 'top',
     },
     charCount: {
-      textAlign: isRTL ? 'right' : 'left',
+      textAlign: 'right',
       marginTop: spacing[1],
-      paddingHorizontal: spacing[1],
     },
     chipGrid: {
       flexDirection: getFlexDirection('row-reverse'),
       flexWrap: 'wrap',
       gap: spacing[2],
+      marginTop: spacing[2],
     },
     chip: {
       paddingHorizontal: spacing[3],
@@ -533,8 +531,9 @@ export default function EditTeacherProfileScreen() {
       borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.gray[300],
-      padding: spacing[3],
-      marginBottom: spacing[2],
+      paddingHorizontal: spacing[4],
+      paddingVertical: spacing[3],
+      marginBottom: spacing[3],
     },
     lessonModeCardActive: {
       backgroundColor: colors.primary[50],
@@ -543,8 +542,9 @@ export default function EditTeacherProfileScreen() {
     actions: {
       flexDirection: getFlexDirection('row-reverse'),
       gap: spacing[3],
-      marginTop: spacing[6],
+      marginTop: spacing[8],
       marginBottom: spacing[8],
+      width: '100%',
     },
   });
 
@@ -565,19 +565,37 @@ export default function EditTeacherProfileScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity 
+          onPress={() => router.back()} 
+          style={{
+            position: 'absolute',
+            left: spacing[4],
+            top: spacing[3],
+            bottom: spacing[3],
+            justifyContent: 'center',
+            zIndex: 1,
+          }}
+        >
           <ArrowRight
             size={20}
             color={colors.gray[700]}
-            style={{ transform: [{ rotate: isRTL ? '0deg' : '180deg' }] }}
+            style={{ transform: [{ rotate: '180deg' }] }}
           />
-          <Typography variant="h5" weight="semibold" style={{ marginHorizontal: spacing[2] }} align={getTextAlign('right')}>
-            ערוך פרופיל מורה
-          </Typography>
         </TouchableOpacity>
+        <Typography variant="h5" weight="semibold" align="center" style={{ textAlign: 'center' }}>
+          ערוך פרופיל מורה
+        </Typography>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ 
+          paddingHorizontal: spacing[5], 
+          paddingTop: spacing[5], 
+          paddingBottom: insets.bottom + 100 
+        }}
+      >
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
@@ -599,13 +617,13 @@ export default function EditTeacherProfileScreen() {
 
         {/* Basic Info Section */}
         <View style={styles.section}>
-          <Typography variant="h6" weight="bold" style={styles.sectionTitle} align={getTextAlign('right')}>
+          <Typography variant="h6" weight="bold" style={[styles.sectionTitle, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
             מידע בסיסי
           </Typography>
 
           {/* Display Name */}
           <View style={styles.field}>
-            <Typography variant="body2" weight="semibold" style={styles.label} align={getTextAlign('right')}>
+            <Typography variant="body2" weight="semibold" style={[styles.label, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
               שם מלא <Typography style={{ color: colors.red[500] }}>*</Typography>
             </Typography>
             <TextInput
@@ -618,12 +636,12 @@ export default function EditTeacherProfileScreen() {
               placeholder="שם פרטי ושם משפחה"
               placeholderTextColor={colors.gray[400]}
             />
-            {errors.displayName && <Typography style={styles.errorText} align={getTextAlign('right')}>{errors.displayName}</Typography>}
+            {errors.displayName && <Typography style={[styles.errorText, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>{errors.displayName}</Typography>}
           </View>
 
           {/* Bio */}
           <View style={styles.field}>
-            <Typography variant="body2" weight="semibold" style={styles.label} align={getTextAlign('right')}>
+            <Typography variant="body2" weight="semibold" style={[styles.label, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
               תיאור קצר על סגנון ההוראה שלך
             </Typography>
             <TextInput
@@ -645,18 +663,18 @@ export default function EditTeacherProfileScreen() {
             >
               {bio.length}/500
             </Typography>
-            {errors.bio && <Typography style={styles.errorText} align={getTextAlign('right')}>{errors.bio}</Typography>}
+            {errors.bio && <Typography style={[styles.errorText, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>{errors.bio}</Typography>}
           </View>
         </View>
 
         {/* Pricing Section */}
         <View style={styles.section}>
-          <Typography variant="h6" weight="bold" style={styles.sectionTitle} align={getTextAlign('right')}>
+          <Typography variant="h6" weight="bold" style={[styles.sectionTitle, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
             תמחור
           </Typography>
 
           <View style={styles.field}>
-            <Typography variant="body2" weight="semibold" style={styles.label} align={getTextAlign('right')}>
+            <Typography variant="body2" weight="semibold" style={[styles.label, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
               מחיר לשעה (₪) <Typography style={{ color: colors.red[500] }}>*</Typography>
             </Typography>
             <View style={{ flexDirection: getFlexDirection('row-reverse'), alignItems: 'center' }}>
@@ -679,16 +697,16 @@ export default function EditTeacherProfileScreen() {
                 keyboardType="numeric"
               />
             </View>
-            {errors.hourlyRate && <Typography style={styles.errorText} align={getTextAlign('right')}>{errors.hourlyRate}</Typography>}
+            {errors.hourlyRate && <Typography style={[styles.errorText, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>{errors.hourlyRate}</Typography>}
           </View>
         </View>
 
         {/* Subjects Section */}
         <View style={styles.section}>
-          <Typography variant="h6" weight="bold" style={styles.sectionTitle} align={getTextAlign('right')}>
+          <Typography variant="h6" weight="bold" style={[styles.sectionTitle, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
             נושאי הוראה <Typography style={{ color: colors.red[500] }}>*</Typography>
           </Typography>
-          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[3] }} align={getTextAlign('right')}>
+          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[3], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
             בחר את הנושאים שאתה מלמד. תלמידים יוכלו לבחור מבין הנושאים שתבחר.
           </Typography>
 
@@ -712,7 +730,7 @@ export default function EditTeacherProfileScreen() {
                 <Typography
                   variant="body2"
                   weight={selectedSubjects.includes(subject.id) ? 'semibold' : 'normal'}
-                  color={selectedSubjects.includes(subject.id) ? 'primary' : 'textPrimary'}
+                  color={selectedSubjects.includes(subject.id) ? 'primary' : 'text'}
                   align={getTextAlign('right')}
                 >
                   {subject.name_he}
@@ -722,13 +740,13 @@ export default function EditTeacherProfileScreen() {
           </View>
 
           {errors.subjects && (
-            <Typography style={styles.errorText} align={getTextAlign('right')}>{errors.subjects}</Typography>
+            <Typography style={[styles.errorText, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>{errors.subjects}</Typography>
           )}
         </View>
 
         {/* Lesson Modes Section */}
         <View style={styles.section}>
-          <Typography variant="h6" weight="bold" style={styles.sectionTitle} align={getTextAlign('right')}>
+          <Typography variant="h6" weight="bold" style={[styles.sectionTitle, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
             אופני הוראה <Typography style={{ color: colors.red[500] }}>*</Typography>
           </Typography>
 
@@ -792,15 +810,15 @@ export default function EditTeacherProfileScreen() {
             />
           </View>
 
-          {errors.lessonModes && <Typography style={styles.errorText} align={getTextAlign('right')}>{errors.lessonModes}</Typography>}
+          {errors.lessonModes && <Typography style={[styles.errorText, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>{errors.lessonModes}</Typography>}
         </View>
 
         {/* Duration Options Section */}
         <View style={styles.section}>
-          <Typography variant="h6" weight="bold" style={styles.sectionTitle} align={getTextAlign('right')}>
+          <Typography variant="h6" weight="bold" style={[styles.sectionTitle, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
             משכי שיעור מותרים <Typography style={{ color: colors.red[500] }}>*</Typography>
           </Typography>
-          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], paddingHorizontal: spacing[1] }} align={getTextAlign('right')}>
+          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
             בחר את משכי השיעורים שאתה מציע
           </Typography>
 
@@ -830,16 +848,16 @@ export default function EditTeacherProfileScreen() {
             </View>
           )}
 
-          {errors.durationOptions && <Typography style={styles.errorText} align={getTextAlign('right')}>{errors.durationOptions}</Typography>}
+          {errors.durationOptions && <Typography style={[styles.errorText, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>{errors.durationOptions}</Typography>}
         </View>
 
         {/* Per-Subject Experience Years Section */}
         {selectedSubjects.length > 0 && (
           <View style={styles.section}>
-            <Typography variant="h6" weight="bold" style={styles.sectionTitle} align={getTextAlign('right')}>
+            <Typography variant="h6" weight="bold" style={[styles.sectionTitle, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
               שנות ניסיון בהוראה
             </Typography>
-            <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[3], paddingHorizontal: spacing[1] }} align={getTextAlign('right')}>
+            <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[3], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
               כמה שנים אתה מלמד כל נושא?
             </Typography>
             {selectedSubjects.map((subjectId) => {
@@ -847,8 +865,8 @@ export default function EditTeacherProfileScreen() {
               if (!subject) return null;
               return (
                 <View key={subjectId} style={{ marginBottom: spacing[3] }}>
-                  <View style={{ flexDirection: getFlexDirection('row-reverse'), alignItems: 'center', gap: spacing[3] }}>
-                    <Typography variant="body2" style={{ flex: 1 }} align={getTextAlign('right')}>
+                  <View style={{ flexDirection: getFlexDirection('row-reverse'), alignItems: 'center', gap: spacing[2] }}>
+                    <Typography variant="body2" style={{ textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
                       {subject.name_he}:
                     </Typography>
                     <View style={{ width: 100 }}>
@@ -864,7 +882,7 @@ export default function EditTeacherProfileScreen() {
                         keyboardType="numeric"
                       />
                     </View>
-                    <Typography variant="body2" color="textSecondary">שנים</Typography>
+                    <Typography variant="body2" color="textSecondary" align={getTextAlign('right')}>שנים</Typography>
                   </View>
                 </View>
               );
@@ -874,10 +892,10 @@ export default function EditTeacherProfileScreen() {
 
         {/* Education Section */}
         <View style={styles.section}>
-          <Typography variant="h6" weight="bold" style={styles.sectionTitle} align={getTextAlign('right')}>
+          <Typography variant="h6" weight="bold" style={[styles.sectionTitle, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
             השכלה והכשרות
           </Typography>
-          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], paddingHorizontal: spacing[1] }} align={getTextAlign('right')}>
+          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
             תואר, קורסים, הסמכות
           </Typography>
           <View style={{ flexDirection: getFlexDirection('row-reverse'), gap: spacing[2], marginBottom: spacing[2] }}>
@@ -921,7 +939,7 @@ export default function EditTeacherProfileScreen() {
                 justifyContent: 'space-between',
               }}
             >
-              <Typography variant="body2" style={{ flex: 1 }} align={getTextAlign('right')}>✓ {item}</Typography>
+              <Typography variant="body2" style={{ flex: 1, textAlign: getTextAlign('right') }} align={getTextAlign('right')}>✓ {item}</Typography>
               <TouchableOpacity onPress={() => removeEducation(index)}>
                 <Typography variant="body1" style={{ color: colors.red[500], paddingHorizontal: spacing[2] }}>×</Typography>
               </TouchableOpacity>
@@ -931,10 +949,10 @@ export default function EditTeacherProfileScreen() {
 
         {/* Languages Section */}
         <View style={styles.section}>
-          <Typography variant="h6" weight="bold" style={styles.sectionTitle} align={getTextAlign('right')}>
+          <Typography variant="h6" weight="bold" style={[styles.sectionTitle, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
             שפות
           </Typography>
-          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], paddingHorizontal: spacing[1] }} align={getTextAlign('right')}>
+          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
             באילו שפות אתה יכול ללמד?
           </Typography>
           {loadingLanguages ? (
@@ -966,15 +984,15 @@ export default function EditTeacherProfileScreen() {
 
         {/* Region & City Section */}
         <View style={styles.section}>
-          <Typography variant="h6" weight="bold" style={styles.sectionTitle} align={getTextAlign('right')}>
+          <Typography variant="h6" weight="bold" style={[styles.sectionTitle, { textAlign: getTextAlign('right') }]} align={getTextAlign('right')}>
             אזור ועיר
           </Typography>
-          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], paddingHorizontal: spacing[1] }} align={getTextAlign('right')}>
+          <Typography variant="caption" color="textSecondary" style={{ marginBottom: spacing[2], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
             רלוונטי לשיעורים פרונטליים - בחר אזור ולאחר מכן עיר
           </Typography>
 
           {/* Regions */}
-          <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[1], paddingHorizontal: spacing[1] }} align={getTextAlign('right')}>
+          <Typography variant="body2" weight="semibold" style={{ marginBottom: spacing[1], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
             אזור:
           </Typography>
           <View style={styles.chipGrid}>
@@ -1000,7 +1018,7 @@ export default function EditTeacherProfileScreen() {
           {/* Cities - only show if region is selected */}
           {selectedRegionId && cities.length > 0 && (
             <>
-              <Typography variant="body2" weight="semibold" style={{ marginTop: spacing[3], marginBottom: spacing[1], paddingHorizontal: spacing[1] }} align={getTextAlign('right')}>
+              <Typography variant="body2" weight="semibold" style={{ marginTop: spacing[3], marginBottom: spacing[1], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
                 עיר:
               </Typography>
               <View style={styles.chipGrid}>
@@ -1036,12 +1054,13 @@ export default function EditTeacherProfileScreen() {
               paddingVertical: spacing[3],
               borderRadius: 12,
               alignItems: 'center',
+              justifyContent: 'center',
               minHeight: 48,
             }}
             disabled={saving}
             activeOpacity={0.7}
           >
-            <Typography variant="body1" weight="semibold" style={{ color: colors.gray[700] }} align={getTextAlign('right')}>
+            <Typography variant="body1" weight="semibold" style={{ color: colors.gray[700] }} align="center">
               ביטול
             </Typography>
           </TouchableOpacity>
@@ -1057,6 +1076,7 @@ export default function EditTeacherProfileScreen() {
               paddingVertical: spacing[3],
               borderRadius: 12,
               alignItems: 'center',
+              justifyContent: 'center',
               minHeight: 48,
             }}
             disabled={saving}
@@ -1065,7 +1085,7 @@ export default function EditTeacherProfileScreen() {
             {saving ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Typography variant="body1" weight="semibold" style={{ color: colors.white }} align={getTextAlign('right')}>
+              <Typography variant="body1" weight="semibold" style={{ color: colors.white }} align="center">
                 שמור שינויים
               </Typography>
             )}

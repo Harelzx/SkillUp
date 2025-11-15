@@ -237,13 +237,11 @@ export default function TeacherProfileScreen() {
             icon={<Bell size={20} color={colors.gray[700]} />}
             label="התראות"
             onPress={() => router.push('/(teacher)/notifications')}
-            isLast={true}
           />
           <MenuItem
             icon={<Star size={20} color={colors.gray[700]} />}
             label="ביקורות"
             onPress={() => router.push('/(teacher)/reviews')}
-            isLast={true}
           />
           <MenuItem
             icon={<HelpCircle size={20} color={colors.gray[700]} />}

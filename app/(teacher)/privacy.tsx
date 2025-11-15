@@ -8,8 +8,6 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
 import { 
   Lock, 
   Shield, 
@@ -36,12 +34,12 @@ const SettingRow: React.FC<SettingRowProps> = ({
   description,
   rightElement 
 }) => {
-  const { isRTL } = useRTL();
+  const { getFlexDirection, getTextAlign } = useRTL();
   
   return (
     <View
       style={{
-        flexDirection: isRTL ? 'row-reverse' : 'row',
+        flexDirection: getFlexDirection('row-reverse'),
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingVertical: spacing[4],
@@ -53,7 +51,7 @@ const SettingRow: React.FC<SettingRowProps> = ({
     >
       <View
         style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: getFlexDirection('row-reverse'),
           alignItems: 'center',
           gap: spacing[3],
           flex: 1,
@@ -72,11 +70,11 @@ const SettingRow: React.FC<SettingRowProps> = ({
           {icon}
         </View>
         <View style={{ flex: 1 }}>
-          <Typography variant="body1" weight="medium">
+          <Typography variant="body1" weight="medium" align={getTextAlign('right')} style={{ textAlign: getTextAlign('right') }}>
             {label}
           </Typography>
           {description && (
-            <Typography variant="caption" color="textSecondary" style={{ marginTop: 2 }}>
+            <Typography variant="caption" color="textSecondary" style={{ marginTop: 2, textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
               {description}
             </Typography>
           )}
@@ -89,9 +87,7 @@ const SettingRow: React.FC<SettingRowProps> = ({
 };
 
 export default function TeacherPrivacyScreen() {
-  const { t } = useTranslation();
-  const { isRTL, direction } = useRTL();
-  const router = useRouter();
+  const { getFlexDirection, getTextAlign } = useRTL();
   
   // Stub state for visual demonstration
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
@@ -131,7 +127,7 @@ export default function TeacherPrivacyScreen() {
   };
   
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50], direction }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50] }}>
       <StatusBar barStyle="dark-content" />
       
       {/* Header */}
@@ -144,14 +140,18 @@ export default function TeacherPrivacyScreen() {
           paddingVertical: spacing[3],
         }}
       >
-        <Typography variant="h3" weight="bold" align={isRTL ? 'right' : 'left'}>
+        <Typography variant="h3" weight="bold" align="center" style={{ textAlign: 'center' }}>
           פרטיות ואבטחה
         </Typography>
       </View>
       
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: spacing[6] }}
+        contentContainerStyle={{ 
+          paddingHorizontal: spacing[5], 
+          paddingTop: spacing[5], 
+          paddingBottom: spacing[6] 
+        }}
       >
         {/* Account Security */}
         <View style={{ paddingTop: spacing[4] }}>
@@ -159,7 +159,8 @@ export default function TeacherPrivacyScreen() {
             variant="caption" 
             weight="semibold" 
             color="textSecondary"
-            style={{ paddingHorizontal: spacing[4], marginBottom: spacing[2] }}
+            style={{ marginBottom: spacing[2], textAlign: getTextAlign('right') }}
+            align={getTextAlign('right')}
           >
             אבטחת חשבון
           </Typography>
@@ -167,7 +168,6 @@ export default function TeacherPrivacyScreen() {
           <View
             style={{
               backgroundColor: colors.white,
-              marginHorizontal: spacing[4],
               borderRadius: 14,
               overflow: 'hidden',
               borderWidth: 1,
@@ -178,7 +178,7 @@ export default function TeacherPrivacyScreen() {
             <View style={{ padding: spacing[4], borderBottomWidth: 1, borderBottomColor: 'rgba(0, 0, 0, 0.06)' }}>
               <View
                 style={{
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: getFlexDirection('row-reverse'),
                   alignItems: 'center',
                   gap: spacing[3],
                   marginBottom: spacing[3],
@@ -196,7 +196,7 @@ export default function TeacherPrivacyScreen() {
                 >
                   <Lock size={20} color={colors.primary[600]} />
                 </View>
-                <Typography variant="body1" weight="semibold">
+                <Typography variant="body1" weight="semibold" align={getTextAlign('right')} style={{ textAlign: getTextAlign('right') }}>
                   שינוי סיסמה
                 </Typography>
               </View>
@@ -205,7 +205,7 @@ export default function TeacherPrivacyScreen() {
                 <View>
                   <View
                     style={{
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      flexDirection: getFlexDirection('row-reverse'),
                       alignItems: 'center',
                       borderWidth: 1,
                       borderColor: colors.gray[300],
@@ -223,7 +223,7 @@ export default function TeacherPrivacyScreen() {
                         paddingHorizontal: spacing[3],
                         paddingVertical: spacing[3],
                         fontSize: 15,
-                        textAlign: isRTL ? 'right' : 'left',
+                        textAlign: 'right',
                       }}
                     />
                     <TouchableOpacity
@@ -242,7 +242,7 @@ export default function TeacherPrivacyScreen() {
                 <View>
                   <View
                     style={{
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      flexDirection: getFlexDirection('row-reverse'),
                       alignItems: 'center',
                       borderWidth: 1,
                       borderColor: colors.gray[300],
@@ -260,7 +260,7 @@ export default function TeacherPrivacyScreen() {
                         paddingHorizontal: spacing[3],
                         paddingVertical: spacing[3],
                         fontSize: 15,
-                        textAlign: isRTL ? 'right' : 'left',
+                        textAlign: 'right',
                       }}
                     />
                     <TouchableOpacity
@@ -279,7 +279,7 @@ export default function TeacherPrivacyScreen() {
                 <View>
                   <View
                     style={{
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      flexDirection: getFlexDirection('row-reverse'),
                       alignItems: 'center',
                       borderWidth: 1,
                       borderColor: colors.gray[300],
@@ -297,7 +297,7 @@ export default function TeacherPrivacyScreen() {
                         paddingHorizontal: spacing[3],
                         paddingVertical: spacing[3],
                         fontSize: 15,
-                        textAlign: isRTL ? 'right' : 'left',
+                        textAlign: 'right',
                       }}
                     />
                     <TouchableOpacity
@@ -339,12 +339,14 @@ export default function TeacherPrivacyScreen() {
               label="אימות דו-שלבי"
               description="הגן על החשבון שלך עם שכבת אבטחה נוספת"
               rightElement={
-                <Switch
-                  value={twoFactorEnabled}
-                  onValueChange={setTwoFactorEnabled}
-                  trackColor={{ false: colors.gray[300], true: colors.primary[300] }}
-                  thumbColor={twoFactorEnabled ? colors.primary[600] : colors.white}
-                />
+                <View style={{ transform: [{ scaleX: -1 }] }}>
+                  <Switch
+                    value={twoFactorEnabled}
+                    onValueChange={setTwoFactorEnabled}
+                    trackColor={{ false: colors.gray[300], true: colors.primary[300] }}
+                    thumbColor={twoFactorEnabled ? colors.primary[600] : colors.white}
+                  />
+                </View>
               }
             />
           </View>
@@ -356,7 +358,8 @@ export default function TeacherPrivacyScreen() {
             variant="caption" 
             weight="semibold" 
             color="textSecondary"
-            style={{ paddingHorizontal: spacing[4], marginBottom: spacing[2] }}
+            style={{ marginBottom: spacing[2], textAlign: getTextAlign('right') }}
+            align={getTextAlign('right')}
           >
             מכשירים מחוברים
           </Typography>
@@ -364,7 +367,6 @@ export default function TeacherPrivacyScreen() {
           <View
             style={{
               backgroundColor: colors.white,
-              marginHorizontal: spacing[4],
               borderRadius: 14,
               overflow: 'hidden',
               borderWidth: 1,
@@ -375,7 +377,7 @@ export default function TeacherPrivacyScreen() {
               <View
                 key={device.id}
                 style={{
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: getFlexDirection('row-reverse'),
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   paddingVertical: spacing[3],
@@ -386,7 +388,7 @@ export default function TeacherPrivacyScreen() {
               >
                 <View
                   style={{
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    flexDirection: getFlexDirection('row-reverse'),
                     alignItems: 'center',
                     gap: spacing[3],
                     flex: 1,
@@ -405,10 +407,10 @@ export default function TeacherPrivacyScreen() {
                     <Smartphone size={20} color={colors.gray[600]} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Typography variant="body1" weight="medium">
+                    <Typography variant="body1" weight="medium" align="center" style={{ textAlign: 'center' }}>
                       {device.name}
                     </Typography>
-                    <Typography variant="caption" color="textSecondary">
+                    <Typography variant="caption" color="textSecondary" align="center" style={{ textAlign: 'center' }}>
                       {device.lastActive} • {device.location}
                     </Typography>
                   </View>
@@ -436,7 +438,8 @@ export default function TeacherPrivacyScreen() {
             variant="caption" 
             weight="semibold" 
             color="textSecondary"
-            style={{ paddingHorizontal: spacing[4], marginBottom: spacing[2] }}
+            style={{ marginBottom: spacing[2], textAlign: getTextAlign('right') }}
+            align={getTextAlign('right')}
           >
             הגדרות פרטיות
           </Typography>
@@ -444,7 +447,6 @@ export default function TeacherPrivacyScreen() {
           <View
             style={{
               backgroundColor: colors.white,
-              marginHorizontal: spacing[4],
               borderRadius: 14,
               overflow: 'hidden',
               borderWidth: 1,
@@ -456,12 +458,14 @@ export default function TeacherPrivacyScreen() {
               label="פרופיל ציבורי"
               description="הפרופיל שלך מוצג בתוצאות חיפוש"
               rightElement={
-                <Switch
-                  value={publicProfileVisible}
-                  onValueChange={setPublicProfileVisible}
-                  trackColor={{ false: colors.gray[300], true: colors.primary[300] }}
-                  thumbColor={publicProfileVisible ? colors.primary[600] : colors.white}
-                />
+                <View style={{ transform: [{ scaleX: -1 }] }}>
+                  <Switch
+                    value={publicProfileVisible}
+                    onValueChange={setPublicProfileVisible}
+                    trackColor={{ false: colors.gray[300], true: colors.primary[300] }}
+                    thumbColor={publicProfileVisible ? colors.primary[600] : colors.white}
+                  />
+                </View>
               }
             />
             
@@ -470,19 +474,21 @@ export default function TeacherPrivacyScreen() {
               label="הסתר מיקום מדויק"
               description="הצג רק עיר ולא כתובת מלאה"
               rightElement={
-                <Switch
-                  value={hideExactLocation}
-                  onValueChange={setHideExactLocation}
-                  trackColor={{ false: colors.gray[300], true: colors.primary[300] }}
-                  thumbColor={hideExactLocation ? colors.primary[600] : colors.white}
-                />
+                <View style={{ transform: [{ scaleX: -1 }] }}>
+                  <Switch
+                    value={hideExactLocation}
+                    onValueChange={setHideExactLocation}
+                    trackColor={{ false: colors.gray[300], true: colors.primary[300] }}
+                    thumbColor={hideExactLocation ? colors.primary[600] : colors.white}
+                  />
+                </View>
               }
             />
             
             <TouchableOpacity
               onPress={() => alert('ניהול Cookies (דמה)')}
               style={{
-                flexDirection: isRTL ? 'row-reverse' : 'row',
+                flexDirection: getFlexDirection('row-reverse'),
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 paddingVertical: spacing[4],
@@ -493,7 +499,7 @@ export default function TeacherPrivacyScreen() {
             >
               <View
                 style={{
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: getFlexDirection('row-reverse'),
                   alignItems: 'center',
                   gap: spacing[3],
                 }}
@@ -510,7 +516,7 @@ export default function TeacherPrivacyScreen() {
                 >
                   <Cookie size={20} color={colors.primary[600]} />
                 </View>
-                <Typography variant="body1" weight="medium">
+                <Typography variant="body1" weight="medium" align={getTextAlign('right')} style={{ textAlign: getTextAlign('right') }}>
                   ניהול Cookies
                 </Typography>
               </View>

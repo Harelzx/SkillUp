@@ -444,10 +444,10 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
             }}
           >
             <View style={{ flex: 1 }}>
-              <Typography variant="h5" weight="bold" align={getTextAlign('right')}>
+              <Typography variant="h5" weight="bold" align={getTextAlign('right')} style={{ textAlign: getTextAlign('right') }}>
                 ניהול זמינות
               </Typography>
-              <Typography variant="caption" color="textSecondary" style={{ marginTop: 4 }} align={getTextAlign('right')}>
+              <Typography variant="caption" color="textSecondary" style={{ marginTop: 4, textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
                 {dateStr}
               </Typography>
             </View>
@@ -512,8 +512,7 @@ export const DayAvailabilityModal: React.FC<DayAvailabilityModalProps> = ({
                       paddingVertical: spacing[2],
                     }}
                   >
-                    <X size={16} color={colors.white} style={getMarginStart(spacing[1])} />
-                    <Typography variant="body2" weight="semibold" color="white" align={getTextAlign('right')}>
+                    <Typography variant="body1" weight="semibold" color="white" align={getTextAlign('right')}>
                       סגור יום
                     </Typography>
                   </Button>

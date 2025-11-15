@@ -7,9 +7,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { Book, MessageCircle, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Book, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { Typography } from '@/ui/Typography';
 import { colors, spacing } from '@/theme/tokens';
 import { useRTL } from '@/context/RTLContext';
@@ -21,7 +19,7 @@ interface FAQItemProps {
 
 const FAQItem: React.FC<FAQItemProps> = ({ question, answer }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { isRTL } = useRTL();
+  const { getFlexDirection, getTextAlign } = useRTL();
   
   return (
     <View
@@ -37,7 +35,7 @@ const FAQItem: React.FC<FAQItemProps> = ({ question, answer }) => {
       <TouchableOpacity
         onPress={() => setIsExpanded(!isExpanded)}
         style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: getFlexDirection('row-reverse'),
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingVertical: spacing[3],
@@ -45,7 +43,7 @@ const FAQItem: React.FC<FAQItemProps> = ({ question, answer }) => {
         }}
         activeOpacity={0.7}
       >
-        <Typography variant="body1" weight="semibold" style={{ flex: 1 }}>
+        <Typography variant="body1" weight="semibold" style={{ flex: 1, textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
           {question}
         </Typography>
         {isExpanded ? (
@@ -65,7 +63,7 @@ const FAQItem: React.FC<FAQItemProps> = ({ question, answer }) => {
             paddingTop: spacing[3],
           }}
         >
-          <Typography variant="body2" color="textSecondary">
+          <Typography variant="body2" color="textSecondary" style={{ textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
             {answer}
           </Typography>
         </View>
@@ -75,9 +73,7 @@ const FAQItem: React.FC<FAQItemProps> = ({ question, answer }) => {
 };
 
 export default function TeacherHelpScreen() {
-  const { t } = useTranslation();
-  const { isRTL, direction } = useRTL();
-  const router = useRouter();
+  const { getFlexDirection, getTextAlign } = useRTL();
   
   const [contactSubject, setContactSubject] = useState('');
   const [contactMessage, setContactMessage] = useState('');
@@ -124,7 +120,7 @@ export default function TeacherHelpScreen() {
   };
   
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50], direction }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50] }}>
       <StatusBar barStyle="dark-content" />
       
       {/* Header */}
@@ -137,20 +133,24 @@ export default function TeacherHelpScreen() {
           paddingVertical: spacing[3],
         }}
       >
-        <Typography variant="h3" weight="bold" align={isRTL ? 'right' : 'left'}>
+        <Typography variant="h3" weight="bold" align="center" style={{ textAlign: 'center' }}>
           עזרה ותמיכה
         </Typography>
       </View>
       
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: spacing[6] }}
+        contentContainerStyle={{ 
+          paddingHorizontal: spacing[5], 
+          paddingTop: spacing[5], 
+          paddingBottom: spacing[6] 
+        }}
       >
         {/* Quick Actions */}
-        <View style={{ paddingHorizontal: spacing[4], paddingTop: spacing[4] }}>
+        <View style={{ paddingTop: spacing[4] }}>
           <View
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection('row-reverse'),
               gap: spacing[3],
             }}
           >
@@ -223,8 +223,8 @@ export default function TeacherHelpScreen() {
         </View>
         
         {/* Contact Form */}
-        <View style={{ paddingHorizontal: spacing[4], paddingTop: spacing[5] }}>
-          <Typography variant="h4" weight="bold" style={{ marginBottom: spacing[3] }}>
+        <View style={{ paddingTop: spacing[5] }}>
+          <Typography variant="h4" weight="bold" style={{ marginBottom: spacing[3], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
             צור קשר
           </Typography>
           
@@ -248,7 +248,7 @@ export default function TeacherHelpScreen() {
                 paddingHorizontal: spacing[3],
                 paddingVertical: spacing[3],
                 fontSize: 15,
-                textAlign: isRTL ? 'right' : 'left',
+                textAlign: 'right',
                 marginBottom: spacing[3],
                 backgroundColor: colors.white,
               }}
@@ -268,7 +268,7 @@ export default function TeacherHelpScreen() {
                 paddingHorizontal: spacing[3],
                 paddingVertical: spacing[3],
                 fontSize: 15,
-                textAlign: isRTL ? 'right' : 'left',
+                textAlign: 'right',
                 height: 100,
                 backgroundColor: colors.white,
               }}
@@ -295,8 +295,8 @@ export default function TeacherHelpScreen() {
         </View>
         
         {/* FAQs */}
-        <View style={{ paddingHorizontal: spacing[4], paddingTop: spacing[5] }}>
-          <Typography variant="h4" weight="bold" style={{ marginBottom: spacing[3] }}>
+        <View style={{ paddingTop: spacing[5] }}>
+          <Typography variant="h4" weight="bold" style={{ marginBottom: spacing[3], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
             שאלות נפוצות
           </Typography>
           

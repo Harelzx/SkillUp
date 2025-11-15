@@ -30,7 +30,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
   tags = [],
   onReport 
 }) => {
-  const { isRTL } = useRTL();
+  const { isRTL, getFlexDirection, getTextAlign } = useRTL();
   
   return (
     <View
@@ -46,17 +46,17 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
       {/* Header */}
       <View
         style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: getFlexDirection('row-reverse'),
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: spacing[2],
         }}
       >
         <View>
-          <Typography variant="body1" weight="semibold">
+          <Typography variant="body1" weight="semibold" align={getTextAlign('right')} style={{ textAlign: getTextAlign('right') }}>
             {studentName}
           </Typography>
-          <Typography variant="caption" color="textSecondary">
+          <Typography variant="caption" color="textSecondary" align={getTextAlign('right')} style={{ textAlign: getTextAlign('right') }}>
             {date}
           </Typography>
         </View>
@@ -64,7 +64,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
         {/* Stars */}
         <View
           style={{
-            flexDirection: isRTL ? 'row-reverse' : 'row',
+            flexDirection: getFlexDirection('row-reverse'),
             gap: 4,
           }}
         >
@@ -83,8 +83,9 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
       <Typography
         variant="body2"
         color="textSecondary"
-        style={{ marginBottom: spacing[3], lineHeight: 20 }}
+        style={{ marginBottom: spacing[3], lineHeight: 20, textAlign: getTextAlign('right') }}
         numberOfLines={4}
+        align={getTextAlign('right')}
       >
         {review}
       </Typography>
@@ -93,7 +94,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
       {tags.length > 0 && (
         <View
           style={{
-            flexDirection: isRTL ? 'row-reverse' : 'row',
+            flexDirection: getFlexDirection('row-reverse'),
             flexWrap: 'wrap',
             gap: spacing[2],
             marginBottom: spacing[3],
@@ -109,7 +110,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
                 borderRadius: 6,
               }}
             >
-              <Typography variant="caption" style={{ color: colors.primary[700] }}>
+              <Typography variant="caption" style={{ color: colors.primary[700], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
                 {tag}
               </Typography>
             </View>
@@ -121,7 +122,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
       <TouchableOpacity
         onPress={onReport}
         style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: getFlexDirection('row-reverse'),
           alignItems: 'center',
           gap: spacing[1],
           alignSelf: isRTL ? 'flex-end' : 'flex-start',
@@ -132,7 +133,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
         activeOpacity={0.7}
       >
         <Flag size={16} color={colors.error[600]} />
-        <Typography variant="caption" style={{ color: colors.error[600] }}>
+        <Typography variant="caption" style={{ color: colors.error[600], textAlign: getTextAlign('right') }} align={getTextAlign('right')}>
           דווח על ביקורת
         </Typography>
       </TouchableOpacity>
@@ -147,7 +148,7 @@ interface ReportModalProps {
 }
 
 const ReportModal: React.FC<ReportModalProps> = ({ visible, onClose, reviewId }) => {
-  const { isRTL } = useRTL();
+  const { isRTL, getFlexDirection, getTextAlign } = useRTL();
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   
   const reportReasons = [
@@ -197,13 +198,13 @@ const ReportModal: React.FC<ReportModalProps> = ({ visible, onClose, reviewId })
           {/* Header */}
           <View
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection('row-reverse'),
               alignItems: 'center',
               justifyContent: 'space-between',
               marginBottom: spacing[4],
             }}
           >
-            <Typography variant="h4" weight="bold">
+            <Typography variant="h4" weight="bold" align={getTextAlign('right')}>
               דווח על ביקורת
             </Typography>
             <TouchableOpacity
@@ -222,7 +223,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ visible, onClose, reviewId })
           </View>
           
           {/* Reasons */}
-          <Typography variant="body2" color="textSecondary" style={{ marginBottom: spacing[3] }}>
+          <Typography variant="body2" color="textSecondary" style={{ marginBottom: spacing[3] }} align={getTextAlign('right')}>
             בחר סיבה לדיווח:
           </Typography>
           
@@ -232,7 +233,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ visible, onClose, reviewId })
                 key={index}
                 onPress={() => setSelectedReason(reason)}
                 style={{
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexDirection: getFlexDirection('row-reverse'),
                   alignItems: 'center',
                   paddingVertical: spacing[3],
                   paddingHorizontal: spacing[3],
@@ -269,7 +270,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ visible, onClose, reviewId })
                     />
                   )}
                 </View>
-                <Typography variant="body2">
+                <Typography variant="body2" align={getTextAlign('right')}>
                   {reason}
                 </Typography>
               </TouchableOpacity>
@@ -279,7 +280,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ visible, onClose, reviewId })
           {/* Actions */}
           <View
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection('row-reverse'),
               gap: spacing[2],
             }}
           >
@@ -328,7 +329,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ visible, onClose, reviewId })
 };
 
 export default function TeacherReviewsScreen() {
-  const { isRTL, direction } = useRTL();
+  const { isRTL, getFlexDirection, getTextAlign } = useRTL();
   
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
@@ -376,7 +377,7 @@ export default function TeacherReviewsScreen() {
   const averageRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50], direction }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.gray[50] }}>
       <StatusBar barStyle="dark-content" />
       
       {/* Header */}
@@ -389,20 +390,23 @@ export default function TeacherReviewsScreen() {
           paddingVertical: spacing[3],
         }}
       >
-        <Typography variant="h3" weight="bold" align={isRTL ? 'right' : 'left'}>
+        <Typography variant="h3" weight="bold" align="center" style={{ textAlign: 'center' }}>
           ביקורות
         </Typography>
       </View>
       
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: spacing[6] }}
+        contentContainerStyle={{ 
+          paddingHorizontal: spacing[5], 
+          paddingTop: spacing[5], 
+          paddingBottom: spacing[6] 
+        }}
       >
         {/* Rating Summary */}
         <View
           style={{
             backgroundColor: colors.white,
-            marginHorizontal: spacing[4],
             marginTop: spacing[4],
             borderRadius: 14,
             padding: spacing[4],
@@ -417,7 +421,7 @@ export default function TeacherReviewsScreen() {
           
           <View
             style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
+              flexDirection: getFlexDirection('row-reverse'),
               gap: 4,
               marginTop: spacing[2],
             }}
@@ -438,7 +442,7 @@ export default function TeacherReviewsScreen() {
         </View>
         
         {/* Reviews List */}
-        <View style={{ paddingHorizontal: spacing[4], paddingTop: spacing[4] }}>
+        <View style={{ paddingTop: spacing[4] }}>
           {reviews.length > 0 ? (
             reviews.map((review) => (
               <ReviewCard
